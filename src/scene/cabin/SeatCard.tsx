@@ -1,26 +1,11 @@
 'use client';
 
 import { Html } from '@react-three/drei';
-import { useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
-import { seatCardAnchor, seatCardContent, type PointerKind } from '@/experience/seatCard';
+import { seatCardAnchor, seatCardContent } from '@/experience/seatCard';
 import { useExperience } from '@/experience/store';
 import styles from '@/ui/ui.module.css';
-
-/** The kind of pointer the visitor used last: touch shows "tap again" hints. */
-function usePointerKind(): PointerKind {
-  const [kind, setKind] = useState<PointerKind>('mouse');
-  useEffect(() => {
-    const onPointer = (e: PointerEvent) => setKind(e.pointerType === 'touch' ? 'touch' : 'mouse');
-    window.addEventListener('pointerdown', onPointer);
-    window.addEventListener('pointermove', onPointer);
-    return () => {
-      window.removeEventListener('pointerdown', onPointer);
-      window.removeEventListener('pointermove', onPointer);
-    };
-  }, []);
-  return kind;
-}
+import { usePointerKind } from './pointerKind';
 
 /** A card floating above the hovered (or, on touch, focused) seat: number, kind, price, legroom badge and hint.
  * Anchored in 3D, so it stays on its seat while the camera walks. */

@@ -67,6 +67,12 @@ describe('cabin kit', () => {
       expect(s).toBeLessThanOrEqual(LAVATORY.s1);
       for (const [z, y] of outline) expect(z, `s ${s} y ${y}`).toBeLessThanOrEqual(linerHalfWidthAt(aircraftMeta, s, y) + inset - 0.01);
     }
+    // the lavatory doors and their occupancy signs sit on the blocks' forward faces, inside the cabin wall
+    const face = (y: number) => linerHalfWidthAt(aircraftMeta, LAVATORY.s0, y) - 0.02 + 1e-4;
+    for (const [y, z] of kit.lavatory.door.outer as [number, number][]) expect(z, `door edge at y ${y}`).toBeLessThanOrEqual(face(y));
+    const [z0, z1, , y1] = kit.lavatory.door.sign as number[];
+    expect(z0).toBeGreaterThanOrEqual(LAVATORY.innerZ);
+    expect(z1, 'occupancy sign').toBeLessThanOrEqual(face(y1));
     for (const s of [AFT_GALLEY.s0, AFT_GALLEY.s1]) {
       expect(AFT_GALLEY.halfWidth).toBeLessThanOrEqual(linerHalfWidthAt(aircraftMeta, s, AFT_GALLEY.topY) + inset - 0.01);
     }

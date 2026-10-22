@@ -11,7 +11,7 @@ from mathutils import Matrix, Vector
 
 from . import context as ctx
 from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
-                       GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, X, lavatory_outline,
+                       GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, X, lavatory_door, lavatory_outline,
                        backrest_depth, backrest_section, bin_profile, cushion_section, liner_half_width_at)
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
@@ -402,7 +402,7 @@ def build_aft_galley():
     xf, xb, hw = X(g['s0']), X(g['s1']), g['half_width']
     worktop, recess_top, recess = FLOOR_Z + 1.05, FLOOR_Z + 1.40, 0.28
     top = g['top_y']
-    bays = [-hw + 0.06 + 0.46 * k + 0.21 for k in range(4)]               # four full-size trolley bays
+    bays = [-0.46, 0.0, 0.46]                                              # three trolley bays
     empty = bays[1]                                                        # the pulled-out trolley's bay
 
     def body(bm):
@@ -415,9 +415,9 @@ def build_aft_galley():
         for y in bays:
             if y != empty:
                 _add_box(bm, (0.012, 0.42, 0.98), Vector((xf + 0.004, y, FLOOR_Z + 0.52)), 0.004, 1)       # trolley doors
-        for k, y in enumerate((-0.6, 0.0, 0.6)):
-            _add_box(bm, (0.012, 0.5, 0.26), Vector((xf + 0.004, y, recess_top + 0.16)), 0.004, 1)      # ovens / boilers
-            _add_box(bm, (0.012, 0.5, 0.12), Vector((xf + 0.004, y, top - 0.08)), 0.004, 1)            # drawers
+        for y in bays:
+            _add_box(bm, (0.012, 0.42, 0.26), Vector((xf + 0.004, y, recess_top + 0.16)), 0.004, 1)     # ovens / boilers
+            _add_box(bm, (0.012, 0.42, 0.12), Vector((xf + 0.004, y, top - 0.08)), 0.004, 1)           # drawers
         _sharpen(bm)
 
     def trim(bm):
@@ -426,7 +426,7 @@ def build_aft_galley():
         for y in bays:
             if y != empty:
                 _add_box(bm, (0.02, 0.06, 0.03), Vector((xf + 0.016, y, FLOOR_Z + 0.95)), 0.006, 1)            # bay latch
-        for y in (-0.6, 0.0, 0.6):
+        for y in bays:
             _add_box(bm, (0.02, 0.22, 0.02), Vector((xf + 0.016, y, recess_top + 0.04)), 0.006, 1)             # oven handle
         _sharpen(bm)
 
@@ -440,10 +440,7 @@ def build_lavatories():
     stations = [lv['s0'] + (lv['s1'] - lv['s0']) * k / 4 for k in range(5)]
     xf = X(lv['s0'])
 
-    def door_centre(side):
-        outer = liner_half_width_at(lv['s0'], FLOOR_Z + 1.0) - 0.02
-        door_w = min(0.62, outer - lv['inner_z'] - 0.08)
-        return side * (lv['inner_z'] + 0.04 + door_w / 2), door_w
+    door = lavatory_door()
 
     def blocks(bm):
         for side in (1, -1):
@@ -451,16 +448,19 @@ def build_lavatories():
         _sharpen(bm)
 
     def doors(bm):
+        b, t, fold = door['bottom'], door['top'], door['fold']
+        inner_leaf = [(door['inner'], b), (fold - 0.004, b), (fold - 0.004, t), (door['inner'], t)]
+        outer_leaf = [(fold + 0.004, b)] + [(z, y) for y, z in door['outer']] + [(fold + 0.004, t)]
         for side in (1, -1):
-            yc, door_w = door_centre(side)
-            for k in (-1, 1):                                              # the two leaves, a fold gap between
-                _add_box(bm, (0.014, door_w / 2 - 0.008, 1.80), Vector((xf + 0.006, yc + k * door_w / 4, FLOOR_Z + 0.92)), 0.003, 1)
+            for leaf in (inner_leaf, outer_leaf):                          # the two leaves, a fold gap between
+                _rings(bm, [[(x, side * z, y) for z, y in leaf] for x in (xf - 0.001, xf + 0.013)])
         _sharpen(bm)
 
     def trim(bm):
+        z0, z1, y0, y1 = door['sign']
         for side in (1, -1):
-            yc, _ = door_centre(side)
-            _add_box(bm, (0.02, 0.14, 0.06), Vector((xf + 0.012, yc, FLOOR_Z + 1.93)), 0.004, 1)               # occupancy sign
+            yc = side * door['fold']
+            _add_box(bm, (0.02, z1 - z0, y1 - y0), Vector((xf + 0.012, side * (z0 + z1) / 2, (y0 + y1) / 2)), 0.004, 1)  # occupancy sign
             _add_box(bm, (0.03, 0.025, 0.14), Vector((xf + 0.022, yc, FLOOR_Z + 1.0)), 0.006, 1)               # fold handle
         _sharpen(bm)
 

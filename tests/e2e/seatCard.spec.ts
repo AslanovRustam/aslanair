@@ -65,53 +65,94 @@ test('the card floats above the hovered seat and follows it', async ({ page }) =
   await expect(card).toBeHidden({ timeout: 400 });
 });
 
-test('touch: first tap shows the card, second tap sits', async ({ browser }) => {
-  const context = await browser.newContext({ hasTouch: true, viewport: { width: 1440, height: 800 } });
-  const page = await context.newPage();
-  await walkIntoAisle(page);
-  const state = () =>
-    page.evaluate(() => {
-      const s = (window as unknown as CardWindow).__aslan.store.getState();
-      return { phase: s.phase, focused: s.hoveredSeatId };
-    });
-  // a tap's click reaches the page a moment later (later still under load): count clicks as they bubble up to
-  // the window, after R3F's handler on the canvas has run, and wait for each one
-  await page.evaluate(() => {
-    const w = window as unknown as { __clicks: number };
-    w.__clicks = 0;
-    window.addEventListener('click', () => w.__clicks++);
-  });
-  const tap = async (x: number, y: number) => {
-    const before = await page.evaluate(() => (window as unknown as { __clicks: number }).__clicks);
-    await page.touchscreen.tap(x, y);
-    await page.waitForFunction((n) => (window as unknown as { __clicks: number }).__clicks > n, before);
-  };
+/** Screen points on the headrest covers of free seats near the camera, nearest first. */
+async function coverPoints(page: Page): Promise<{ x: number; y: number }[]> {
   const free = await page.evaluate(() =>
     (window as unknown as CardWindow).__aslan.store.getState().seats.filter((s) => (s as unknown as { status: string }).status === 'free').map((s) => s.id),
   );
-  // tap the headrest covers of free seats near the camera until a tap focuses a seat
-  let focused: { id: string; x: number; y: number } | null = null;
   const targets: { x: number; y: number }[] = [];
   for (const id of free) {
     const [x, y, z] = seatCardAnchor(id);
     const p = await anchorOnScreen(page, id, [x, y - 0.4, z]);
     if (p.inFront && p.x > 40 && p.x < 1400 && p.y > 40 && p.y < 680) targets.push(p);
   }
-  targets.sort((a, b) => b.y - a.y); // nearest seats sit lowest on screen
-  for (const p of targets.slice(0, 12)) {
+  return targets.sort((a, b) => b.y - a.y).slice(0, 12); // nearest seats sit lowest on screen
+}
+
+const touchState = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as CardWindow).__aslan.store.getState();
+    return { phase: s.phase, focused: s.hoveredSeatId };
+  });
+
+/** Taps until one focuses a seat (a nearer seat may take a tap: the point then focuses that one); a first tap
+ * must never sit. */
+async function focusByTap(page: Page, tap: (x: number, y: number) => Promise<void>) {
+  for (const p of await coverPoints(page)) {
     await tap(p.x, p.y);
-    const s = await state();
+    const s = await touchState(page);
     expect(s.phase, 'a first tap never sits').toBe('browse');
-    if (s.focused) {
-      // a nearer seat may take the tap: what matters is that this point now focuses s.focused
-      focused = { id: s.focused, x: p.x, y: p.y };
-      break;
-    }
+    if (s.focused) return { id: s.focused, x: p.x, y: p.y };
   }
-  expect(focused, 'some tap focused a seat').not.toBeNull();
-  await expect(page.getByTestId('seat-card')).toContainText(focused!.id);
+  throw new Error('no tap focused a seat');
+}
+
+/** A real touch tap. A tap's click reaches the page a moment later (later still under load): count clicks as they
+ * bubble up to the window, after R3F's handler on the canvas has run, and wait for each one. */
+async function touchTapper(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __clicks: number };
+    w.__clicks = 0;
+    window.addEventListener('click', () => w.__clicks++);
+  });
+  return async (x: number, y: number) => {
+    const before = await page.evaluate(() => (window as unknown as { __clicks: number }).__clicks);
+    await page.touchscreen.tap(x, y);
+    await page.waitForFunction((n) => (window as unknown as { __clicks: number }).__clicks > n, before);
+  };
+}
+
+test('touch: first tap shows the card, second tap sits', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 1440, height: 800 } });
+  const page = await context.newPage();
+  await walkIntoAisle(page);
+  const tap = await touchTapper(page);
+  const focused = await focusByTap(page, tap);
+  await expect(page.getByTestId('seat-card')).toContainText(focused.id);
   await expect(page.getByTestId('seat-card')).toContainText('Tap again to sit');
-  await tap(focused!.x, focused!.y);
-  await expect.poll(async () => (await state()).phase).toBe('seated');
+  await tap(focused.x, focused.y);
+  await expect.poll(async () => (await touchState(page)).phase).toBe('seated');
   await context.close();
+});
+
+test('touch: a tap on empty space lets go of the focused seat', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 1440, height: 800 } });
+  const page = await context.newPage();
+  await walkIntoAisle(page);
+  const tap = await touchTapper(page);
+  await focusByTap(page, tap);
+  await expect(page.getByTestId('seat-card')).toBeVisible();
+  await tap(720, 60); // the ceiling
+  await expect.poll(async () => (await touchState(page)).focused).toBeNull();
+  await expect(page.getByTestId('seat-card')).toBeHidden();
+  await context.close();
+});
+
+test('touch on a browser whose click is a plain MouseEvent still takes two taps', async ({ page }) => {
+  // older mobile Safari and Firefox: pointer events carry pointerType 'touch', the click that follows does not
+  await walkIntoAisle(page);
+  const tap = (x: number, y: number) =>
+    page.evaluate(
+      ([cx, cy]) => {
+        const canvas = document.querySelector('canvas')!;
+        const at = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, isPrimary: true, pointerId: 7 };
+        canvas.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'touch' }));
+        canvas.dispatchEvent(new PointerEvent('pointerup', { ...at, pointerType: 'touch' }));
+        canvas.dispatchEvent(new MouseEvent('click', at));
+      },
+      [x, y] as const,
+    );
+  const focused = await focusByTap(page, tap);
+  await tap(focused.x, focused.y);
+  await expect.poll(async () => (await touchState(page)).phase).toBe('seated');
 });

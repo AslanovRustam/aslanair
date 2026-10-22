@@ -16,10 +16,11 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { armMatrices, isInsideSeat, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
-import { tapAction, type PointerKind } from '@/experience/seatCard';
+import { tapAction } from '@/experience/seatCard';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
 import { cabinMaterials } from './materials';
+import { lastPointerKind } from './pointerKind';
 
 export const KIT_URL = '/models/cabin-kit.glb';
 const OCCUPIED_DIM = 0.75;
@@ -31,9 +32,6 @@ const interactive = () => {
   const s = experienceStore.getState();
   return s.phase === 'browse' && chapterAt('pre', s.progress).id === 'aisle';
 };
-
-const pointerKind = (e: { nativeEvent: MouseEvent }): PointerKind =>
-  (e.nativeEvent as PointerEvent).pointerType === 'touch' ? 'touch' : 'mouse';
 
 function setCursor(pointer: boolean) {
   document.body.style.cursor = pointer ? 'pointer' : '';
@@ -140,15 +138,15 @@ export default function Seats() {
   // on touch there is no hover: a first tap focuses a seat (its card shows), a second tap sits
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    if (!interactive() || e.instanceId === undefined || pointerKind(e) === 'touch') return;
+    if (!interactive() || e.instanceId === undefined || lastPointerKind() === 'touch') return;
     const seat = seats[e.instanceId];
     const id = seat.status === 'free' ? seat.id : null;
     if (experienceStore.getState().hoveredSeatId !== id) experienceStore.getState().hover(id);
     setCursor(id !== null);
   };
 
-  const onOut = (e: ThreeEvent<PointerEvent>) => {
-    if (pointerKind(e) === 'touch') return;
+  const onOut = () => {
+    if (lastPointerKind() === 'touch') return;
     experienceStore.getState().hover(null);
     setCursor(false);
   };
@@ -158,11 +156,16 @@ export default function Seats() {
     if (!interactive() || e.instanceId === undefined) return;
     const seat = seats[e.instanceId];
     const s = experienceStore.getState();
-    if (tapAction(pointerKind(e), s.hoveredSeatId, seat.id) === 'focus') {
+    if (tapAction(lastPointerKind(), s.hoveredSeatId, seat.id) === 'focus') {
       s.hover(seat.status === 'free' ? seat.id : null);
       return;
     }
     if (s.sit(seat.id)) setCursor(false);
+  };
+
+  // on touch, a tap anywhere off the seats lets go of the focused one
+  const onMissed = () => {
+    if (interactive() && lastPointerKind() === 'touch') experienceStore.getState().hover(null);
   };
 
   const part = (name: string, material: Material, count = seats.length) => (
@@ -193,6 +196,7 @@ export default function Seats() {
         onPointerMove={onMove}
         onPointerOut={onOut}
         onClick={onClick}
+        onPointerMissed={onMissed}
       >
         <meshBasicMaterial visible={false} />
       </instancedMesh>

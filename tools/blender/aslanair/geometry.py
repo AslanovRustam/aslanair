@@ -258,9 +258,23 @@ EXIT_ARROWS = {'station': 4.40, 'y': 1.43, 'w': 0.42}
 
 # Tail (three.js y and |z|): a galley across the aisle end, between two lavatories that run out to the liner, their
 # bi-fold doors facing forward; one trolley stands pulled out of its bay into the aisle (station = its centre).
-AFT_GALLEY = {'s0': 29.85, 's1': 30.45, 'half_width': 0.95, 'top_y': 1.40}
-LAVATORY = {'s0': 29.85, 's1': 30.45, 'inner_z': 0.95}
+AFT_GALLEY = {'s0': 29.85, 's1': 30.45, 'half_width': 0.70, 'top_y': 1.40}
+LAVATORY = {'s0': 29.85, 's1': 30.45, 'inner_z': 0.70}
 GALLEY_CART = {'station': 29.55, 'width': 0.30, 'depth': 0.40, 'height': 1.03}
+
+
+def lavatory_door():
+    """The bi-fold door on a lavatory's forward face, as |z| and three.js y: inner edge, fold line, the outer edge
+    sampled up the door as (y, |z|), and the occupancy sign above it as (z0, z1, y0, y1)."""
+    s0 = LAVATORY['s0']
+    inner, width = LAVATORY['inner_z'] + 0.04, 0.62
+    bottom, top = FLOOR_Z + 0.02, FLOOR_Z + 1.82
+    heights = [bottom + (top - bottom) * k / 8 for k in range(9)]
+    fold = inner + width / 2
+    # the tail narrows overhead: the outer leaf follows the wall where the wall comes closer than a full-width door
+    outer = [(y, min(inner + width, liner_half_width_at(s0, y) - 0.03)) for y in heights]
+    return {'inner': inner, 'fold': fold, 'bottom': bottom, 'top': top, 'outer': outer,
+            'sign': (fold - 0.07, fold + 0.07, top + 0.06, top + 0.12)}
 
 
 def lavatory_outline(s):

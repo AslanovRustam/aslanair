@@ -99,8 +99,8 @@ export const JUMP_SEAT = { station: 4.02, z: -0.75, width: 0.45, height: 1.05 } 
 export const EXIT_ARROWS = { station: 4.4, y: 1.43, w: 0.42 } as const;
 /** Tail, mirrored from the kit meta (|z|): a galley across the aisle end between two lavatories running out to the
  * liner; one trolley stands pulled out of its bay into the aisle (station = its centre). */
-export const AFT_GALLEY = { s0: 29.85, s1: 30.45, halfWidth: 0.95, topY: 1.4 } as const;
-export const LAVATORY = { s0: 29.85, s1: 30.45, innerZ: 0.95 } as const;
+export const AFT_GALLEY = { s0: 29.85, s1: 30.45, halfWidth: 0.7, topY: 1.4 } as const;
+export const LAVATORY = { s0: 29.85, s1: 30.45, innerZ: 0.7 } as const;
 export const GALLEY_CART = { station: 29.55, width: 0.3, depth: 0.4, height: 1.03 } as const;
 /** How far the door (frame, leaf, handle) and the folded jump seat stand out from the bulkhead. */
 const NOSE_DEPTH = { door: 0.06, jumpSeat: 0.16 };
