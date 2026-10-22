@@ -64,6 +64,8 @@ def make_lettering(side, mat):
             p.flip()
         me.update()
     me.materials.append(mat)
+    while me.uv_layers:   # untextured: no UVs to ship
+        me.uv_layers.remove(me.uv_layers[0])
     ob = bpy.data.objects.new(name, me)
     ob['decal'] = True
     ob['first_glyph_vertex'] = first

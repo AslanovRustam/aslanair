@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { DOOR_1L } from '@/experience/geometry';
 import { settledProgress, waitForAircraft, waitForStore } from './helpers';
 
 type DoorWindow = Window & { __aslan: { scene: { getObjectByName(n: string): { position: { x: number } } | undefined } } };
@@ -14,6 +15,13 @@ test('door 1L opens as the camera arrives', async ({ page }) => {
   await waitForAircraft(page);
   const closedX = await page.evaluate(() => (window as unknown as DoorWindow).__aslan.scene.getObjectByName('Door1L')!.position.x);
   expect(await doorTravel(page, closedX)).toBeCloseTo(0, 3);
+  // closed means exactly on the hinge from geometry.ts, whatever the cached scene held before
+  const closed = await page.evaluate(() => {
+    const p = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): { position: { x: number; y: number; z: number } } } } })
+      .__aslan.scene.getObjectByName('Door1L').position;
+    return [p.x, p.y, p.z];
+  });
+  closed.forEach((v, i) => expect(v).toBeCloseTo(DOOR_1L.hinge[i], 4));
 
   // into the door chapter (pre track 0.2–0.45), past the point where the door has slid forward
   await page.evaluate(() => {

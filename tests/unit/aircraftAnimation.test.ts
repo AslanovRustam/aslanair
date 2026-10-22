@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
@@ -26,12 +27,13 @@ describe('door 1L opening', () => {
   });
 
   test('the moving panel never comes within 0.3 m of the camera at the same moment', () => {
-    // conservative box around the closed panel (it follows the hull curve up to the door top)
+    // conservative box around the closed panel: out to the hull's widest point over the door rectangle
+    const meta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));
     const x0 = stationToX(DOOR_1L.station + DOOR_1L.width / 2);
     const x1 = stationToX(DOOR_1L.station - DOOR_1L.width / 2);
     const y0 = DOOR_1L.y - DOOR_1L.height / 2;
     const y1 = DOOR_1L.y + DOOR_1L.height / 2;
-    const z0 = DOOR_1L.hinge[2] - 0.01;
+    const z0 = -meta.door1L.panelMaxHalfWidth;
     const z1 = -1.05;
     for (let i = 0; i <= 400; i++) {
       const p = trackProgress('pre', 'door', i / 400);

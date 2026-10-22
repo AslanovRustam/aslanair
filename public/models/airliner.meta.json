@@ -2830,6 +2830,7 @@
       "forward": 1.0,
       "outward": 0.35
     },
+    "panelMaxHalfWidth": 1.9603,
     "sillY": -0.4,
     "station": 4.9,
     "width": 0.82

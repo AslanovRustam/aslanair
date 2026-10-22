@@ -6,7 +6,7 @@ import bpy
 
 from . import context as ctx
 from .geometry import (BIN, CURTAIN, EXIT_SIGN, GALLEY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
-                       bin_profile, door_hinge, door_rect, liner_grid)
+                       bin_profile, door_hinge, door_rect, hull_half_width_at, liner_grid)
 
 
 def _three(v):
@@ -17,6 +17,12 @@ def _three(v):
 
 def triangle_count():
     return sum(len(p.vertices) - 2 for ob in ctx.PARTS if ob.type == 'MESH' for p in ob.data.polygons)
+
+
+def panel_max_half_width():
+    """Widest hull half-width over the door rectangle: how far out the closed panel reaches."""
+    s0, s1, z0, z1 = door_rect()
+    return round(max(hull_half_width_at(s0 + (s1 - s0) * i / 20, z0 + (z1 - z0) * j / 20) for i in range(21) for j in range(21)), 4)
 
 
 def meta():
@@ -33,7 +39,7 @@ def meta():
         'window': {'y': WINDOW['z'], 'firstStation': WINDOW['first'], 'pitch': WINDOW['pitch'],
                    'lastStation': WINDOW['last'], 'w': WINDOW['w'], 'h': WINDOW['h']},
         'door1L': {'station': DOOR_1L['station'], 'width': DOOR_1L['width'], 'height': DOOR_1L['height'],
-                   'sillY': round(z0, 4), 'hinge': _three(door_hinge()),
+                   'sillY': round(z0, 4), 'hinge': _three(door_hinge()), 'panelMaxHalfWidth': panel_max_half_width(),
                    'open': {'outward': DOOR_OPEN['outward'], 'forward': DOOR_OPEN['forward']}},
         'tail0': TAIL0,
         'triangles': triangle_count(),

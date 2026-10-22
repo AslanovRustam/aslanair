@@ -338,8 +338,6 @@ def build_aircraft():
         'spinner': material('Spinner', rough=0.3, metal=0.6, image=paint_spinner()),
         'exhaust': material('Exhaust', '#4a4540', rough=0.5, metal=0.8, double=True),
     }
-    for k in ('lip', 'navy'):
-        pass
     ctx.log('building geometry')
     fus = fuselage(M['livery'])
     make_door_1l(fus)

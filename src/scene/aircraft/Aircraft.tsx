@@ -3,12 +3,13 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { MathUtils, type Group, type Material, type Mesh, type MeshStandardMaterial } from 'three';
+import { MathUtils, Vector3, type Group, type Material, type Mesh, type MeshStandardMaterial } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { INTERIOR_ENV } from '@/experience/cabinLayout';
 import { withCabinLight } from '../cabin/cabinLight';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
+import { DOOR_1L } from '@/experience/geometry';
 import { experienceStore, trackOf } from '@/experience/store';
 
 const MODEL_URL = '/models/airliner.glb';
@@ -30,8 +31,9 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL);
   const group = useRef<Group>(null);
   const door = useMemo(() => {
+    // closed is the hinge from geometry.ts — never read back from the shared, cached GLB scene
     const node = scene.getObjectByName('Door1L');
-    return node ? { node, closed: node.position.clone() } : null;
+    return node ? { node, closed: new Vector3(...DOOR_1L.hinge) } : null;
   }, [scene]);
 
   useEffect(() => {

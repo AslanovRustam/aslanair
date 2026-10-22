@@ -110,6 +110,7 @@ def build_cabin():
             polys += _reveal(rim, side)
     polys += _bulkhead(CABIN['front_station']) + _bulkhead(CABIN['aft_station'])
     shell = object_from_polys('CabinShell', polys, wall)
+    shell.data.uv_layers.remove(shell.data.uv_layers['UVMap'])   # untextured: no UVs to ship
     _shade_walls(shell)
 
     # cockpit door on the front bulkhead, just aft of it
