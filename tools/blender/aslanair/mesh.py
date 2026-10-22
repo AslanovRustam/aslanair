@@ -99,6 +99,17 @@ def mesh_from_polys(me, polys):
     me.shade_smooth()
 
 
+def object_from_polys(name, polys, mat):
+    """New exported part built from clip records."""
+    me = bpy.data.meshes.new(name)
+    me.materials.append(mat)
+    mesh_from_polys(me, polys)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ctx.PARTS.append(ob)
+    return ob
+
+
 def rounded_rect_xz(x0, x1, z0, z1, r, seg=8):
     pts = []
     for cx, cz, a0 in ((x1 - r, z0 + r, -90), (x1 - r, z1 - r, 0), (x0 + r, z1 - r, 90), (x0 + r, z0 + r, 180)):

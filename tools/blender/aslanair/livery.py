@@ -83,7 +83,7 @@ def paint_livery(W=4096, H=1024):
     rng = (S > s0 - pitch / 2) & (S < s1)
     d = rrect(0.0, 0.62, 0.115, 0.165, 0.09, Sv=sm)
     blend(cov(d - 0.028) * rng * (SIDE > 0.6), (0.80, 0.81, 0.82))
-    blend(cov(d) * rng * (SIDE > 0.6), (0.035, 0.045, 0.065)); glass = np.maximum(glass, cov(d) * rng * (SIDE > 0.6))
+    # cabin windows are real openings now (openings.py); only the frame ring is painted
 
     # nose gear doors on the belly
     AB = (np.pi - np.abs(TH)) * h

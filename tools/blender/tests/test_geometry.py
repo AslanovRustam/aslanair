@@ -5,11 +5,15 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from aslanair.geometry import (  # noqa: E402
+    CABIN,
+    CEILING_Z,
     DOOR_OPEN,
     FLOOR_Z,
     LINER_INSET,
     TAIL0,
     X,
+    cabin_wall_inner,
+    ceiling_z,
     door_hinge,
     door_rect,
     fin_root_z,
@@ -17,6 +21,7 @@ from aslanair.geometry import (  # noqa: E402
     hull_top,
     liner_half_width_at,
     section,
+    window_centres,
     window_stations,
 )
 
@@ -74,6 +79,26 @@ class DoorTest(unittest.TestCase):
         self.assertAlmostEqual(hx, X(s0))
         self.assertAlmostEqual(hz, (z0 + z1) / 2)
         self.assertAlmostEqual(hy, hull_half_width_at(s0, hz), places=3)
+
+
+class CabinShellTest(unittest.TestCase):
+    def test_windows_on_both_sides_at_one_height(self):
+        self.assertEqual(len(window_centres()), 86)
+        self.assertTrue(all(abs(z - 0.62) < 1e-9 for _, z, _ in window_centres()))
+
+    def test_wall_sits_one_inset_inside_the_hull_at_window_height(self):
+        self.assertAlmostEqual(cabin_wall_inner(15.0), hull_half_width_at(15.0, 0.62) - 0.10, places=6)
+        self.assertGreater(cabin_wall_inner(15.0), 1.75)
+        self.assertLess(cabin_wall_inner(15.0), 1.85)
+
+    def test_ceiling_stays_under_the_hull_and_over_the_doors(self):
+        self.assertAlmostEqual(ceiling_z(15.0), CEILING_Z)
+        for i in range(41):
+            s = CABIN['front_station'] + (CABIN['aft_station'] - CABIN['front_station']) * i / 40
+            self.assertLessEqual(ceiling_z(s), hull_top(s) - 0.15 + 1e-9)
+        s0, s1, z0, z1 = door_rect()
+        self.assertGreater(min(ceiling_z(s0), ceiling_z(s1)), z1)
+        self.assertGreater(ceiling_z(CABIN['front_station']), FLOOR_Z + 1.9)   # cockpit door fits
 
 
 class WindowTest(unittest.TestCase):

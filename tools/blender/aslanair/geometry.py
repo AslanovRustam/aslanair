@@ -79,3 +79,25 @@ def window_stations():
         out.append(WINDOW['first'] + k * WINDOW['pitch'])
         k += 1
     return out
+
+
+def window_centres():
+    """(station, z, side) for every cabin window; side +1 = port (+Y), -1 = starboard."""
+    return [(s, WINDOW['z'], side) for side in (1, -1) for s in window_stations()]
+
+
+# Cabin shell: from just ahead of door 1L to just behind row 30. The crown only reaches full
+# height aft of ~5 m, so the ceiling drops to stay CEILING_HULL_CLEARANCE under the hull there.
+CABIN = {'front_station': 4.0, 'aft_station': 30.5}
+CEILING_Z = 1.75
+CEILING_HULL_CLEARANCE = 0.15
+
+
+def ceiling_z(s):
+    return min(CEILING_Z, hull_top(s) - CEILING_HULL_CLEARANCE)
+
+
+def cabin_wall_inner(s):
+    """Inner wall |y| at window height."""
+    return liner_half_width_at(s, WINDOW['z'])
+

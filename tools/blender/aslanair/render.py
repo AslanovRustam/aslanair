@@ -112,9 +112,15 @@ def render(shots, samples, clouds):
         'side':   dict(pos=(2, -80, 2.5), target=(0, 0, 0.6), lens=85, sun=(42, 0.35, -0.94)),
         'window': dict(pos=(X(18.8), -2.16, 0.62), target=(X(15.5), -12.0, -0.8), lens=22, sun=(40, 0.6, -0.8)),
         'nose':   dict(pos=(14.5, -9.5, 1.8), target=(X(3.2), 0, 0.3), lens=50, sun=(35, 0.7, -0.7)),
+        'window-in': dict(pos=(1.21, -1.42, 0.7), target=(1.59, -4.8, 0.57), lens=24, sun=(40, 0.6, -0.8)),
+        'window-out': dict(pos=(3.4, -6.5, 1.0), target=(1.59, -1.9, 0.62), lens=50, sun=(40, 0.6, -0.8)),
         'engine': dict(pos=(X(9.0), -10.5, -2.6), target=(X(14.0), -5.75, -2.3), lens=45, sun=(35, 0.8, -0.6)),
     }
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ctx.OUT, 'airliner.blend'))
+    if any(s.startswith('window') for s in shots):  # render-only cabin lights
+        for i, x in enumerate((10, 4, -2, -8)):
+            ld = bpy.data.lights.new(f'CabinLamp{i}', 'POINT'); ld.energy = 120; ld.color = (1.0, 0.95, 0.88)
+            lo = bpy.data.objects.new(f'CabinLamp{i}', ld); lo.location = (x, 0, 1.55); scene.collection.objects.link(lo)
     door = bpy.data.objects.get('Door1L')
     for name in shots:
         if name == 'door':
