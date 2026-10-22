@@ -5,8 +5,8 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
-                       door_hinge, door_rect, liner_grid)
+from .geometry import (BIN, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+                       bin_profile, door_hinge, door_rect, liner_grid)
 
 
 def _three(v):
@@ -59,6 +59,7 @@ def kit_meta(parts):
         'units': 'm',
         'seat': {'depth': SEAT_KIT['depth'], 'width': SEAT_KIT['width'], 'panTop': SEAT_KIT['pan_top'], 'armTop': SEAT_KIT['arm_top'],
                  'height': SEAT_KIT['height'], 'backFrontTopX': SEAT_KIT['back_front_top_x']},
+        'bin': {'length': BIN['length'], 'bottomY': BIN['bottom_y'], 'aisleZ': BIN['aisle_z'], 'profile': bin_profile()},
         'triangles': {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in parts},
     }
 

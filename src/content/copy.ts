@@ -55,6 +55,10 @@ export const copy = {
       author: 'Concept & code: [Author name] · [Portfolio link]',
     },
   },
+  cabin: {
+    /** Row label under the bins: the row number and that side's seat letters. */
+    rowLabel: (row: number, side: -1 | 1) => `${row} ${side < 0 ? 'ABC' : 'DEF'}`,
+  },
   footer: {
     disclaimer: 'AslanAir is a fictional airline — a concept project.',
   },

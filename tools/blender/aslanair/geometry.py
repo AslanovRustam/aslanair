@@ -174,3 +174,18 @@ OVERWING_EXITS = [16.05, 16.80]
 # The backrest front runs from (x -0.1775, z 0.45) reclined 11° to its top front edge at back_front_top_x.
 SEAT_KIT = {'depth': 0.5, 'width': 0.44, 'pan_top': 0.45, 'arm_top': 0.65, 'height': 1.08, 'back_front_top_x': -0.30,
             'cover_drop': 0.24, 'arm_width': 0.05}
+
+# Overhead bin, one row long; three.js y / |z|. The outer side follows the constant-section liner
+# (in the tail taper it slips behind the liner but stays inside the hull).
+BIN = {'length': 0.76, 'bottom_y': 1.10, 'top_y': 1.72, 'aisle_z': 0.98, 'wall_gap': 0.02, 'door_bulge': 0.03}
+
+
+def bin_profile():
+    """Port bin cross-section as (|z|, y): up the bulging aisle door, then down along the wall."""
+    b = BIN
+    door = [(b['aisle_z'] - b['door_bulge'] * math.sin(math.pi * k / 6), b['bottom_y'] + (b['top_y'] - b['bottom_y']) * k / 6)
+            for k in range(7)]
+    steps = int(round((b['top_y'] - b['bottom_y']) / 0.1))
+    wall_y = [b['top_y'] - (b['top_y'] - b['bottom_y']) * k / steps for k in range(steps + 1)]
+    wall = [(liner_half_width_at(15.0, y) - b['wall_gap'], y) for y in wall_y]
+    return [(round(z, 4), round(y, 4)) for z, y in door + wall]

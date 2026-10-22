@@ -10,7 +10,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import SEAT_KIT
+from .geometry import BIN, SEAT_KIT, bin_profile
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
 BACK_FOOT = Vector((-0.1775, 0.0, SEAT_KIT['pan_top']))
@@ -110,6 +110,32 @@ def build_seat_parts():
 
     return [_part('SeatFabric', fabric), _part('SeatShell', shell), _part('SeatCover', cover),
             _part('SeatArm', arm), _part('SeatLegs', legs)]
+
+
+def build_bins():
+    """BinPort / BinStarboard: one row of overhead bin (origin at the section centre), PSU lights underneath.
+    Sections are 6 mm shorter than the row pitch, so neighbours leave a door seam."""
+    prof = bin_profile()
+    half = BIN['length'] / 2 - 0.003
+
+    def body(bm, side):
+        rings = [[bm.verts.new((x, side * z, y)) for z, y in prof] for x in (-half, half)]
+        n = len(prof)
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
+        bm.faces.new(rings[0][::-1])
+        bm.faces.new(rings[1])
+        for z in (1.10, 1.25, 1.40, 1.03):          # three reading lights and a vent under the bin
+            r = 0.012 if z == 1.03 else 0.025
+            bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=r, radius2=r, depth=0.008,
+                                  matrix=Matrix.Translation((0.0, side * z, BIN['bottom_y'] - 0.004)))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        for e in bm.edges:                          # crisp box edges, soft door curve
+            if len(e.link_faces) == 2 and e.calc_face_angle(0) > math.radians(40):
+                e.smooth = False
+
+    return [_part('BinPort', lambda bm: body(bm, 1)), _part('BinStarboard', lambda bm: body(bm, -1))]
 
 
 def triangles(ob):
