@@ -20,6 +20,7 @@ from aslanair.geometry import (  # noqa: E402
     hull_half_width_at,
     hull_top,
     liner_half_width_at,
+    liner_normal,
     section,
     window_centres,
     window_stations,
@@ -105,6 +106,25 @@ class WindowTest(unittest.TestCase):
     def test_window_stations_match_the_livery(self):
         self.assertEqual(len(window_stations()), 43)
         self.assertAlmostEqual(window_stations()[0], 6.55)
+
+
+class LinerNormalTest(unittest.TestCase):
+    def _tangents(self, s, z, side, h=1e-4):
+        p = lambda ss, zz: (X(ss), side * liner_half_width_at(ss, zz), zz)
+        along = [b - a for a, b in zip(p(s - h, z), p(s + h, z))]
+        up = [b - a for a, b in zip(p(s, z - h), p(s, z + h))]
+        return along, up
+
+    def test_unit_length_perpendicular_to_the_wall_and_pointing_into_the_cabin(self):
+        for s, z, side in ((15.0, 0.62, 1), (15.0, -0.3, -1), (29.5, 0.62, 1), (29.5, 1.2, -1)):
+            n = liner_normal(s, z, side)
+            self.assertAlmostEqual(sum(c * c for c in n), 1.0)
+            for t in self._tangents(s, z, side):
+                self.assertAlmostEqual(sum(a * b for a, b in zip(n, t)) / sum(c * c for c in t) ** 0.5, 0.0, places=4)
+            self.assertLess(n[1] * side, 0)   # back towards the aisle
+
+    def test_no_fore_aft_tilt_in_the_constant_section(self):
+        self.assertAlmostEqual(liner_normal(15.0, 0.62, 1)[0], 0.0)
 
 
 if __name__ == '__main__':

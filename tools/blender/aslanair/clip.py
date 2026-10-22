@@ -62,3 +62,67 @@ def subtract_convex(poly, outline):
         if not remaining:
             break
     return pieces
+
+
+def _on_segment(a, b, p, eps):
+    """Parameter t of p along a→b when p lies on the open segment (within eps), else None."""
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    length = (dx * dx + dz * dz) ** 0.5
+    if length < eps:
+        return None
+    t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (length * length)
+    if t * length <= eps or (1 - t) * length <= eps:
+        return None
+    return t if abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / length < eps else None
+
+
+def close_t_junctions(polys, eps=1e-9, cell=0.25):
+    """Inserts into every edge the vertices of other polygons lying on it, so neighbours share every
+    vertex along a common edge. Sequential subtraction leaves such T-junctions, which rasterise as cracks."""
+    key = lambda p: (round(p[0], 9), round(p[1], 9))
+    grid, seen = {}, set()
+    for poly in polys:
+        for p in poly:
+            if key(p) not in seen:
+                seen.add(key(p))
+                grid.setdefault((int(p[0] // cell), int(p[1] // cell)), []).append(p)
+    out = []
+    for poly in polys:
+        closed = []
+        for i in range(len(poly)):
+            a, b = poly[i], poly[(i + 1) % len(poly)]
+            closed.append(a)
+            on_edge = {}
+            for cx in range(int((min(a[0], b[0]) - eps) // cell), int((max(a[0], b[0]) + eps) // cell) + 1):
+                for cz in range(int((min(a[1], b[1]) - eps) // cell), int((max(a[1], b[1]) + eps) // cell) + 1):
+                    for p in grid.get((cx, cz), ()):
+                        t = _on_segment(a, b, p, eps)
+                        if t is not None:
+                            on_edge[key(p)] = (t, p)
+            closed.extend(p for _, p in sorted(on_edge.values()))
+        out.append(closed)
+    return out
+
+
+def boundary_ring(points, outline, eps=1e-9):
+    """The points lying on the outline's rim, once each, in the outline's (counter-clockwise) order from its first vertex."""
+    edges = _edges(outline)
+    lengths = [((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 for a, b in edges]
+    total = sum(lengths)
+    x0, x1 = min(p[0] for p in outline) - eps, max(p[0] for p in outline) + eps
+    z0, z1 = min(p[1] for p in outline) - eps, max(p[1] for p in outline) + eps
+    ring = {}
+    for p in points:
+        if not (x0 <= p[0] <= x1 and z0 <= p[1] <= z1):
+            continue
+        start = 0.0
+        for (a, b), length in zip(edges, lengths):
+            if abs(p[0] - a[0]) <= eps and abs(p[1] - a[1]) <= eps:
+                ring.setdefault((round(p[0], 9), round(p[1], 9)), (start, p))
+                break
+            t = _on_segment(a, b, p, eps)
+            if t is not None:
+                ring.setdefault((round(p[0], 9), round(p[1], 9)), ((start + t * length) % total, p))
+                break
+            start += length
+    return [p for _, p in sorted(ring.values(), key=lambda e: e[0])]

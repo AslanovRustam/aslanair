@@ -2,10 +2,13 @@
 bulkheads (with a cockpit door) and the floor."""
 import math
 
+from mathutils import Vector
+
+from .clip import boundary_ring, close_t_junctions
 from .door import door_outline
-from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, window_centres
+from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal
 from .mesh import make_mesh, material, object_from_polys
-from .openings import _bbox, cut_outlines, window_outline, window_outlines
+from .openings import _bbox, cut_outlines, window_outlines
 
 STEP_S = 0.25         # station spacing of the shell grid
 WALL_ROWS = 30        # rows from the floor up to the ceiling edge on each side
@@ -14,7 +17,8 @@ AISLE_HALF_WIDTH = 0.25
 COCKPIT_DOOR = {'width': 0.8, 'height': 1.9}
 
 
-def _stations():
+def shell_stations():
+    """Stations of the shell grid, front to aft bulkhead."""
     out, s = [], CABIN['front_station']
     while s < CABIN['aft_station'] - 1e-9:
         out.append(s)
@@ -38,7 +42,7 @@ def _record(x, y, z):
 
 
 def _grid_faces():
-    rows = [[(X(s), y, z) for y, z in shell_profile(s)] for s in _stations()]
+    rows = [[(X(s), y, z) for y, z in shell_profile(s)] for s in shell_stations()]
     faces = []
     for a, b in zip(rows, rows[1:]):
         for j in range(len(a) - 1):
@@ -46,12 +50,50 @@ def _grid_faces():
     return faces
 
 
-def _reveal(outline, side):
-    """Tube from the shell opening out to the hull opening along one outline."""
-    hull = [(x, side * hull_half_width_at(L / 2 - x, z), z) for x, z in outline]
-    shell = [(x, side * liner_half_width_at(L / 2 - x, z), z) for x, z in outline]
-    n = len(outline)
-    return [[_record(*shell[i]), _record(*shell[(i + 1) % n]), _record(*hull[(i + 1) % n]), _record(*hull[i])] for i in range(n)]
+def wall_corner_normal(co, face_normal):
+    """The liner normal (on the face's side) for a corner of a wall face, None for any other corner."""
+    s = L / 2 - co.x
+    if not FLOOR_Z - 1e-6 <= co.z <= ceiling_z(s) + 1e-6 or abs(abs(co.y) - liner_half_width_at(s, co.z)) > 1e-5:
+        return None
+    n = Vector(liner_normal(s, co.z, 1 if co.y > 0 else -1))
+    d = n.dot(face_normal)
+    return None if abs(d) < 0.9 else (n if d > 0 else -n)
+
+
+def _shade_walls(shell):
+    """Wall corners take the liner normal; every other corner keeps its smooth normal."""
+    me = shell.data
+    normals = [tuple(c.vector) for c in me.corner_normals]
+    for p in me.polygons:
+        for li in p.loop_indices:
+            n = wall_corner_normal(me.vertices[me.loops[li].vertex_index].co, p.normal)
+            if n is not None:
+                normals[li] = tuple(n)
+    me.normals_split_custom_set(normals)
+
+
+def _is_ceiling(face):
+    return all(abs(r[1] - ceiling_z(L / 2 - r[0])) < 1e-9 for r in face)
+
+
+def _on_liner(r, side):
+    return _record(r[0], side * liner_half_width_at(L / 2 - r[0], r[1]), r[1])
+
+
+def _side_wall(faces, outlines, side):
+    """One side's wall with its openings cut, crack-free: T-junctions closed, then every vertex put back on the
+    liner surface (clipping interpolates along chords). Returns the faces and the shell rim of each opening."""
+    cut = close_t_junctions(cut_outlines(faces, {side: outlines}))
+    cut = [[_on_liner(r, side) for r in face] for face in cut]
+    points = [r for face in cut for r in face]
+    return cut, [boundary_ring(points, outline) for outline, _ in outlines]
+
+
+def _reveal(rim, side):
+    """Tube from an opening's shell rim out to the hull."""
+    hull = [_record(r[0], side * hull_half_width_at(L / 2 - r[0], r[1]), r[1]) for r in rim]
+    n = len(rim)
+    return [[rim[i], rim[(i + 1) % n], hull[(i + 1) % n], hull[i]] for i in range(n)]
 
 
 def _bulkhead(s):
@@ -64,14 +106,17 @@ def build_cabin():
     door = door_outline()
     outlines[1].append((door, _bbox(door)))
 
-    walls = [f for f in _grid_faces() if all(abs(r[3]) > 0.6 for r in f)]
-    ceiling = [f for f in _grid_faces() if not all(abs(r[3]) > 0.6 for r in f)]
-    polys = cut_outlines(walls, outlines) + ceiling
-    for s, z, side in window_centres():
-        polys += _reveal(window_outline(s, z), side)
-    polys += _reveal(door, 1)
+    grid = _grid_faces()
+    polys = [f for f in grid if _is_ceiling(f)]
+    for side in (1, -1):
+        side_faces = [f for f in grid if not _is_ceiling(f) and (sum(r[3] for r in f) > 0) == (side > 0)]
+        faces, rims = _side_wall(side_faces, outlines[side], side)
+        polys += faces
+        for rim in rims:
+            polys += _reveal(rim, side)
     polys += _bulkhead(CABIN['front_station']) + _bulkhead(CABIN['aft_station'])
     shell = object_from_polys('CabinShell', polys, wall)
+    _shade_walls(shell)
 
     # cockpit door on the front bulkhead, just aft of it
     x = X(CABIN['front_station']) - 0.01
@@ -86,7 +131,7 @@ def _floor():
     carpet = material('Carpet', '#7d8590', rough=0.95)
     aisle = material('AisleCarpet', '#5e6a7a', rough=0.95)
     verts, faces, aisle_faces = [], [], []
-    stations = _stations()
+    stations = shell_stations()
     for s in stations:
         w = liner_half_width_at(s, FLOOR_Z)
         verts += [(X(s), y, FLOOR_Z) for y in (-w, -AISLE_HALF_WIDTH, AISLE_HALF_WIDTH, w)]

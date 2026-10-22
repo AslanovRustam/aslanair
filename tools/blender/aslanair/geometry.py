@@ -47,6 +47,16 @@ def liner_half_width_at(s, z):
     return max(0.0, hull_half_width_at(s, z) - LINER_INSET)
 
 
+def liner_normal(s, z, side, h=1e-4):
+    """Unit normal of the liner surface y = side·w(s, z), pointing back into the cabin (Blender X, Y, Z)."""
+    dw_dx = -(liner_half_width_at(s + h, z) - liner_half_width_at(s - h, z)) / (2 * h)   # X runs nose-ward
+    dw_dz = (liner_half_width_at(s, z + h) - liner_half_width_at(s, z - h)) / (2 * h)
+    n = (side * dw_dx, -1.0, side * dw_dz)   # (1, side·w_x, 0) × (0, side·w_z, 1), then made inward
+    n = (-n[0], n[1] * side, -n[2]) if side < 0 else n
+    length = sum(c * c for c in n) ** 0.5
+    return tuple(c / length for c in n)
+
+
 def fin_root_z(s):
     return hull_top(s) - FIN_ROOT_INSET
 
