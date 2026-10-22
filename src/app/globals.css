@@ -12,3 +12,25 @@ body {
   color: #f1f0ec;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* The 3D stage stays fixed; the page scrolls a transparent track behind it. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.scroll-track {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fallback {
+  max-width: 36rem;
+  margin: 30vh auto 0;
+  padding: 0 1.5rem;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  text-align: center;
+}
