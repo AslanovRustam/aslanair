@@ -1,5 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Full Chromium on the real GPU: the default headless shell falls back to SwiftShader,
+// which makes the raymarched clouds take minutes per scroll test.
+const desktop = {
+  ...devices['Desktop Chrome'],
+  viewport: { width: 1440, height: 800 },
+  channel: 'chromium',
+  launchOptions: { args: ['--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'] },
+};
+
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90_000,
@@ -13,14 +22,15 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 800 },
-        // Full Chromium on the real GPU: the default headless shell falls back to SwiftShader,
-        // which makes the raymarched clouds take minutes per scroll test.
-        channel: 'chromium',
-        launchOptions: { args: ['--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'] },
-      },
+      testIgnore: /perf\.spec\.ts/,
+      use: desktop,
+    },
+    {
+      // frame-rate probe and review shots: after the main suite, alone on the GPU
+      name: 'perf',
+      testMatch: /perf\.spec\.ts/,
+      dependencies: ['chromium'],
+      use: desktop,
     },
   ],
   webServer: {

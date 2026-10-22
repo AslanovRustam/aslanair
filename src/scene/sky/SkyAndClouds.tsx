@@ -1,8 +1,10 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { cloudScale } from '@/experience/cloudDetail';
+import { experienceStore } from '@/experience/store';
 import { bakeNoise3D } from './noise3d';
 import { BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VERTEX } from './shaders';
 
@@ -12,8 +14,7 @@ export const SUN_DIRECTION = new THREE.Vector3().setFromSphericalCoords(
   THREE.MathUtils.degToRad(160),
 );
 
-/** Clouds are raymarched at this fraction of the drawing buffer, then blurred. */
-const CLOUD_SCALE = 0.5;
+/** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred. */
 const NOISE_SIZE = 64;
 
 function noiseTexture(): THREE.Data3DTexture {
@@ -87,13 +88,8 @@ export default function SkyAndClouds() {
     };
   }, [gl, scene, pipe]);
 
-  useEffect(() => {
-    const w = Math.max(2, Math.round(size.width * dpr * CLOUD_SCALE));
-    const h = Math.max(2, Math.round(size.height * dpr * CLOUD_SCALE));
-    pipe.raw.setSize(w, h);
-    pipe.tmp.setSize(w, h);
-    pipe.out.setSize(w, h);
-  }, [size, dpr, pipe]);
+  // The cloud targets follow the canvas size and the current cloudScale; resized only when either changes.
+  const sized = useRef('');
 
   useEffect(
     () => () => {
@@ -108,6 +104,16 @@ export default function SkyAndClouds() {
   // Negative priority: runs before R3F's own render without taking the render loop over.
   useFrame((state) => {
     const { camera, clock } = state;
+    const s = experienceStore.getState();
+    const scale = cloudScale(s.phase, s.progress);
+    const w = Math.max(2, Math.round(size.width * dpr * scale));
+    const h = Math.max(2, Math.round(size.height * dpr * scale));
+    if (sized.current !== `${w}x${h}`) {
+      sized.current = `${w}x${h}`;
+      pipe.raw.setSize(w, h);
+      pipe.tmp.setSize(w, h);
+      pipe.out.setSize(w, h);
+    }
     camera.updateMatrixWorld();
     const u = pipe.uniforms;
     u.uTime.value = clock.elapsedTime;
