@@ -2,8 +2,9 @@
 
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { MathUtils, type Group, type Mesh } from 'three';
+import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { experienceStore, trackOf } from '@/experience/store';
@@ -24,6 +25,10 @@ function bobWeight(): number {
 export default function Aircraft({ children }: { children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL);
   const group = useRef<Group>(null);
+  const door = useMemo(() => {
+    const node = scene.getObjectByName('Door1L');
+    return node ? { node, closed: node.position.clone() } : null;
+  }, [scene]);
 
   useEffect(() => {
     scene.traverse((o) => {
@@ -43,6 +48,10 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
     g.position.set(fly.offsetX, w * 0.4 * Math.sin(0.37 * t) + fly.climb, 0);
     g.rotation.set(w * 0.025 * Math.sin(0.5 * t) + fly.bank, 0, 0);
+    if (door) {
+      const [dx, dy, dz] = doorOffset(doorOpenAmount(s.phase, s.progress));
+      door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
+    }
   }, -3);
 
   return (

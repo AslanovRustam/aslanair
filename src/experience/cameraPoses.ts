@@ -2,6 +2,7 @@ import { CatmullRomCurve3, MathUtils, Vector3 } from 'three';
 import { chapterAt, trackProgress } from './chapters';
 import {
   CABIN_WALL_Z,
+  DOOR_1L,
   EYE_SEATED,
   EYE_STANDING,
   SEAT_Z,
@@ -34,7 +35,7 @@ const DOOR_CURVE = new CatmullRomCurve3(
   false,
   'centripetal',
 );
-const DOOR_CENTRE = v(13.9, 0.6, -1.9);
+const DOOR_CENTRE = v(stationToX(DOOR_1L.station), DOOR_1L.y, DOOR_1L.hinge[2]);
 
 // --- aisle: stops level with row 26 so rows 27–30 stay in view ahead
 const AISLE = { startX: 12.6, endX: rowX(26) + 0.6, lookAhead: v(-6, -0.15, 0), fov: 60 };
