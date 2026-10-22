@@ -5,7 +5,7 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (BIN, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+from .geometry import (BIN, CURTAIN, EXIT_SIGN, GALLEY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
                        bin_profile, door_hinge, door_rect, liner_grid)
 
 
@@ -60,6 +60,9 @@ def kit_meta(parts):
         'seat': {'depth': SEAT_KIT['depth'], 'width': SEAT_KIT['width'], 'panTop': SEAT_KIT['pan_top'], 'armTop': SEAT_KIT['arm_top'],
                  'height': SEAT_KIT['height'], 'backFrontTopX': SEAT_KIT['back_front_top_x']},
         'bin': {'length': BIN['length'], 'bottomY': BIN['bottom_y'], 'aisleZ': BIN['aisle_z'], 'profile': bin_profile()},
+        'galley': {'s0': GALLEY['s0'], 's1': GALLEY['s1'], 'innerZ': GALLEY['inner_z'], 'topY': GALLEY['top_y'], 'worktopY': GALLEY['worktop_y']},
+        'curtain': {'station': CURTAIN['station'], 'innerZ': CURTAIN['inner_z'], 'outerZ': CURTAIN['outer_z'], 'bottomY': CURTAIN['bottom_y']},
+        'exitSign': {'w': EXIT_SIGN['w'], 'h': EXIT_SIGN['h'], 'd': EXIT_SIGN['d'], 'y': EXIT_SIGN['y'], 'placements': EXIT_SIGN['placements']},
         'triangles': {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in parts},
     }
 

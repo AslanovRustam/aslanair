@@ -8,6 +8,10 @@ export interface CabinMaterials {
   cover: MeshStandardMaterial;
   arm: MeshStandardMaterial;
   legs: MeshStandardMaterial;
+  curtain: MeshStandardMaterial;
+  panels: MeshStandardMaterial;
+  steel: MeshStandardMaterial;
+  worktop: MeshStandardMaterial;
 }
 
 let shared: CabinMaterials | null = null;
@@ -35,6 +39,10 @@ export function cabinMaterials(): CabinMaterials {
       cover: new MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, normalMap: weave, side: DoubleSide }),
       arm: new MeshStandardMaterial({ color: '#5b6070', roughness: 0.45 }),
       legs: new MeshStandardMaterial({ color: '#9aa0a8', roughness: 0.35, metalness: 0.8 }),
+      curtain: new MeshStandardMaterial({ color: '#1b2541', roughness: 0.95, normalMap: weave, side: DoubleSide }),
+      panels: new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.55 }),
+      steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
+      worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
     };
   }
   return shared;

@@ -1,8 +1,27 @@
 import { Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
-import { armMatrices, binBoxes, distanceToBoxes, SEAT_KIT, seatMatrices } from '@/experience/cabinLayout';
-import { poseOnPreTrack } from '@/experience/cameraPoses';
-import { EYE_SEATED, FLOOR_Y, rowX, SEATED_EYE_AFT, seatWorldPosition } from '@/experience/geometry';
+import {
+  armMatrices,
+  binBoxes,
+  distanceToBoxes,
+  EXIT_SIGN,
+  furnishingBoxes,
+  SEAT_KIT,
+  seatMatrices,
+  segmentHitsBoxes,
+} from '@/experience/cabinLayout';
+import { poseOnPreTrack, seatedPose } from '@/experience/cameraPoses';
+import {
+  CABIN_WALL_Z,
+  EYE_SEATED,
+  FLOOR_Y,
+  rowX,
+  SEATED_EYE_AFT,
+  seatWindowStation,
+  seatWorldPosition,
+  stationToX,
+  WINDOW,
+} from '@/experience/geometry';
 import { generateSeatMap } from '@/experience/seats';
 
 describe('seats', () => {
@@ -35,5 +54,33 @@ describe('bins', () => {
       const cam = poseOnPreTrack(i / 2000).position;
       expect(distanceToBoxes(cam, boxes), `p=${i / 2000}`).toBeGreaterThanOrEqual(0.3);
     }
+  });
+});
+
+describe('entry zone and signs', () => {
+  test('the door flight and the aisle walk keep 0.3 m clear of every furnishing', () => {
+    const boxes = furnishingBoxes();
+    for (let i = 0; i <= 2000; i++) {
+      const cam = poseOnPreTrack(i / 2000).position;
+      expect(distanceToBoxes(cam, boxes), `p=${i / 2000}`).toBeGreaterThanOrEqual(0.3);
+    }
+  });
+
+  test('the seated sight line to the window crosses no furnishing', () => {
+    for (const seat of [{ row: 1, letter: 'A' }, { row: 14, letter: 'F' }, { row: 30, letter: 'A' }] as const) {
+      const { position: eye } = seatedPose(seat);
+      const window = new Vector3(stationToX(seatWindowStation(seat.row)), WINDOW.y, Math.sign(eye.z) * CABIN_WALL_Z);
+      expect(segmentHitsBoxes(eye, window, furnishingBoxes()), `${seat.row}${seat.letter}`).toBe(false);
+    }
+  });
+
+  test('a segment through a box is caught', () => {
+    const [box] = furnishingBoxes();
+    const c = box.getCenter(new Vector3());
+    expect(segmentHitsBoxes(c.clone().add(new Vector3(0, 0, -5)), c.clone().add(new Vector3(0, 0, 5)), [box])).toBe(true);
+  });
+
+  test('exit signs hang at door 1L, the over-wing exits and the aft door', () => {
+    expect(EXIT_SIGN.placements.map(([s]) => s)).toEqual([5.85, 16.45, 16.45, 30.25]);
   });
 });

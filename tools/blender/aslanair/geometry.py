@@ -189,3 +189,9 @@ def bin_profile():
     wall_y = [b['top_y'] - (b['top_y'] - b['bottom_y']) * k / steps for k in range(steps + 1)]
     wall = [(liner_half_width_at(15.0, y) - b['wall_gap'], y) for y in wall_y]
     return [(round(z, 4), round(y, 4)) for z, y in door + wall]
+
+# Entry zone (three.js y and |z|). The galley sits on the starboard side opposite door 1L, its outer side on the liner;
+# the curtain hangs drawn open from a ceiling track on both sides; exit signs hang over the aisle centreline.
+GALLEY = {'s0': 4.05, 's1': 5.75, 'inner_z': 0.32, 'top_y': 1.40, 'worktop_y': 0.10}
+CURTAIN = {'station': 6.45, 'inner_z': 0.62, 'outer_z': 0.95, 'bottom_y': -0.25}
+EXIT_SIGN = {'w': 0.30, 'h': 0.11, 'd': 0.05, 'y': 1.58, 'placements': [[5.85, 'aft'], [16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']]}

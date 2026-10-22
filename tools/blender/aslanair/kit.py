@@ -10,7 +10,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import BIN, SEAT_KIT, bin_profile
+from .geometry import BIN, CEILING_Z, CURTAIN, EXIT_SIGN, FLOOR_Z, GALLEY, SEAT_KIT, X, bin_profile, liner_half_width_at
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
 BACK_FOOT = Vector((-0.1775, 0.0, SEAT_KIT['pan_top']))
@@ -136,6 +136,92 @@ def build_bins():
                 e.smooth = False
 
     return [_part('BinPort', lambda bm: body(bm, 1)), _part('BinStarboard', lambda bm: body(bm, -1))]
+
+
+def _sharpen(bm, degrees=40):
+    for e in bm.edges:
+        if len(e.link_faces) == 2 and e.calc_face_angle(0) > math.radians(degrees):
+            e.smooth = False
+
+
+def _loft(bm, stations, profile):
+    """Closed profile (|z|, y) per station, lofted along X; Blender Y = -|z| (starboard). Caps at both ends."""
+    rings = [[bm.verts.new((X(s), -z, y)) for z, y in profile(s)] for s in stations]
+    n = len(rings[0])
+    for a, b in zip(rings, rings[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((a[i], a[j], b[j], b[i]))
+    bm.faces.new(rings[0])
+    bm.faces.new(rings[-1][::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+
+
+def build_galley():
+    """GalleyPanels (body: lower units, worktop recess, upper units, outer side on the liner), GalleySteel (cart
+    doors, oven fronts, handles), GalleyWorktop — in cabin coordinates, starboard, opposite door 1L."""
+    g, gap, iz = GALLEY, 0.02, GALLEY['inner_z']
+    recess_top, recess_depth = 0.55, 0.30
+    stations = [g['s0'] + (g['s1'] - g['s0']) * k / 6 for k in range(7)]
+    wall_y = [g['top_y'] - (g['top_y'] - FLOOR_Z) * k / 8 for k in range(9)]
+
+    def profile(s):
+        front = [(iz, FLOOR_Z), (iz, g['worktop_y']), (iz + recess_depth, g['worktop_y']), (iz + recess_depth, recess_top),
+                 (iz + 0.05, recess_top), (iz + 0.05, g['top_y'])]
+        return front + [(liner_half_width_at(s, y) - gap, y) for y in wall_y]
+
+    def panels(bm):
+        _loft(bm, stations, profile)
+        _sharpen(bm)
+
+    def steel(bm):
+        length = g['s1'] - g['s0']
+        for k in range(4):                                      # four full-size carts under the worktop
+            s = g['s0'] + length * (k + 0.5) / 4
+            h = g['worktop_y'] - 0.04 - (FLOOR_Z + 0.02)
+            _add_box(bm, (length / 4 - 0.03, 0.012, h), Vector((X(s), -(iz - 0.006), FLOOR_Z + 0.02 + h / 2)), 0.004, 1)
+            _add_box(bm, (0.12, 0.02, 0.02), Vector((X(s), -(iz - 0.02), g['worktop_y'] - 0.10)), 0.006, 1)
+        for k in range(2):                                      # ovens / coffee makers in the upper units
+            s = g['s0'] + length * (k + 0.75) / 2.5
+            _add_box(bm, (0.36, 0.012, 0.30), Vector((X(s), -(iz + 0.05 - 0.006), 0.95)), 0.004, 1)
+        _sharpen(bm)
+
+    def worktop(bm):
+        length = g['s1'] - g['s0']
+        _add_box(bm, (length, recess_depth + 0.03, 0.03), Vector((X((g['s0'] + g['s1']) / 2), -(iz - 0.03 + (recess_depth + 0.03) / 2), g['worktop_y'] + 0.015)), 0.005, 1)
+        _sharpen(bm)
+
+    return [_part('GalleyPanels', panels), _part('GalleySteel', steel), _part('GalleyWorktop', worktop)]
+
+
+def build_curtain():
+    """Curtain: drapes drawn open and bunched on both sides of the aisle, pleated, from the ceiling track down."""
+    c = CURTAIN
+    x0 = X(c['station'])
+    cols, rows, folds = 24, 8, 5
+
+    def drapes(bm):
+        for side in (1, -1):
+            grid = []
+            for j in range(rows + 1):
+                y = c['bottom_y'] + (CEILING_Z - 0.01 - c['bottom_y']) * j / rows
+                row = []
+                for i in range(cols + 1):
+                    u = i / cols
+                    z = c['inner_z'] + (c['outer_z'] - c['inner_z']) * u
+                    row.append(bm.verts.new((x0 + 0.05 * math.sin(2 * math.pi * folds * u), side * z, y)))
+                grid.append(row)
+            for a, b in zip(grid, grid[1:]):
+                for i in range(cols):
+                    bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
+
+    return [_part('Curtain', drapes)]
+
+
+def build_exit_sign():
+    """ExitSign housing in its own frame (faces ±X carry the lettering on the site)."""
+    e = EXIT_SIGN
+    return [_part('ExitSign', lambda bm: _add_box(bm, (e['d'], e['w'], e['h']), Vector((0, 0, 0)), 0.008, 2))]
 
 
 def triangles(ob):

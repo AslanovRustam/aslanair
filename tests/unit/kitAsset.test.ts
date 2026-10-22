@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { BIN, SEAT_KIT } from '@/experience/cabinLayout';
+import { BIN, CURTAIN, EXIT_SIGN, GALLEY, SEAT_KIT } from '@/experience/cabinLayout';
 import { ROWS, rowStation, SEAT_FOOTPRINT } from '@/experience/geometry';
 import { glbNodeNames } from './glb';
 import { linerHalfWidthAt } from './linerProfile';
@@ -38,5 +38,13 @@ describe('cabin kit', () => {
     expect(kit.bin).toMatchObject({ length: BIN.length, bottomY: BIN.bottomY, aisleZ: BIN.aisleZ });
     expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['BinPort', 'BinStarboard']));
     expect(kit.triangles.BinPort).toBeLessThanOrEqual(600);
+  });
+
+  test('entry zone parts match cabinLayout', () => {
+    expect(kit.galley).toEqual({ ...GALLEY });
+    expect(kit.curtain).toEqual({ ...CURTAIN });
+    expect(kit.exitSign).toEqual({ ...EXIT_SIGN, placements: EXIT_SIGN.placements.map((p) => [...p]) });
+    expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['GalleyPanels', 'GalleySteel', 'GalleyWorktop', 'Curtain', 'ExitSign']));
+    expect(statSync(KIT).size).toBeLessThanOrEqual(400_000);
   });
 });

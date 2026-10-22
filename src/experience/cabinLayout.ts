@@ -1,6 +1,6 @@
 // Where the cabin kit's parts go. Pure: instance matrices and boxes, no rendering.
-import { Box3, Matrix4, Vector3 } from 'three';
-import { CABIN_WALL_Z, CEILING_Y, FLOOR_Y, ROWS, rowX, SEAT_Z, seatWorldPosition } from './geometry';
+import { Box3, Matrix4, Ray, Vector3 } from 'three';
+import { CABIN_WALL_Z, CEILING_Y, FLOOR_Y, ROWS, rowX, SEAT_LETTERS, SEAT_Z, seatWorldPosition, stationToX } from './geometry';
 import type { Seat } from './seats';
 
 /** Kit seat (metres above the floor / along the seat's facing), mirrored from public/models/cabin-kit.meta.json. */
@@ -63,3 +63,44 @@ export const CEILING_STRIPS = ([-1, 1] as const).map((side) => ({
   z1: side * 0.94,
   y: CEILING_Y - 0.005,
 }));
+
+/** Entry zone, mirrored from the kit meta: galley (starboard, opposite door 1L), curtain drapes, exit signs. */
+export const GALLEY = { s0: 4.05, s1: 5.75, innerZ: 0.32, topY: 1.4, worktopY: 0.1 } as const;
+export const CURTAIN = { station: 6.45, innerZ: 0.62, outerZ: 0.95, bottomY: -0.25 } as const;
+export const EXIT_SIGN = {
+  w: 0.3,
+  h: 0.11,
+  d: 0.05,
+  y: 1.58,
+  placements: [[5.85, 'aft'], [16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']] as [number, 'aft' | 'fore'][],
+} as const;
+
+/** Where the walking camera must keep clear: bins, galley, curtain drapes, exit signs, row-1 seats. */
+export function furnishingBoxes(): Box3[] {
+  const box = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) =>
+    new Box3(new Vector3(Math.min(x0, x1), y0, Math.min(z0, z1)), new Vector3(Math.max(x0, x1), y1, Math.max(z0, z1)));
+  const boxes = binBoxes();
+  boxes.push(box(stationToX(GALLEY.s1), FLOOR_Y, GALLEY.innerZ, stationToX(GALLEY.s0), GALLEY.topY, CABIN_WALL_Z));
+  const cx = stationToX(CURTAIN.station);
+  for (const side of [-1, 1]) boxes.push(box(cx - 0.06, CURTAIN.bottomY, side * CURTAIN.innerZ, cx + 0.06, CEILING_Y, side * CURTAIN.outerZ));
+  for (const [s] of EXIT_SIGN.placements) {
+    const x = stationToX(s);
+    boxes.push(box(x - EXIT_SIGN.d / 2, EXIT_SIGN.y - EXIT_SIGN.h / 2, -EXIT_SIGN.w / 2, x + EXIT_SIGN.d / 2, EXIT_SIGN.y + EXIT_SIGN.h / 2, EXIT_SIGN.w / 2));
+  }
+  for (const letter of SEAT_LETTERS) {
+    const x = rowX(1);
+    const z = SEAT_Z[letter];
+    // the reclined back overhangs ~0.15 m aft of the footprint
+    boxes.push(box(x - SEAT_KIT.depth / 2 - 0.15, FLOOR_Y, z - SEAT_KIT.width / 2, x + SEAT_KIT.depth / 2, FLOOR_Y + SEAT_KIT.height, z + SEAT_KIT.width / 2));
+  }
+  return boxes;
+}
+
+/** True when the segment a→b passes through any box. */
+export function segmentHitsBoxes(a: Vector3, b: Vector3, boxes: Box3[]): boolean {
+  const dir = b.clone().sub(a);
+  const length = dir.length();
+  const ray = new Ray(a, dir.normalize());
+  const hit = new Vector3();
+  return boxes.some((box) => box.containsPoint(a) || (ray.intersectBox(box, hit) !== null && hit.distanceTo(a) <= length));
+}
