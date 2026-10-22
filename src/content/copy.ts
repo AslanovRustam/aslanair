@@ -65,6 +65,7 @@ export const copy = {
     /** Row label under the bins: the row number and that side's seat letters. */
     rowLabel: (row: number, side: -1 | 1) => `${row} ${side < 0 ? 'ABC' : 'DEF'}`,
     exitSign: 'EXIT',
+    exitSignArrows: '← EXIT →',
   },
   footer: {
     disclaimer: 'AslanAir is a fictional airline — a concept project.',

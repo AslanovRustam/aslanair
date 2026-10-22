@@ -4,8 +4,12 @@ import {
   armMatrices,
   binBoxes,
   distanceToBoxes,
+  COCKPIT_DOOR,
+  EXIT_ARROWS,
   EXIT_SIGN,
   furnishingBoxes,
+  GALLEY,
+  JUMP_SEAT,
   isInsideSeat,
   SEAT_KIT,
   SEAT_TRACK_Z,
@@ -83,8 +87,20 @@ describe('entry zone and signs', () => {
     expect(segmentHitsBoxes(c.clone().add(new Vector3(0, 0, -5)), c.clone().add(new Vector3(0, 0, 5)), [box])).toBe(true);
   });
 
-  test('exit signs hang at door 1L, the over-wing exits and the aft door', () => {
-    expect(EXIT_SIGN.placements.map(([s]) => s)).toEqual([5.85, 16.45, 16.45, 30.25]);
+  test('exit signs hang at the over-wing exits and the aft door; the arrows sign at door 1L', () => {
+    expect(EXIT_SIGN.placements.map(([s]) => s)).toEqual([16.45, 16.45, 30.25]);
+    expect(EXIT_ARROWS.station).toBeLessThan(4.49); // just forward of door 1L, between it and the flight deck
+    expect(EXIT_ARROWS.y + EXIT_SIGN.h / 2).toBeLessThan(1.576); // under the ceiling there
+  });
+
+  test('the cockpit door and jump seat stand on the front bulkhead, clear of the galley and of each other', () => {
+    expect(COCKPIT_DOOR.z + COCKPIT_DOOR.width / 2).toBeLessThanOrEqual(GALLEY.innerZ - 0.02 + 1e-9);
+    expect(JUMP_SEAT.z + JUMP_SEAT.width / 2).toBeLessThanOrEqual(COCKPIT_DOOR.z - COCKPIT_DOOR.width / 2);
+    const boxes = furnishingBoxes();
+    const at = (x: number, y: number, z: number) => boxes.some((b) => b.containsPoint(new Vector3(x, y, z)));
+    expect(at(stationToX(COCKPIT_DOOR.station + 0.02), FLOOR_Y + 1, COCKPIT_DOOR.z), 'door box').toBe(true);
+    expect(at(stationToX(JUMP_SEAT.station + 0.05), FLOOR_Y + 0.5, JUMP_SEAT.z), 'jump seat box').toBe(true);
+    expect(at(stationToX(EXIT_ARROWS.station), EXIT_ARROWS.y, 0), 'arrows sign box').toBe(true);
   });
 
   test('the seated camera is inside its own seat and no other', () => {

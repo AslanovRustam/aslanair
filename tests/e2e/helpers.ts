@@ -55,6 +55,8 @@ export const visibleLights = (page: Page) =>
 
 /** Moves the pointer over a grid on the lower screen until a seat is hovered; returns it and the pointer position. */
 export async function scanForHoveredSeat(page: Page): Promise<{ id: string; x: number; y: number }> {
+  // under a busy GPU the cabin kit can still be loading when the scroll settles
+  await page.waitForFunction(() => !!(window as unknown as StoreWindow).__aslan?.scene?.getObjectByName('SeatHit'));
   for (let y = 440; y < 760; y += 40) {
     for (let x = 140; x < 1300; x += 60) {
       await page.mouse.move(x, y);

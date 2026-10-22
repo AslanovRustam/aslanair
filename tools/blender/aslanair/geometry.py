@@ -247,4 +247,11 @@ def bin_profile():
 # the curtain hangs drawn open from a ceiling track on both sides; exit signs hang over the aisle centreline.
 GALLEY = {'s0': 4.05, 's1': 5.75, 'inner_z': 0.32, 'top_y': 1.40, 'worktop_y': 0.10}
 CURTAIN = {'station': 6.45, 'inner_z': 0.62, 'outer_z': 0.95, 'bottom_y': -0.25}
-EXIT_SIGN = {'w': 0.30, 'h': 0.11, 'd': 0.05, 'y': 1.58, 'placements': [[5.85, 'aft'], [16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']]}
+EXIT_SIGN = {'w': 0.30, 'h': 0.11, 'd': 0.05, 'y': 1.58, 'placements': [[16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']]}
+
+# Nose (three.js y and signed z, port negative): the flight-deck door on the front bulkhead, set to port so it clears
+# the galley; a folded attendant jump seat beside it, facing aft; an arrowed exit sign over the aisle at door 1L, hung
+# lower than the others because the ceiling dips towards the nose.
+COCKPIT_DOOR = {'station': 4.0, 'width': 0.80, 'height': 1.90, 'z': -0.10}
+JUMP_SEAT = {'station': 4.02, 'z': -0.75, 'width': 0.45, 'height': 1.05}
+EXIT_ARROWS = {'station': 4.40, 'y': 1.43, 'w': 0.42}

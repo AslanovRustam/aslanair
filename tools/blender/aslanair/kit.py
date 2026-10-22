@@ -10,7 +10,8 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import (BACK_DISH, BACK_HALF, BIN, CEILING_Z, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY, SEAT_KIT, X,
+from .geometry import (BACK_DISH, BACK_HALF, BIN, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
+                       JUMP_SEAT, SEAT_KIT, X,
                        backrest_depth, backrest_section, bin_profile, cushion_section, liner_half_width_at)
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
@@ -334,6 +335,63 @@ def build_curtain():
                     bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
 
     return [_part('Curtain', drapes)]
+
+
+def build_cockpit_door():
+    """CockpitDoor (frame and reinforced leaf on the front bulkhead) and CockpitDoorHardware (lever handle, peephole,
+    placard, and the entry keypad on the galley's side wall next to the door) — cabin coordinates. The cabin lies aft
+    of the bulkhead, towards lower X; Blender Y = -three.js z."""
+    d = COCKPIT_DOOR
+    x0, yc = X(d['station']), -d['z']
+    half, height, frame = d['width'] / 2, d['height'], 0.04
+    leaf_w, leaf_h = d['width'] - 2 * frame, height - frame - 0.01
+    port = yc + half - frame                           # the leaf's port edge (Blender +Y)
+
+    def door(bm):
+        for y in (yc - half + frame / 2, yc + half - frame / 2):                       # jambs
+            _add_box(bm, (0.03, frame, height), Vector((x0 - 0.015, y, FLOOR_Z + height / 2)), 0.004, 1)
+        _add_box(bm, (0.03, d['width'], frame), Vector((x0 - 0.015, yc, FLOOR_Z + height - frame / 2)), 0.004, 1)
+        _add_box(bm, (0.02, leaf_w, leaf_h), Vector((x0 - 0.01, yc, FLOOR_Z + 0.01 + leaf_h / 2)), 0.003, 1)
+        for zc in (FLOOR_Z + 0.48, FLOOR_Z + 1.30):                                    # raised armour panels
+            _add_box(bm, (0.008, leaf_w - 0.12, 0.66), Vector((x0 - 0.022, yc, zc)), 0.003, 1)
+        _sharpen(bm)
+
+    def hardware(bm):
+        _add_box(bm, (0.012, 0.05, 0.13), Vector((x0 - 0.026, port - 0.09, FLOOR_Z + 1.02)), 0.004, 1)        # handle plate
+        _add_box(bm, (0.03, 0.13, 0.024), Vector((x0 - 0.045, port - 0.13, FLOOR_Z + 1.05)), 0.008, 1)       # lever
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.014, radius2=0.012, depth=0.02,
+                              matrix=Matrix.Translation((x0 - 0.03, yc, FLOOR_Z + 1.55)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
+        _add_box(bm, (0.006, 0.24, 0.06), Vector((x0 - 0.027, yc, FLOOR_Z + 1.74)), 0.002, 1)                # placard
+        gx = X(d['station'] + 0.12)                                                     # keypad on the galley wall
+        _add_box(bm, (0.075, 0.018, 0.12), Vector((gx, -(GALLEY['inner_z'] - 0.009), FLOOR_Z + 1.25)), 0.004, 1)
+        _sharpen(bm)
+
+    return [_part('CockpitDoor', door), _part('CockpitDoorHardware', hardware)]
+
+
+def build_jump_seat():
+    """JumpSeat (backrest, headrest and the seat pan folded up in front of it) and JumpSeatFrame (side rails, base
+    bracket, shoulder harness and buckle) on the front bulkhead, port of the cockpit door, facing aft — cabin
+    coordinates."""
+    j = JUMP_SEAT
+    xb, yc, w, h = X(j['station']), -j['z'], j['width'], j['height']
+
+    def cushions(bm):
+        _add_box(bm, (0.06, w - 0.05, 0.56), Vector((xb - 0.03, yc, FLOOR_Z + 0.68)), 0.02, 2)       # backrest 0.40–0.96
+        _add_box(bm, (0.055, w - 0.14, 0.11), Vector((xb - 0.03, yc, FLOOR_Z + h - 0.065)), 0.02, 2)  # headrest
+        _add_box(bm, (0.07, w - 0.05, 0.42), Vector((xb - 0.095, yc, FLOOR_Z + 0.63)), 0.02, 2)       # seat pan, stowed
+        _sharpen(bm, 60)
+
+    def frame(bm):
+        for side in (-1, 1):
+            y = yc + side * (w / 2 - 0.012)
+            _add_box(bm, (0.04, 0.024, 0.98), Vector((xb - 0.02, y, FLOOR_Z + 0.49)), 0.004, 1)          # side rail
+            _add_box(bm, (0.004, 0.04, 0.50), Vector((xb - 0.132, yc + side * 0.09, FLOOR_Z + 0.66)), 0, 0)  # harness
+        _add_box(bm, (0.10, w, 0.035), Vector((xb - 0.05, yc, FLOOR_Z + 0.38)), 0.006, 1)                 # base bracket
+        _add_box(bm, (0.012, 0.075, 0.05), Vector((xb - 0.137, yc, FLOOR_Z + 0.55)), 0.004, 1)            # buckle
+        _sharpen(bm)
+
+    return [_part('JumpSeat', cushions), _part('JumpSeatFrame', frame)]
 
 
 def build_exit_sign():

@@ -24,8 +24,8 @@ import { DOOR_1L } from '@/experience/geometry';
 import { experienceStore, trackOf } from '@/experience/store';
 
 const MODEL_URL = '/models/airliner.glb';
-/** The cabin shell, floor and cockpit door: inside the hull, so they never cast sun shadows. */
-const INTERIOR = /^(Cabin|CockpitDoor)/;
+/** The cabin shell, floor and skirting: inside the hull, so they never cast sun shadows. */
+const INTERIOR = /^Cabin/;
 /** GLB floor materials and the pattern each one wears. */
 const FLOOR_MAPS: Record<string, 'carpet' | 'runner'> = { Carpet: 'carpet', AisleCarpet: 'runner' };
 

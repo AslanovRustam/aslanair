@@ -62,20 +62,27 @@
       ]
     ]
   },
+  "cockpitDoor": {
+    "height": 1.9,
+    "station": 4.0,
+    "width": 0.8,
+    "z": -0.1
+  },
   "curtain": {
     "bottomY": -0.25,
     "innerZ": 0.62,
     "outerZ": 0.95,
     "station": 6.45
   },
+  "exitArrows": {
+    "station": 4.4,
+    "w": 0.42,
+    "y": 1.43
+  },
   "exitSign": {
     "d": 0.05,
     "h": 0.11,
     "placements": [
-      [
-        5.85,
-        "aft"
-      ],
       [
         16.45,
         "aft"
@@ -99,6 +106,12 @@
     "topY": 1.4,
     "worktopY": 0.1
   },
+  "jumpSeat": {
+    "height": 1.05,
+    "station": 4.02,
+    "width": 0.45,
+    "z": -0.75
+  },
   "seat": {
     "armTop": 0.65,
     "backFrontTopX": -0.3,
@@ -110,11 +123,15 @@
   "triangles": {
     "BinPort": 196,
     "BinStarboard": 196,
+    "CockpitDoor": 264,
+    "CockpitDoorHardware": 220,
     "Curtain": 768,
     "ExitSign": 108,
     "GalleyPanels": 206,
     "GalleySteel": 440,
     "GalleyWorktop": 44,
+    "JumpSeat": 324,
+    "JumpSeatFrame": 200,
     "SeatArm": 256,
     "SeatBelt": 88,
     "SeatBuckle": 56,

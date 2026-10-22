@@ -128,7 +128,7 @@ test('loading the furnished cabin never blocks the main thread for more than 3 s
   expect(longest).toBeLessThanOrEqual(3000);
 });
 
-const CABIN_PARTS = /^(Cabin|CockpitDoor|Seat|Bin|RowLabels|CeilingStrip|Galley|Curtain|ExitSign|WindowGlass)/;
+const CABIN_PARTS = /^(Cabin|CockpitDoor|JumpSeat|Seat|Bin|RowLabels|CeilingStrip|Galley|Curtain|ExitSign|WindowGlass)/;
 
 test('only the exterior casts sun shadows', async ({ page }) => {
   await page.goto('/');

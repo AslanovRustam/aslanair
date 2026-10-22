@@ -1,8 +1,10 @@
 import { CatmullRomCurve3, MathUtils, Vector3 } from 'three';
 import { chapterAt, trackProgress } from './chapters';
+import { COCKPIT_DOOR } from './cabinLayout';
 import {
   CABIN_WALL_Z,
   DOOR_1L,
+  FLOOR_Y,
   EYE_SEATED,
   EYE_STANDING,
   SEATED_EYE_AFT,
@@ -36,6 +38,11 @@ const DOOR_CURVE = new CatmullRomCurve3(
   'centripetal',
 );
 const DOOR_CENTRE = v(stationToX(DOOR_1L.station), DOOR_1L.y, DOOR_1L.hinge[2]);
+/** Straight in through door 1L, across the cabin: the gaze moves on here before the camera passes the doorway. */
+const DOOR_ACROSS = DOOR_CENTRE.clone().add(v(0, 0, 2.5));
+/** On entry the camera looks at the flight-deck door, up at the panel and peephole: its top, the jump seat and the
+ * arrowed exit sign stay in frame. */
+export const COCKPIT_LOOK = v(stationToX(COCKPIT_DOOR.station), FLOOR_Y + 1.4, COCKPIT_DOOR.z);
 
 // --- aisle: stops level with row 26 so rows 27–30 stay in view ahead
 const AISLE = { startX: 12.6, endX: rowX(26) + 0.6, lookAhead: v(-6, -0.15, 0), fov: 60 };
@@ -50,12 +57,36 @@ function skyPose(t: number): CameraPose {
   };
 }
 
+/**
+ * The target `k` of the way through turning the gaze from `a` to `b` about the vertical, pitch and distance blended.
+ * Lerping the points themselves would swing the gaze through the eye when they lie on opposite sides of it.
+ * `starboard` turns through +z whichever way is shorter.
+ */
+function turnGaze(eye: Vector3, a: Vector3, b: Vector3, k: number, starboard = false): Vector3 {
+  if (k <= 0) return a.clone();
+  if (k >= 1) return b.clone();
+  const da = a.clone().sub(eye);
+  const db = b.clone().sub(eye);
+  const yawA = Math.atan2(da.z, da.x);
+  let turn = Math.atan2(db.z, db.x) - yawA;
+  if (starboard) turn = ((turn % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  else turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+  const yaw = yawA + turn * k;
+  const pitch = lerp(Math.atan2(da.y, Math.hypot(da.x, da.z)), Math.atan2(db.y, Math.hypot(db.x, db.z)), k);
+  const dir = v(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch), Math.sin(yaw) * Math.cos(pitch));
+  return eye.clone().addScaledVector(dir, lerp(da.length(), db.length(), k));
+}
+
 function doorPose(t: number): CameraPose {
-  const target = SKY.targetTo.clone().lerp(DOOR_CENTRE, smoothstep(t, 0, 0.35)).lerp(CABIN_LOOK, smoothstep(t, 0.7, 1));
+  const position = DOOR_CURVE.getPoint(t);
+  // the approach: from the sky shot's target to the doorway, then on across the cabin
+  const approach = SKY.targetTo.clone().lerp(DOOR_CENTRE, smoothstep(t, 0, 0.35)).lerp(DOOR_ACROSS, smoothstep(t, 0.35, 0.55));
+  // inside: a look at the flight-deck door, held, then a turn across the galley down the aisle
+  const nose = turnGaze(position, approach, COCKPIT_LOOK, smoothstep(t, 0.62, 0.76));
   return {
-    position: DOOR_CURVE.getPoint(t),
-    target,
-    fov: lerp(30, AISLE.fov, smoothstep(t, 0.55, 0.9)),
+    position,
+    target: turnGaze(position, nose, CABIN_LOOK, smoothstep(t, 0.8, 1), true),
+    fov: lerp(30, AISLE.fov, smoothstep(t, 0.55, 0.76)),
   };
 }
 

@@ -1,5 +1,5 @@
 """Cabin shell inside the hull: walls and ceiling with window/door openings, reveals,
-bulkheads (with a cockpit door) and the floor."""
+bulkheads, the floor and its skirting. The cockpit door is furnishing (the cabin kit)."""
 import math
 
 from mathutils import Vector
@@ -14,7 +14,6 @@ from .openings import _bbox, cut_outlines, window_outlines
 WALL_ROWS = 30        # rows from the floor up to the ceiling edge on each side
 CEILING_COLUMNS = 12
 AISLE_HALF_WIDTH = 0.25
-COCKPIT_DOOR = {'width': 0.8, 'height': 1.9}
 
 
 def shell_profile(s):
@@ -114,11 +113,6 @@ def build_cabin():
     shell.data.uv_layers.remove(shell.data.uv_layers['UVMap'])   # untextured: no UVs to ship
     _shade_walls(shell)
 
-    # cockpit door on the front bulkhead, just aft of it
-    x = X(CABIN['front_station']) - 0.01
-    hw, top = COCKPIT_DOOR['width'] / 2, FLOOR_Z + COCKPIT_DOOR['height']
-    make_mesh('CockpitDoor', [(x, -hw, FLOOR_Z), (x, hw, FLOOR_Z), (x, hw, top), (x, -hw, top)], [(0, 1, 2, 3)], None,
-              material('CockpitDoor', '#cfcac0', rough=0.6, double=True), recalc=False, sharp=None)
     _floor()
     _plinth()
     return shell

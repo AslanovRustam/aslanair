@@ -88,10 +88,19 @@ export const EXIT_SIGN = {
   h: 0.11,
   d: 0.05,
   y: 1.58,
-  placements: [[5.85, 'aft'], [16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']] as [number, 'aft' | 'fore'][],
+  placements: [[16.45, 'aft'], [16.45, 'fore'], [30.25, 'fore']] as [number, 'aft' | 'fore'][],
 } as const;
 
-/** Where the walking camera must keep clear: bins, galley, curtain drapes, exit signs, row-1 seats. */
+/** Nose, mirrored from the kit meta (signed z, port negative): the flight-deck door on the front bulkhead, set to port
+ * so it clears the galley; the folded attendant jump seat beside it; the arrowed exit sign over the aisle at door 1L,
+ * hung lower than the others because the ceiling dips towards the nose. */
+export const COCKPIT_DOOR = { station: 4.0, width: 0.8, height: 1.9, z: -0.1 } as const;
+export const JUMP_SEAT = { station: 4.02, z: -0.75, width: 0.45, height: 1.05 } as const;
+export const EXIT_ARROWS = { station: 4.4, y: 1.43, w: 0.42 } as const;
+/** How far the door (frame, leaf, handle) and the folded jump seat stand out from the bulkhead. */
+const NOSE_DEPTH = { door: 0.06, jumpSeat: 0.16 };
+
+/** Where the walking camera must keep clear: bins, galley, curtain drapes, exit signs, the nose, row-1 seats. */
 export function furnishingBoxes(): Box3[] {
   const box = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) =>
     new Box3(new Vector3(Math.min(x0, x1), y0, Math.min(z0, z1)), new Vector3(Math.max(x0, x1), y1, Math.max(z0, z1)));
@@ -103,6 +112,15 @@ export function furnishingBoxes(): Box3[] {
     const x = stationToX(s);
     boxes.push(box(x - EXIT_SIGN.d / 2, EXIT_SIGN.y - EXIT_SIGN.h / 2, -EXIT_SIGN.w / 2, x + EXIT_SIGN.d / 2, EXIT_SIGN.y + EXIT_SIGN.h / 2, EXIT_SIGN.w / 2));
   }
+  const ax = stationToX(EXIT_ARROWS.station);
+  const ah = EXIT_SIGN.h / 2;
+  boxes.push(box(ax - EXIT_SIGN.d / 2, EXIT_ARROWS.y - ah, -EXIT_ARROWS.w / 2, ax + EXIT_SIGN.d / 2, EXIT_ARROWS.y + ah, EXIT_ARROWS.w / 2));
+  const dx = stationToX(COCKPIT_DOOR.station);
+  const dz = COCKPIT_DOOR.width / 2;
+  boxes.push(box(dx - NOSE_DEPTH.door, FLOOR_Y, COCKPIT_DOOR.z - dz, dx, FLOOR_Y + COCKPIT_DOOR.height, COCKPIT_DOOR.z + dz));
+  const jx = stationToX(JUMP_SEAT.station);
+  const jz = JUMP_SEAT.width / 2;
+  boxes.push(box(jx - NOSE_DEPTH.jumpSeat, FLOOR_Y, JUMP_SEAT.z - jz, dx, FLOOR_Y + JUMP_SEAT.height, JUMP_SEAT.z + jz));
   for (const letter of SEAT_LETTERS) {
     const x = rowX(1);
     const z = SEAT_Z[letter];

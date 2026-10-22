@@ -66,6 +66,7 @@ describe('aircraft asset budget', () => {
     for (const n of ['Fuselage', 'Door1L', 'CabinShell', 'CabinFloor', 'CabinPlinth', 'WindowGlass', 'Lettering_L', 'Lettering_R']) {
       expect(names).toContain(n);
     }
+    expect(glbNodeNames(GLB), 'the cockpit door comes from the cabin kit now').not.toContain('CockpitDoor');
   });
 
   test("door 1L's window is geometry riding on the door, not livery pixels", () => {

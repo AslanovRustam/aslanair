@@ -1,15 +1,17 @@
-import { Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import {
   aircraftFlyAway,
   aisleProgressForRow,
+  COCKPIT_LOOK,
   exitControlPoints,
   poseOnPostTrack,
   poseOnPreTrack,
   seatedPose,
 } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
-import { CABIN_WALL_Z, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
+import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
+import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
 
 describe('pre-track camera', () => {
   test('starts on the sky shot with a narrow lens', () => {
@@ -22,6 +24,43 @@ describe('pre-track camera', () => {
     expect(doorEnd.position.distanceTo(new Vector3(12.6, 1.2, 0))).toBeLessThan(1e-6);
     const samples = Array.from({ length: 401 }, (_, i) => poseOnPreTrack(trackProgress('pre', 'door', i / 400)).position);
     expect(Math.min(...samples.map((p) => p.distanceTo(new Vector3(13.9, 1.1, -2.4))))).toBeLessThan(0.02);
+  });
+
+  test('entering, the camera looks at the cockpit door before turning to the aisle', () => {
+    for (const t of [0.76, 0.78, 0.8]) {
+      const p = poseOnPreTrack(trackProgress('pre', 'door', t));
+      const view = p.target.clone().sub(p.position).normalize();
+      const toDoor = COCKPIT_LOOK.clone().sub(p.position).normalize();
+      expect(view.angleTo(toDoor), `t=${t}`).toBeLessThan((12 * Math.PI) / 180);
+    }
+  });
+
+  test('the look at the nose frames the door top, the jump seat and the exit sign', () => {
+    const p = poseOnPreTrack(trackProgress('pre', 'door', 0.78));
+    const camera = new PerspectiveCamera(p.fov, 1440 / 800, 0.05, 100);
+    camera.position.copy(p.position);
+    camera.lookAt(p.target);
+    camera.updateMatrixWorld();
+    const inView = (point: Vector3) => {
+      const ndc = point.clone().project(camera);
+      return Math.abs(ndc.x) < 0.95 && Math.abs(ndc.y) < 0.95 && ndc.z < 1;
+    };
+    const door = stationToX(COCKPIT_DOOR.station);
+    expect(inView(new Vector3(door, FLOOR_Y + COCKPIT_DOOR.height, COCKPIT_DOOR.z)), 'door top').toBe(true);
+    expect(inView(new Vector3(stationToX(JUMP_SEAT.station), FLOOR_Y + JUMP_SEAT.height, JUMP_SEAT.z)), 'jump seat top').toBe(true);
+    for (const dy of [-0.055, 0.055]) {
+      expect(inView(new Vector3(stationToX(EXIT_ARROWS.station), EXIT_ARROWS.y + dy, 0)), `exit sign edge ${dy}`).toBe(true);
+    }
+  });
+
+  test('the door flight turns its gaze smoothly, never swinging through the eye', () => {
+    let previous: Vector3 | null = null;
+    for (let i = 0; i <= 400; i++) {
+      const p = poseOnPreTrack(trackProgress('pre', 'door', i / 400));
+      const view = p.target.clone().sub(p.position).normalize();
+      if (previous) expect(view.angleTo(previous), `t=${i / 400}`).toBeLessThan((4 * Math.PI) / 180);
+      previous = view;
+    }
   });
 
   test('the aisle walk can stop level with any row, with a wide lens', () => {
