@@ -110,6 +110,7 @@ def render(shots, samples, clouds):
     SHOT_DEF = {
         'hero':   dict(pos=(46, 40, 9), target=(0, 0, -0.5), lens=70, sun=(38, 0.45, 0.89)),
         'side':   dict(pos=(2, -80, 2.5), target=(0, 0, 0.6), lens=85, sun=(42, 0.35, -0.94)),
+        'port':   dict(pos=(2, 80, 2.5), target=(0, 0, 0.6), lens=85, sun=(42, 0.35, 0.94)),
         'window': dict(pos=(X(18.8), -2.16, 0.62), target=(X(15.5), -12.0, -0.8), lens=22, sun=(40, 0.6, -0.8)),
         'nose':   dict(pos=(14.5, -9.5, 1.8), target=(X(3.2), 0, 0.3), lens=50, sun=(35, 0.7, -0.7)),
         'window-in': dict(pos=(1.21, -1.42, 0.7), target=(1.59, -4.8, 0.57), lens=24, sun=(40, 0.6, -0.8)),
