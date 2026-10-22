@@ -16,6 +16,7 @@ import EntryZone from './cabin/EntryZone';
 import SeatHighlight from './cabin/SeatHighlight';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
+import CompileAsync from './CompileAsync';
 import SkyAndClouds from './sky/SkyAndClouds';
 
 const start = poseOnPreTrack(0);
@@ -54,10 +55,12 @@ export default function Experience() {
           <Suspense fallback={null}>
             <Aircraft>
               <CabinLights />
-              <Seats />
-              <SeatHighlight />
-              <Bins />
-              <EntryZone />
+              <CompileAsync>
+                <Seats />
+                <SeatHighlight />
+                <Bins />
+                <EntryZone />
+              </CompileAsync>
             </Aircraft>
           </Suspense>
           <BoardingPass3D />

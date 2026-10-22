@@ -58,3 +58,21 @@ test('the highlight sits on the hovered seat, then marks the chosen one', async 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => highlightState(page)).toMatchObject({ visible: true, color: '#d4683a' });
 });
+
+test('loading the furnished cabin never blocks the main thread for more than 3 s', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __long: number[] };
+    w.__long = [];
+    new PerformanceObserver((list) => list.getEntries().forEach((e) => w.__long.push(e.duration))).observe({ type: 'longtask', buffered: true });
+  });
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForFunction(() => {
+    const seat = (window as unknown as { __aslan: { scene?: { getObjectByName(n: string): { layers: { mask: number } } | undefined } } }).__aslan.scene?.getObjectByName('SeatFabric');
+    return !!seat && (seat.layers.mask & 1) === 1; // shown on the camera's layer
+  });
+  await page.waitForTimeout(1500);
+  const longest = await page.evaluate(() => Math.max(0, ...(window as unknown as { __long: number[] }).__long));
+  expect(longest).toBeLessThanOrEqual(3000);
+});
