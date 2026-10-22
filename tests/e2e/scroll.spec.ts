@@ -1,9 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-type StoreWindow = Window & { __aslan: { store: { getState(): { progress: number; phase: string } } } };
-const progress = (page: Page) => page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().progress);
-/** The scene (and its test hook) loads via a client-only dynamic import, after `goto` resolves. */
-const waitForStore = (page: Page) => page.waitForFunction(() => !!(window as unknown as Partial<StoreWindow>).__aslan);
+import { expect, test } from '@playwright/test';
+import { progress, waitForStore } from './helpers';
 
 test('scrolling walks from the sky into the aisle', async ({ page }) => {
   await page.goto('/');

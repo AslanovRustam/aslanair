@@ -4,7 +4,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { TRACKS } from '@/experience/chapters';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 
@@ -39,7 +39,25 @@ export default function SmoothScroll() {
     };
   }, []);
 
-  useEffect(() => {
+  // Sitting down freezes the scroll at once; standing up returns to the aisle at that row.
+  useEffect(
+    () =>
+      experienceStore.subscribe((s, prev) => {
+        if (s.phase === prev.phase) return;
+        if (s.phase === 'seated') lenis?.stop();
+        else if (prev.phase === 'seated' && s.phase === 'browse') {
+          lenis?.start();
+          scrollToProgress(s.progress, true);
+        }
+      }),
+    [],
+  );
+
+  // A new track (confirm / change seat) swaps the sections; the layout effect runs before the
+  // browser can clamp the scroll, so the store's progress (0, or the aisle row) is still intact.
+  useLayoutEffect(() => {
+    // Read the target first: refresh() below reports the *old* scroll position to onUpdate.
+    const { progress: target, phase, setProgress } = experienceStore.getState();
     const st = ScrollTrigger.create({
       trigger: wrapper.current,
       start: 'top top',
@@ -47,6 +65,13 @@ export default function SmoothScroll() {
       onUpdate: (self) => experienceStore.getState().setProgress(self.progress),
     });
     trigger = st;
+    lenis?.resize();
+    ScrollTrigger.refresh();
+    if (phase !== 'seated') {
+      scrollToProgress(target, true);
+      setProgress(target);
+      lenis?.start();
+    }
     return () => {
       st.kill();
       trigger = null;

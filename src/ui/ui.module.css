@@ -69,6 +69,22 @@
   cursor: pointer;
 }
 
+.ghost {
+  border: 1px solid rgba(241, 240, 236, 0.6);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  background: transparent;
+  color: #f1f0ec;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ghost:hover,
+.ghost:focus-visible {
+  border-color: #f1f0ec;
+  outline: none;
+}
+
 .button:hover,
 .button:focus-visible {
   background: #d4683a;

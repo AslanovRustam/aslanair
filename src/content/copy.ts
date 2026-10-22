@@ -14,4 +14,25 @@ export const copy = {
     hint: 'Choose a seat to continue',
     pickForMe: 'Pick for me', // pinned
   },
+  seated: {
+    choose: 'Choose this seat', // pinned
+    another: 'See another', // pinned
+  },
+  pass: {
+    title: 'Your boarding pass.',
+    flipHint: 'Click the pass to turn it over.',
+    change: 'Change seat', // pinned
+    scrollHint: 'Scroll to take off',
+  },
+  boardingPass: {
+    heading: 'Boarding pass',
+    passenger: 'Passenger',
+    flight: 'Flight',
+    date: 'Date',
+    seat: 'Seat',
+    gate: 'Gate',
+    zone: 'Zone',
+    boarding: 'Boarding',
+    backNote: 'AslanAir is a fictional airline — a concept project.',
+  },
 } as const;
