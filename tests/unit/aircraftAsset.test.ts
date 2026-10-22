@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { CABIN_WALL_Z, CEILING_Y, DOOR_1L, FLOOR_Y, WINDOW } from '@/experience/geometry';
+import { CABIN_WALL_Z, CEILING_Y, DOOR_1L, FLOOR_Y, ROWS, rowStation, SEAT_FOOTPRINT, SEAT_Z, WINDOW } from '@/experience/geometry';
 import { glbImageSizes, glbNodeNames } from './glb';
 
 const GLB = 'public/models/airliner.glb';
@@ -12,6 +12,22 @@ describe('aircraft asset ↔ site constants', () => {
     expect(meta.ceilingY).toBeCloseTo(CEILING_Y, 4);
     expect(meta.cabinWallZ).toBeCloseTo(CABIN_WALL_Z, 3);
     expect(meta.window).toMatchObject({ y: WINDOW.y, firstStation: WINDOW.firstStation, pitch: WINDOW.pitch, lastStation: WINDOW.lastStation });
+  });
+
+  test('outboard seats stand inside the cabin wall, tail taper included', () => {
+    const profile: [number, number][] = meta.cabin.floorHalfWidth;
+    const halfWidthAt = (s: number) => {
+      const i = profile.findIndex(([station]) => station >= s);
+      const [s0, w0] = profile[i - 1];
+      const [s1, w1] = profile[i];
+      return w0 + ((w1 - w0) * (s - s0)) / (s1 - s0);
+    };
+    const outboard = SEAT_Z.F + SEAT_FOOTPRINT.width / 2;
+    for (let row = 1; row <= ROWS; row++) {
+      for (const s of [rowStation(row) - SEAT_FOOTPRINT.depth / 2, rowStation(row) + SEAT_FOOTPRINT.depth / 2]) {
+        expect(halfWidthAt(s) - outboard, `row ${row} at station ${s.toFixed(2)}`).toBeGreaterThanOrEqual(0.02);
+      }
+    }
   });
 
   test('door 1L matches geometry.ts', () => {

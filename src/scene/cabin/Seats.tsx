@@ -4,13 +4,13 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect, useRef } from 'react';
 import { Color, Matrix4, type Group, type InstancedMesh } from 'three';
 import { chapterAt } from '@/experience/chapters';
-import { seatWorldPosition } from '@/experience/geometry';
+import { SEAT_FOOTPRINT, seatWorldPosition } from '@/experience/geometry';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
 
 // Placeholder seat blocks (Plan 3 brings real seats). Seats face +X; covers sit on the
 // front of the backrest top, so they face a camera walking aft.
-const BODY = { depth: 0.5, height: 0.9, width: 0.44, color: '#d9d6cf' };
+const BODY = { ...SEAT_FOOTPRINT, height: 0.9, color: '#d9d6cf' };
 const COVER = { depth: 0.06, height: 0.16, width: 0.4 };
 const OCCUPIED_DIM = 0.75;
 

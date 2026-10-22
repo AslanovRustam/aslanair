@@ -5,7 +5,9 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, TAIL0, WINDOW, cabin_wall_inner, door_hinge, door_rect
+from .cabin import shell_stations
+from .geometry import (CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, TAIL0, WINDOW, cabin_wall_inner, door_hinge, door_rect,
+                       liner_half_width_at)
 
 
 def _three(v):
@@ -26,7 +28,8 @@ def meta():
         'floorY': round(FLOOR_Z, 4),
         'ceilingY': round(CEILING_Z, 4),
         'cabinWallZ': round(cabin_wall_inner(15.0), 4),
-        'cabin': {'frontStation': CABIN['front_station'], 'aftStation': CABIN['aft_station']},
+        'cabin': {'frontStation': CABIN['front_station'], 'aftStation': CABIN['aft_station'],
+                  'floorHalfWidth': [[round(s, 4), round(liner_half_width_at(s, FLOOR_Z), 4)] for s in shell_stations()]},
         'window': {'y': WINDOW['z'], 'firstStation': WINDOW['first'], 'pitch': WINDOW['pitch'],
                    'lastStation': WINDOW['last'], 'w': WINDOW['w'], 'h': WINDOW['h']},
         'door1L': {'station': DOOR_1L['station'], 'width': DOOR_1L['width'], 'height': DOOR_1L['height'],

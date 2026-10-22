@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import {
   nearestWindowStation,
+  ROWS,
   rowStation,
   seatWorldPosition,
   sideOf,
   stationToX,
+  WINDOW,
   windowStations,
 } from '@/experience/geometry';
 
@@ -14,9 +16,15 @@ describe('aircraft geometry', () => {
     expect(stationToX(37.6)).toBeCloseTo(-18.8);
   });
 
-  test('rows start at station 7.3 with a 0.78 m pitch', () => {
-    expect(rowStation(1)).toBe(7.3);
-    expect(rowStation(30)).toBeCloseTo(29.92);
+  test('rows start at station 7.0 with a 0.76 m (≈30 in) pitch', () => {
+    expect(rowStation(1)).toBe(7.0);
+    expect(rowStation(30)).toBeCloseTo(29.04);
+  });
+
+  test('every row has its own window beside it', () => {
+    const rows = Array.from({ length: ROWS }, (_, i) => rowStation(i + 1));
+    for (const s of rows) expect(Math.abs(nearestWindowStation(s) - s), `row at ${s}`).toBeLessThanOrEqual(WINDOW.pitch / 2);
+    expect(new Set(rows.map(nearestWindowStation)).size).toBe(ROWS);
   });
 
   test('cabin windows match the livery texture', () => {
@@ -28,6 +36,6 @@ describe('aircraft geometry', () => {
   test('seats A–C sit on the port (−Z) side', () => {
     expect(sideOf('A')).toBe(-1);
     expect(sideOf('F')).toBe(1);
-    expect(seatWorldPosition(1, 'A')).toEqual([11.5, -0.45, -1.42]);
+    expect(seatWorldPosition(1, 'A')).toEqual([11.8, -0.45, -1.42]);
   });
 });

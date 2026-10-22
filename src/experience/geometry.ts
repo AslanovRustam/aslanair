@@ -16,8 +16,8 @@ export const CEILING_Y = 1.75;
 export const CABIN_WALL_Z = 1.7931;
 
 export const ROWS = 30;
-export const FIRST_ROW_STATION = 7.3;
-export const ROW_PITCH = 0.78;
+export const FIRST_ROW_STATION = 7.0;
+export const ROW_PITCH = 0.76; // ≈30 in, A320 economy; row 30 stays ahead of the tail taper
 
 export function rowStation(row: number): number {
   return FIRST_ROW_STATION + (row - 1) * ROW_PITCH;
@@ -30,6 +30,9 @@ export function rowX(row: number): number {
 export type SeatLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 export const SEAT_LETTERS: SeatLetter[] = ['A', 'B', 'C', 'D', 'E', 'F'];
 export const SEAT_Z: Record<SeatLetter, number> = { A: -1.42, B: -0.94, C: -0.46, D: 0.46, E: 0.94, F: 1.42 };
+
+/** Seat footprint on the floor (metres): depth along the aisle, width across. */
+export const SEAT_FOOTPRINT = { depth: 0.5, width: 0.44 } as const;
 
 export function sideOf(letter: SeatLetter): -1 | 1 {
   return SEAT_Z[letter] < 0 ? -1 : 1;
