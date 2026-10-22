@@ -29,6 +29,18 @@ test('scroll restoration stays manual after a resize and a confirmed seat', asyn
   expect(await mode()).toBe('manual');
 });
 
+test('the aisle is the GLB cabin shell, not the placeholder box', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await scrollToEnd(page);
+  const found = await page.evaluate(() => {
+    const scene = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): { visible: boolean } | undefined } } }).__aslan.scene;
+    return { shell: scene.getObjectByName('CabinShell')?.visible ?? false, placeholder: !!scene.getObjectByName('PlaceholderCabin') };
+  });
+  expect(found).toEqual({ shell: true, placeholder: false });
+});
+
 test('the visible light count never changes (no shader recompiles on entry)', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);

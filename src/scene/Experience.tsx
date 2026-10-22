@@ -10,7 +10,7 @@ import Outro from '@/ui/Outro';
 import Overlay from '@/ui/Overlay';
 import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
-import CabinShell from './cabin/CabinShell';
+import CabinLights from './cabin/CabinLights';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import SkyAndClouds from './sky/SkyAndClouds';
@@ -50,7 +50,7 @@ export default function Experience() {
           <SkyAndClouds />
           <Suspense fallback={null}>
             <Aircraft>
-              <CabinShell />
+              <CabinLights />
               <Seats />
             </Aircraft>
           </Suspense>

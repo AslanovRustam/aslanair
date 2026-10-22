@@ -7,7 +7,6 @@ import { chapterAt } from '@/experience/chapters';
 import { seatWorldPosition } from '@/experience/geometry';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
-import { cabinVisible } from '@/experience/visibility';
 
 // Placeholder seat blocks (Plan 3 brings real seats). Seats face +X; covers sit on the
 // front of the backrest top, so they face a camera walking aft.
@@ -37,7 +36,6 @@ export default function Seats() {
   // still pointer; outside the aisle chapter nothing may stay hovered.
   useFrame((state) => {
     const s = experienceStore.getState();
-    if (group.current) group.current.visible = cabinVisible(s.phase, s.progress);
     if (!interactive()) {
       if (s.hoveredSeatId) {
         s.hover(null);
