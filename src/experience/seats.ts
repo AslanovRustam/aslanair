@@ -1,4 +1,4 @@
-import { ROWS, SEAT_LETTERS, type SeatLetter } from './geometry';
+import { OVERWING_EXIT_STATIONS, ROWS, rowStation, SEAT_LETTERS, type SeatLetter } from './geometry';
 import { mulberry32 } from './random';
 
 export type SeatPosition = 'window' | 'middle' | 'aisle';
@@ -13,7 +13,11 @@ export interface Seat {
   priceUsd: number;
 }
 
-export const EXTRA_LEGROOM_ROWS = [1, 12, 13];
+const nearestRow = (station: number) =>
+  Array.from({ length: ROWS }, (_, i) => i + 1).reduce((a, b) => (Math.abs(rowStation(b) - station) < Math.abs(rowStation(a) - station) ? b : a));
+
+/** Row 1 (bulkhead) and the rows beside the over-wing exits. */
+export const EXTRA_LEGROOM_ROWS = [1, ...OVERWING_EXIT_STATIONS.map(nearestRow)];
 export const PRICE_USD = { window: 29, aisle: 25, middle: 15, extraLegroom: 40 };
 
 const POSITION_OF: Record<SeatLetter, SeatPosition> = {

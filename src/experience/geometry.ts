@@ -52,6 +52,9 @@ export function nearestWindowStation(s: number): number {
   return windowStations().reduce((best, w) => (Math.abs(w - s) < Math.abs(best - s) ? w : best));
 }
 
+/** Over-wing emergency exits (stations), from public/models/airliner.meta.json; rows 13 and 14 sit beside them. */
+export const OVERWING_EXIT_STATIONS = [16.05, 16.8] as const;
+
 /** Door 1L, from public/models/airliner.meta.json: a plug door that slides out, then forward. */
 export const DOOR_1L = {
   station: 4.9,

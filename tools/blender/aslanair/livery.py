@@ -67,7 +67,7 @@ def paint_livery(W=4096, H=1024):
     # doors (outline + door window)
     ds0, ds1, dz0, dz1 = door_rect()
     doors = [((ds0 + ds1) / 2, (dz0 + dz1) / 2, (ds1 - ds0) / 2, (dz1 - dz0) / 2, DOOR_1L['radius']), (31.0, 0.35, 0.38, 0.88, 0.16),
-             (16.05, 0.40, 0.25, 0.50, 0.10), (16.80, 0.40, 0.25, 0.50, 0.10),
+             *[(s, 0.40, 0.25, 0.50, 0.10) for s in OVERWING_EXITS],
              (8.6, -1.15, 0.9, 0.62, 0.10), (24.3, -1.2, 0.9, 0.62, 0.10)]
     for cs, cz, hw, hh, r in doors:
         d = rrect(cs, cz, hw, hh, r)
@@ -78,10 +78,10 @@ def paint_livery(W=4096, H=1024):
         blend(cov(d) * (SIDE > 0.55), (0.04, 0.05, 0.07)); glass = np.maximum(glass, cov(d) * (SIDE > 0.55))
 
     # cabin windows: periodic in s
-    pitch, s0, s1 = 0.533, 6.55, 29.0
+    pitch, s0, s1 = WINDOW['pitch'], WINDOW['first'], WINDOW['last']
     sm = ((S - s0 + pitch / 2) % pitch) - pitch / 2
     rng = (S > s0 - pitch / 2) & (S < s1)
-    d = rrect(0.0, 0.62, 0.115, 0.165, 0.09, Sv=sm)
+    d = rrect(0.0, WINDOW['z'], WINDOW['w'] / 2, WINDOW['h'] / 2, WINDOW['r'], Sv=sm)
     blend(cov(d - 0.028) * rng * (SIDE > 0.6), (0.80, 0.81, 0.82))
     # cabin windows are real openings now (openings.py); only the frame ring is painted
 

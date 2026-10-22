@@ -6,25 +6,14 @@ from mathutils import Vector
 
 from .clip import boundary_ring, close_t_junctions
 from .door import door_outline
-from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal
+from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal, shell_stations
 from .mesh import make_mesh, material, object_from_polys
 from .openings import _bbox, cut_outlines, window_outlines
 
-STEP_S = 0.25         # station spacing of the shell grid
 WALL_ROWS = 30        # rows from the floor up to the ceiling edge on each side
 CEILING_COLUMNS = 12
 AISLE_HALF_WIDTH = 0.25
 COCKPIT_DOOR = {'width': 0.8, 'height': 1.9}
-
-
-def shell_stations():
-    """Stations of the shell grid, front to aft bulkhead."""
-    out, s = [], CABIN['front_station']
-    while s < CABIN['aft_station'] - 1e-9:
-        out.append(s)
-        s += STEP_S
-    out.append(CABIN['aft_station'])
-    return out
 
 
 def shell_profile(s):

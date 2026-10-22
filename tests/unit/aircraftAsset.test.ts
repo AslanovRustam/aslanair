@@ -1,7 +1,19 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { CABIN_WALL_Z, CEILING_Y, DOOR_1L, FLOOR_Y, ROWS, rowStation, SEAT_FOOTPRINT, SEAT_Z, WINDOW } from '@/experience/geometry';
+import {
+  CABIN_WALL_Z,
+  CEILING_Y,
+  DOOR_1L,
+  FLOOR_Y,
+  OVERWING_EXIT_STATIONS,
+  ROWS,
+  rowStation,
+  SEAT_FOOTPRINT,
+  SEAT_Z,
+  WINDOW,
+} from '@/experience/geometry';
 import { glbImageSizes, glbNodeNames, glbParentsOf } from './glb';
+import { linerHalfWidthAt } from './linerProfile';
 
 const GLB = 'public/models/airliner.glb';
 const meta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));
@@ -14,20 +26,24 @@ describe('aircraft asset ↔ site constants', () => {
     expect(meta.window).toMatchObject({ y: WINDOW.y, firstStation: WINDOW.firstStation, pitch: WINDOW.pitch, lastStation: WINDOW.lastStation });
   });
 
+  test('over-wing exits match geometry.ts', () => {
+    expect(meta.overwingExits).toEqual([...OVERWING_EXIT_STATIONS]);
+  });
+
   test('outboard seats stand inside the cabin wall, tail taper included', () => {
-    const profile: [number, number][] = meta.cabin.floorHalfWidth;
-    const halfWidthAt = (s: number) => {
-      const i = profile.findIndex(([station]) => station >= s);
-      const [s0, w0] = profile[i - 1];
-      const [s1, w1] = profile[i];
-      return w0 + ((w1 - w0) * (s - s0)) / (s1 - s0);
-    };
     const outboard = SEAT_Z.F + SEAT_FOOTPRINT.width / 2;
     for (let row = 1; row <= ROWS; row++) {
       for (const s of [rowStation(row) - SEAT_FOOTPRINT.depth / 2, rowStation(row) + SEAT_FOOTPRINT.depth / 2]) {
-        expect(halfWidthAt(s) - outboard, `row ${row} at station ${s.toFixed(2)}`).toBeGreaterThanOrEqual(0.02);
+        expect(linerHalfWidthAt(meta, s, FLOOR_Y) - outboard, `row ${row} at station ${s.toFixed(2)}`).toBeGreaterThanOrEqual(0.02);
       }
     }
+  });
+
+  test('the liner grid covers the cabin floor to ceiling', () => {
+    expect(meta.cabin.liner.heights[0]).toBeCloseTo(FLOOR_Y);
+    expect(meta.cabin.liner.heights.at(-1)).toBeCloseTo(CEILING_Y);
+    expect(linerHalfWidthAt(meta, 15, 0.62)).toBeCloseTo(CABIN_WALL_Z, 2); // bilinear on a 0.1 m grid: ~0.6 mm low on the curve
+    expect(() => linerHalfWidthAt(meta, 40, 0)).toThrow();
   });
 
   test('door 1L matches geometry.ts', () => {

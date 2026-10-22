@@ -144,3 +144,28 @@ def cabin_wall_inner(s):
     """Inner wall |y| at window height."""
     return liner_half_width_at(s, WINDOW['z'])
 
+
+SHELL_STEP = 0.25   # station spacing of the shell grid
+
+
+def shell_stations():
+    """Stations of the shell grid, front to aft bulkhead."""
+    out, s = [], CABIN['front_station']
+    while s < CABIN['aft_station'] - 1e-9:
+        out.append(s)
+        s += SHELL_STEP
+    out.append(CABIN['aft_station'])
+    return out
+
+
+def liner_grid():
+    """Liner half-width on the shell stations × heights (three.js y = Blender Z) from the floor to the ceiling, every 0.1 m."""
+    heights = [round(FLOOR_Z + 0.1 * j, 4) for j in range(int(round((CEILING_Z - FLOOR_Z) / 0.1)) + 1)]
+    stations = shell_stations()
+    return {'stations': [round(s, 4) for s in stations], 'heights': heights,
+            'halfWidth': [[round(liner_half_width_at(s, z), 4) for z in heights] for s in stations]}
+
+
+# over-wing emergency exits (painted outlines), beside rows 13 and 14
+OVERWING_EXITS = [16.05, 16.80]
+

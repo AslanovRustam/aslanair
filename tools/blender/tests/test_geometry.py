@@ -11,6 +11,7 @@ from aslanair.geometry import (  # noqa: E402
     DOOR_OPEN,
     FLOOR_Z,
     LINER_INSET,
+    OVERWING_EXITS,
     TAIL0,
     X,
     cabin_wall_inner,
@@ -22,6 +23,7 @@ from aslanair.geometry import (  # noqa: E402
     hull_normal,
     hull_point,
     hull_top,
+    liner_grid,
     liner_half_width_at,
     liner_normal,
     section,
@@ -50,9 +52,15 @@ class TailAndFinTest(unittest.TestCase):
     def test_tail_cone_starts_behind_the_cabin(self):
         self.assertAlmostEqual(TAIL0, 27.8)
 
-    def test_last_rows_fit_inside_the_liner_at_seat_height(self):
-        for s in (27.58, 28.36, 29.14, 29.92, 30.17):
-            self.assertGreater(liner_half_width_at(s, 0.0), 1.42 + 0.23, msg=f'station {s}')
+    def test_overwing_exits_are_beside_rows_13_and_14(self):
+        rows = [round((s - 7.0) / 0.76) + 1 for s in OVERWING_EXITS]
+        self.assertEqual(rows, [13, 14])
+
+    def test_liner_grid_matches_the_liner(self):
+        g = liner_grid()
+        self.assertAlmostEqual(g['heights'][0], FLOOR_Z)
+        i, j = g['stations'].index(15.0), 11
+        self.assertAlmostEqual(g['halfWidth'][i][j], round(liner_half_width_at(15.0, g['heights'][j]), 4))
 
     def test_fin_root_stays_inside_the_skin_above_the_cabin_ceiling(self):
         for s in (28.2, 29.0, 30.0, 31.0, 33.0, 35.0):

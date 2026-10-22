@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { generateSeatMap, pickRecommendedSeat, seatLabel, seatVisual, type Seat } from '@/experience/seats';
+import { EXTRA_LEGROOM_ROWS, generateSeatMap, pickRecommendedSeat, seatLabel, seatVisual, type Seat } from '@/experience/seats';
 
 const seats = generateSeatMap();
 const byId = (id: string) => seats.find((s) => s.id === id)!;
@@ -20,14 +20,20 @@ describe('seat map', () => {
   });
 
   test('prices depend on position and extra legroom', () => {
-    expect(byId('12A').priceUsd).toBe(69);
-    expect(byId('14B').priceUsd).toBe(15);
-    expect(byId('14C').priceUsd).toBe(25);
+    expect(byId('13A').priceUsd).toBe(69);
+    expect(byId('15B').priceUsd).toBe(15);
+    expect(byId('15C').priceUsd).toBe(25);
   });
 
   test('labels read "id · position · [extra] · price"', () => {
-    expect(seatLabel(byId('14C'))).toBe('14C · Aisle · $25');
-    expect(seatLabel(byId('12A'))).toBe('12A · Window · Extra legroom · $69');
+    expect(seatLabel(byId('15C'))).toBe('15C · Aisle · $25');
+    expect(seatLabel(byId('13A'))).toBe('13A · Window · Extra legroom · $69');
+  });
+
+  test('extra legroom sits at the over-wing exits', () => {
+    expect(EXTRA_LEGROOM_ROWS).toEqual([1, 13, 14]);
+    expect(seatLabel(byId('13A'))).toBe('13A · Window · Extra legroom · $69');
+    expect(seatLabel(byId('12A'))).toBe('12A · Window · $29');
   });
 });
 
@@ -51,7 +57,7 @@ describe('recommended seat', () => {
 
 describe('seat visual state', () => {
   test('extra-legroom free seats are "extra", selection beats hover', () => {
-    expect(seatVisual(byId('12A'), null, null)).toBe(byId('12A').status === 'occupied' ? 'occupied' : 'extra');
+    expect(seatVisual(byId('13A'), null, null)).toBe(byId('13A').status === 'occupied' ? 'occupied' : 'extra');
     const pick = pickRecommendedSeat(seats);
     expect(seatVisual(pick, pick.id, pick.id)).toBe('selected');
   });
