@@ -26,11 +26,12 @@ export default defineConfig({
       use: desktop,
     },
     {
-      // frame-rate probe and review shots: after the main suite, alone on the GPU
+      // frame-rate probe and review shots: after the main suite, alone on the GPU — and on the integrated GPU,
+      // the spec's reference "weak device", even when the laptop would hand Chromium the discrete one
       name: 'perf',
       testMatch: /perf\.spec\.ts/,
       dependencies: ['chromium'],
-      use: desktop,
+      use: { ...desktop, launchOptions: { args: [...desktop.launchOptions.args, '--force_low_power_gpu'] } },
     },
   ],
   webServer: {

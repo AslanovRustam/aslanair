@@ -154,7 +154,8 @@ test('the cabin is lit by its materials, not by point lights', async ({ page }) 
     return { points, keys };
   });
   expect(state.points).toBe(0);
-  expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light', BinPort: 'cabin-light', GalleyPanels: 'cabin-light' });
+  // the shell receives the sun through the windows; furnishing (no sun shadow) is shaded from it
+  expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light-shaded', BinPort: 'cabin-light-shaded', GalleyPanels: 'cabin-light-shaded' });
 });
 
 test('the seat under the pointer is the seat you see', async ({ page }) => {
@@ -284,4 +285,40 @@ test('sitting down never fills the view with your own seat outline', async ({ pa
   const px = await highlightPixels(page, 'terracotta');
   console.log('seated outline pixels', JSON.stringify(px));
   expect(px.changed / px.frame).toBeLessThan(0.005);
+});
+
+test('the closed fuselage keeps direct sun off the seats and bins', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
+  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(2500);
+  const regions = { seats: { x: 150, y: 560, width: 1140, height: 130 }, bins: { x: 0, y: 120, width: 1440, height: 280 } };
+  const mean = async (clip: { x: number; y: number; width: number; height: number }) =>
+    page.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let s = 0;
+      for (let i = 0; i < d.length; i += 4) s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      return s / (d.length / 4);
+    }, (await page.screenshot({ clip })).toString('base64'));
+  const lit = { seats: await mean(regions.seats), bins: await mean(regions.bins) };
+  await page.evaluate(() => {
+    type O = { isDirectionalLight?: boolean; intensity: number };
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: O) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isDirectionalLight) o.intensity = 0;
+    });
+  });
+  await page.waitForTimeout(500);
+  const dark = { seats: await mean(regions.seats), bins: await mean(regions.bins) };
+  console.log('sun on/off', JSON.stringify({ lit, dark }));
+  expect(Math.abs(lit.seats - dark.seats) / dark.seats).toBeLessThan(0.03);
+  expect(Math.abs(lit.bins - dark.bins) / dark.bins).toBeLessThan(0.03);
 });

@@ -104,6 +104,3 @@ export function segmentHitsBoxes(a: Vector3, b: Vector3, boxes: Box3[]): boolean
   const hit = new Vector3();
   return boxes.some((box) => box.containsPoint(a) || (ray.intersectBox(box, hit) !== null && hit.distanceTo(a) <= length));
 }
-
-/** Interior surfaces take this much of the sky environment; the cabin lights carry the rest. */
-export const INTERIOR_ENV = 0.5;

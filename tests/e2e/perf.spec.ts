@@ -27,30 +27,50 @@ async function ready(page: Page) {
 
 const setProgress = (page: Page, p: number) => page.evaluate((v) => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(v), p);
 
-/** Median of 180 requestAnimationFrame deltas (ms). */
-const medianFrame = (page: Page) =>
+/** Median and mean of 180 requestAnimationFrame deltas (ms). The display's vsync quantizes the median; the mean
+ * shows how many frames slip to the next interval — what a 60 Hz panel would feel. */
+const frameTimes = (page: Page) =>
   page.evaluate(
     () =>
-      new Promise<number>((resolve) => {
+      new Promise<{ median: number; mean: number }>((resolve) => {
         const deltas: number[] = [];
         let last = performance.now();
         const tick = (t: number) => {
           deltas.push(t - last);
           last = t;
           if (deltas.length < 180) requestAnimationFrame(tick);
-          else resolve(deltas.sort((a, b) => a - b)[90]);
+          else resolve({ median: [...deltas].sort((a, b) => a - b)[90], mean: deltas.reduce((s, d) => s + d, 0) / deltas.length });
         };
         requestAnimationFrame(tick);
       }),
   );
 
-test('the furnished aisle holds 45 fps', async ({ page }) => {
+test('the furnished cabin holds 45 fps — door, aisle, seat and pass', async ({ page }) => {
+  test.setTimeout(120_000);
   await ready(page);
+  const report: Record<string, { median: number; mean: number }> = {};
+  const measure = async (name: string) => {
+    await page.waitForTimeout(2500); // the camera settles; the warm-up is inside this
+    report[name] = await frameTimes(page);
+  };
+  await setProgress(page, 0.42);
+  await measure('door');
   await setProgress(page, 0.6);
-  await page.waitForTimeout(2500); // the camera settles, then a 1 s warm-up is inside this
-  const median = await medianFrame(page);
-  console.log(`aisle median frame ${median.toFixed(1)} ms (${(1000 / median).toFixed(0)} fps)`);
-  expect(median).toBeLessThanOrEqual(1000 / 45);
+  await measure('aisle');
+  await page.evaluate(() => {
+    const s = (window as unknown as StoreWindow).__aslan.store.getState();
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await measure('seat');
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().confirm());
+  await setProgress(page, 0.07);
+  await measure('pass');
+  for (const [name, t] of Object.entries(report)) console.log(`${name} median ${t.median.toFixed(1)} ms, mean ${t.mean.toFixed(1)} ms`);
+  for (const [name, t] of Object.entries(report)) {
+    expect(t.median, `${name} median`).toBeLessThanOrEqual(1000 / 45);
+    expect(t.mean, `${name} mean`).toBeLessThanOrEqual(1000 / 45);
+  }
 });
 
 test('review screenshot set', async ({ page }) => {

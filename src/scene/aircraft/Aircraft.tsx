@@ -3,9 +3,8 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { MathUtils, Vector3, type Group, type Material, type Mesh, type MeshStandardMaterial } from 'three';
+import { DoubleSide, MathUtils, Vector3, type Group, type Material, type Mesh } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
-import { INTERIOR_ENV } from '@/experience/cabinLayout';
 import { withCabinLight } from '../cabin/cabinLight';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
@@ -42,8 +41,10 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
         // three's shadow pass ignores opacity: see-through glass would write opaque depth and keep the sun out
         const material = (o as Mesh).material as Material;
         o.castShadow = !material.transparent && !INTERIOR.test(o.name);
+        // both hull walls write shadow depth: with the default back-face shadow pass the depth is the far
+        // wall's, and the sun would light the whole cabin through the near one
+        if (o.castShadow) material.shadowSide = DoubleSide;
         if (INTERIOR.test(o.name)) {
-          (material as MeshStandardMaterial).envMapIntensity = INTERIOR_ENV;
           withCabinLight(material);
           material.needsUpdate = true;
         }

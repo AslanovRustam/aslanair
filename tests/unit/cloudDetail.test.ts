@@ -7,9 +7,13 @@ describe('cloud resolution', () => {
     expect(cloudScale('browse', trackProgress('pre', 'aisle', 0.5))).toBe(0.25);
   });
 
+  test('halves once the door flight is inside the cabin', () => {
+    expect(cloudScale('browse', trackProgress('pre', 'door', 0.9))).toBe(0.25);
+  });
+
   test('stays full outside, at the seat, on the pass and through the exit', () => {
     expect(cloudScale('browse', trackProgress('pre', 'sky', 0.5))).toBe(0.5);
-    expect(cloudScale('browse', trackProgress('pre', 'door', 0.5))).toBe(0.5);
+    expect(cloudScale('browse', trackProgress('pre', 'door', 0.3))).toBe(0.5);
     expect(cloudScale('seated', 0.6)).toBe(0.5);
     expect(cloudScale('confirmed', trackProgress('post', 'pass', 0.5))).toBe(0.5);
     expect(cloudScale('confirmed', trackProgress('post', 'exit', 0.5))).toBe(0.5);

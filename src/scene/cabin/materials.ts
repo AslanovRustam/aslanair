@@ -8,7 +8,6 @@ import {
   NoColorSpace,
   RepeatWrapping,
 } from 'three';
-import { INTERIOR_ENV } from '@/experience/cabinLayout';
 import { withCabinLight } from './cabinLight';
 import { weaveNormals } from './fabric';
 
@@ -55,10 +54,8 @@ export function cabinMaterials(): CabinMaterials {
       steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
       worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
     };
-    for (const m of Object.values(shared)) {
-      if (m instanceof MeshStandardMaterial) m.envMapIntensity = INTERIOR_ENV;
-      withCabinLight(m);
-    }
+    // furnishing receives no sun shadow, so it takes no direct sun either
+    for (const m of Object.values(shared)) withCabinLight(m, { sun: false });
   }
   return shared;
 }
