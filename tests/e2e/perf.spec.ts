@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { trackProgress } from '@/experience/chapters';
 import { waitForStore } from './helpers';
 
 // Runs as its own Playwright project after the main suite, so no other browser shares the GPU.
@@ -25,6 +26,9 @@ async function ready(page: Page) {
   await page.waitForFunction(() => !!(window as unknown as StoreWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
 }
 
+/** Door chapter t 0.78: the look at the flight-deck door, jump seat and arrowed exit sign. */
+const ENTRY = trackProgress('pre', 'door', 0.78);
+
 const setProgress = (page: Page, p: number) => page.evaluate((v) => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(v), p);
 
 /** Median and mean of 180 requestAnimationFrame deltas (ms). The display's vsync quantizes the median; the mean
@@ -45,7 +49,7 @@ const frameTimes = (page: Page) =>
       }),
   );
 
-test('the furnished cabin holds 45 fps — door, aisle, seat and pass', async ({ page }) => {
+test('the furnished cabin holds 45 fps — door, entry, aisle, aisle end, seat and pass', async ({ page }) => {
   test.setTimeout(120_000);
   await ready(page);
   const report: Record<string, { median: number; mean: number }> = {};
@@ -55,8 +59,12 @@ test('the furnished cabin holds 45 fps — door, aisle, seat and pass', async ({
   };
   await setProgress(page, 0.42);
   await measure('door');
+  await setProgress(page, ENTRY);
+  await measure('entry');
   await setProgress(page, 0.6);
   await measure('aisle');
+  await setProgress(page, 1);
+  await measure('aisle-end');
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
     s.seats.find((x) => x.id === '14F')!.status = 'free';
@@ -115,7 +123,7 @@ test('review screenshot set', async ({ page }) => {
       s.sit(sid);
     }, id);
 
-  for (const [name, p] of [['sky', 0.05], ['door', 0.36], ['entry', 0.45], ['aisle', 0.6], ['aisle-end', 1]] as const) {
+  for (const [name, p] of [['sky', 0.05], ['door', 0.36], ['entry', ENTRY], ['aisle', 0.6], ['aisle-end', 1]] as const) {
     await setProgress(page, p);
     await shoot(name);
   }
