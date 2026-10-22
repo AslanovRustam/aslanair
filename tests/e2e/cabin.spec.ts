@@ -213,3 +213,75 @@ test('the seat under the pointer is the seat you see', async ({ page }) => {
   expect(visible).toBeGreaterThan(1000);
   expect(wrong / visible).toBeLessThanOrEqual(0.02);
 });
+
+/** Pixels that change when the SeatHighlight is put on a hidden layer: how many, how many near-white, how many of `hue`. */
+async function highlightPixels(page: import('@playwright/test').Page, hue: 'teal' | 'terracotta') {
+  const setLayer = (layer: number) =>
+    page.evaluate((l) => {
+      const o = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): { layers: { set(n: number): void } } } } }).__aslan.scene.getObjectByName('SeatHighlight');
+      o.layers.set(l);
+    }, layer);
+  const shown = (await page.screenshot()).toString('base64');
+  await setLayer(31);
+  await page.waitForTimeout(200);
+  const hidden = (await page.screenshot()).toString('base64');
+  await setLayer(0);
+  return page.evaluate(
+    async ([a, b, h]) => {
+      const load = async (src: string) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${src}`;
+        await img.decode();
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        return ctx.getImageData(0, 0, c.width, c.height).data;
+      };
+      const [p, q] = [await load(a), await load(b)];
+      let changed = 0;
+      let white = 0;
+      let tinted = 0;
+      for (let i = 0; i < p.length; i += 4) {
+        if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) < 24) continue;
+        changed++;
+        if (p[i] > 245 && p[i + 1] > 245 && p[i + 2] > 245) white++;
+        const isHue = h === 'teal' ? p[i + 1] > p[i] + 10 && p[i + 2] > p[i] + 10 : p[i] > p[i + 1] + 25 && p[i + 1] > p[i + 2];
+        if (isHue) tinted++;
+      }
+      return { changed, white, tinted, frame: p.length / 4 };
+    },
+    [shown, hidden, hue] as const,
+  );
+}
+
+test('the hover glow keeps its teal over the light cabin', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
+  await settledProgress(page);
+  await scanForHoveredSeat(page);
+  await page.waitForTimeout(400);
+  const px = await highlightPixels(page, 'teal');
+  console.log('hover glow pixels', JSON.stringify(px));
+  expect(px.changed).toBeGreaterThan(100); // a rim exists; most of it hides behind neighbouring seats
+  expect(px.white / px.changed).toBeLessThan(0.1);
+  expect(px.tinted / px.changed).toBeGreaterThan(0.5);
+});
+
+test('sitting down never fills the view with your own seat outline', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('SeatHighlight'));
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean } } } }).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await page.waitForTimeout(2500);
+  const px = await highlightPixels(page, 'terracotta');
+  console.log('seated outline pixels', JSON.stringify(px));
+  expect(px.changed / px.frame).toBeLessThan(0.005);
+});
