@@ -5,7 +5,7 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+from .geometry import (SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
                        door_hinge, door_rect, liner_grid)
 
 
@@ -51,4 +51,28 @@ def export_glb(root):
         json.dump(meta(), f, indent=2, sort_keys=True)
         f.write('\n')
     ctx.log('exported', glb, f'{os.path.getsize(glb) / 1e6:.1f} MB')
+    return glb
+
+
+def kit_meta(parts):
+    return {
+        'units': 'm',
+        'seat': {'depth': SEAT_KIT['depth'], 'width': SEAT_KIT['width'], 'panTop': SEAT_KIT['pan_top'], 'armTop': SEAT_KIT['arm_top'],
+                 'height': SEAT_KIT['height'], 'backFrontTopX': SEAT_KIT['back_front_top_x']},
+        'triangles': {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in parts},
+    }
+
+
+def export_kit_glb(parts):
+    """Geometry-only GLB (the site assigns materials) + cabin-kit.meta.json."""
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in parts:
+        ob.select_set(True)
+    glb = os.path.join(ctx.OUT, 'cabin-kit.glb')
+    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
+                              export_materials='NONE')
+    with open(os.path.join(ctx.OUT, 'cabin-kit.meta.json'), 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(kit_meta(parts), f, indent=2, sort_keys=True)
+        f.write('\n')
+    ctx.log('exported', glb, f'{os.path.getsize(glb) / 1e3:.0f} KB')
     return glb

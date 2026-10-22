@@ -169,3 +169,8 @@ def liner_grid():
 # over-wing emergency exits (painted outlines), beside rows 13 and 14
 OVERWING_EXITS = [16.05, 16.80]
 
+
+# Cabin kit seat, in metres: heights above the floor, x along the seat's facing (+X = nose).
+# The backrest front runs from (x -0.1775, z 0.45) reclined 11° to its top front edge at back_front_top_x.
+SEAT_KIT = {'depth': 0.5, 'width': 0.44, 'pan_top': 0.45, 'arm_top': 0.65, 'height': 1.08, 'back_front_top_x': -0.30,
+            'cover_drop': 0.24, 'arm_width': 0.05}

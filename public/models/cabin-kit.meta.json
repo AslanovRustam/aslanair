@@ -1,0 +1,18 @@
+{
+  "seat": {
+    "armTop": 0.65,
+    "backFrontTopX": -0.3,
+    "depth": 0.5,
+    "height": 1.08,
+    "panTop": 0.45,
+    "width": 0.44
+  },
+  "triangles": {
+    "SeatArm": 152,
+    "SeatCover": 40,
+    "SeatFabric": 564,
+    "SeatLegs": 352,
+    "SeatShell": 196
+  },
+  "units": "m"
+}
