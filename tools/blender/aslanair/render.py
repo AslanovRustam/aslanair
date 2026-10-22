@@ -7,7 +7,9 @@ import bpy
 from mathutils import Vector
 
 from . import context as ctx
-from .geometry import X
+from .geometry import DOOR_OPEN, X, door_hinge
+
+DOOR_CAM = {'pos': (X(4.9) + 5.5, 7.8, 1.4), 'target': (X(4.9), 1.9, 0.5), 'lens': 35, 'sun': (35, 0.5, 0.86)}
 from .mesh import hex2lin, pbsdf, setin
 
 
@@ -113,7 +115,20 @@ def render(shots, samples, clouds):
         'engine': dict(pos=(X(9.0), -10.5, -2.6), target=(X(14.0), -5.75, -2.3), lens=45, sun=(35, 0.8, -0.6)),
     }
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ctx.OUT, 'airliner.blend'))
+    door = bpy.data.objects.get('Door1L')
     for name in shots:
+        if name == 'door':
+            look(DOOR_CAM['pos'], DOOR_CAM['target'], DOOR_CAM['lens']); sun(*DOOR_CAM['sun'])
+            if clouds:
+                for o in ('CloudDeck', 'Sea'): bpy.data.objects[o].hide_render = True
+            closed = door.location.copy()
+            for label, k in (('door-closed', 0.0), ('door-open', 1.0)):
+                door.location = closed + Vector((DOOR_OPEN['forward'] * k, DOOR_OPEN['outward'] * k, 0.0))
+                scene.render.filepath = os.path.join(ctx.OUT, 'renders', label + '.png')
+                bpy.ops.render.render(write_still=True)
+                ctx.log('rendered', label)
+            door.location = closed
+            continue
         d = SHOT_DEF[name]
         look(d['pos'], d['target'], d['lens']); sun(*d['sun'])
         if clouds:

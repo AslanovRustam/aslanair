@@ -5,9 +5,13 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from aslanair.geometry import (  # noqa: E402
+    DOOR_OPEN,
+    FLOOR_Z,
     LINER_INSET,
     TAIL0,
     X,
+    door_hinge,
+    door_rect,
     fin_root_z,
     hull_half_width_at,
     hull_top,
@@ -45,6 +49,31 @@ class TailAndFinTest(unittest.TestCase):
         for s in (28.2, 29.0, 30.0, 31.0, 33.0, 35.0):
             self.assertLess(fin_root_z(s), hull_top(s))
             self.assertGreater(fin_root_z(s), hull_top(s) - LINER_INSET)
+
+
+class DoorTest(unittest.TestCase):
+    def test_door_rect_sits_on_the_cabin_floor(self):
+        s0, s1, z0, z1 = door_rect()
+        self.assertAlmostEqual(s1 - s0, 0.82)
+        self.assertAlmostEqual(z1 - z0, 1.85)
+        self.assertAlmostEqual(z0, FLOOR_Z + 0.05)
+
+    def test_open_door_clears_the_hull(self):
+        # plug door: out by DOOR_OPEN['outward'], then forward along the hull by DOOR_OPEN['forward']
+        s0, s1, z0, z1 = door_rect()
+        for i in range(9):
+            s = s0 + (s1 - s0) * i / 8
+            for j in range(9):
+                z = z0 + (z1 - z0) * j / 8
+                inner_face = hull_half_width_at(s, z) + DOOR_OPEN['outward'] - 0.06
+                self.assertGreater(inner_face, hull_half_width_at(s - DOOR_OPEN['forward'], z) + 0.02, msg=f'{s:.2f},{z:.2f}')
+
+    def test_hinge_is_on_the_forward_edge_at_the_hull_surface(self):
+        s0, s1, z0, z1 = door_rect()
+        hx, hy, hz = door_hinge()
+        self.assertAlmostEqual(hx, X(s0))
+        self.assertAlmostEqual(hz, (z0 + z1) / 2)
+        self.assertAlmostEqual(hy, hull_half_width_at(s0, hz), places=3)
 
 
 class WindowTest(unittest.TestCase):

@@ -10,6 +10,7 @@ from . import context as ctx
 from .geometry import *  # noqa: F401,F403
 from .livery import ACCENT, NAVY, WHITE, paint_livery
 from .mesh import *  # noqa: F401,F403
+from .door import make_door_1l
 
 # ---------------------------------------------------------------- fuselage
 def fuselage(mat):
@@ -336,7 +337,8 @@ def build_aircraft():
     for k in ('lip', 'navy'):
         pass
     ctx.log('building geometry')
-    fuselage(M['livery'])
+    fus = fuselage(M['livery'])
+    make_door_1l(fus)
     for sy in (1, -1):
         wing(sy, M['wing']); hstab(sy, M['stab']); engine(sy, M)
         for y in (6.6, 10.0, 13.4):

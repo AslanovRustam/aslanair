@@ -51,6 +51,25 @@ def fin_root_z(s):
     return hull_top(s) - FIN_ROOT_INSET
 
 
+# Door 1L (port, Blender +Y): plug door from the cabin floor, hinged on its forward edge.
+DOOR_1L = {'station': 4.9, 'width': 0.82, 'height': 1.85, 'sill': FLOOR_Z + 0.05, 'radius': 0.15, 'side': 1}
+# Plug door opening, like the real thing: out from the skin, then forward, staying parallel to the hull.
+DOOR_OPEN = {'outward': 0.35, 'forward': 1.0}
+
+
+def door_rect():
+    """(s_min, s_max, z_min, z_max) of the doorway."""
+    d = DOOR_1L
+    return d['station'] - d['width'] / 2, d['station'] + d['width'] / 2, d['sill'], d['sill'] + d['height']
+
+
+def door_hinge():
+    """Hinge point in Blender coordinates: forward edge, mid height, on the hull surface."""
+    s0, _, z0, z1 = door_rect()
+    hz = (z0 + z1) / 2
+    return X(s0), DOOR_1L['side'] * hull_half_width_at(s0, hz), hz
+
+
 WINDOW = {'z': 0.62, 'first': 6.55, 'pitch': 0.533, 'last': 29.0, 'w': 0.23, 'h': 0.33, 'r': 0.09}
 
 

@@ -65,13 +65,14 @@ def paint_livery(W=4096, H=1024):
     img *= (1 - grime)[..., None]
 
     # doors (outline + door window)
-    doors = [(4.9, 0.05, 0.41, 0.93, 0.18), (31.0, 0.35, 0.38, 0.88, 0.16),
+    ds0, ds1, dz0, dz1 = door_rect()
+    doors = [((ds0 + ds1) / 2, (dz0 + dz1) / 2, (ds1 - ds0) / 2, (dz1 - dz0) / 2, DOOR_1L['radius']), (31.0, 0.35, 0.38, 0.88, 0.16),
              (16.05, 0.40, 0.25, 0.50, 0.10), (16.80, 0.40, 0.25, 0.50, 0.10),
              (8.6, -1.15, 0.9, 0.62, 0.10), (24.3, -1.2, 0.9, 0.62, 0.10)]
     for cs, cz, hw, hh, r in doors:
         d = rrect(cs, cz, hw, hh, r)
         blend(cov(np.abs(d) - 0.006) * 0.55 * (SIDE > 0.55), (0.12, 0.12, 0.13))
-    for cs, cz in ((4.9, 0.55), (31.0, 0.78)):
+    for cs, cz in ((DOOR_1L['station'], dz1 - 0.45), (31.0, 0.78)):
         d = rrect(cs, cz, 0.11, 0.15, 0.08)
         blend(cov(d - 0.025) * (SIDE > 0.55), (0.78, 0.79, 0.8))
         blend(cov(d) * (SIDE > 0.55), (0.04, 0.05, 0.07)); glass = np.maximum(glass, cov(d) * (SIDE > 0.55))

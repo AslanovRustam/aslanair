@@ -34,6 +34,80 @@ def make_mesh(name, verts, faces, uvs=None, mat=None, recalc=True, sharp=35):
     ctx.PARTS.append(ob)
     return ob
 
+def split_faces(obj, inside, name):
+    """Moves faces whose centre satisfies inside(Vector) into a new open-surface object."""
+    patch_me = obj.data.copy()
+    for me, keep_inside in ((patch_me, True), (obj.data, False)):
+        bm = bmesh.new(); bm.from_mesh(me)
+        doomed = [f for f in bm.faces if inside(f.calc_center_median()) != keep_inside]
+        bmesh.ops.delete(bm, geom=doomed, context='FACES')
+        bm.to_mesh(me); bm.free()
+    patch = bpy.data.objects.new(name, patch_me)
+    bpy.context.scene.collection.objects.link(patch)
+    return patch
+
+
+def merge_into(obj, patch):
+    """Appends patch's geometry to obj, welds the shared seam, deletes patch."""
+    bm = bmesh.new(); bm.from_mesh(obj.data); bm.from_mesh(patch.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(obj.data); bm.free()
+    obj.data.shade_smooth()
+    me = patch.data
+    bpy.data.objects.remove(patch)
+    bpy.data.meshes.remove(me)
+
+
+def face_records(me):
+    """Faces as lists of (x, z, X, Y, Z, u, v) records for clip.py (projection onto XZ)."""
+    uv = me.uv_layers.active.data
+    for poly in me.polygons:
+        recs = []
+        for li, vi in zip(poly.loop_indices, poly.vertices):
+            co = me.vertices[vi].co
+            recs.append((co.x, co.z, co.x, co.y, co.z, uv[li].uv.x, uv[li].uv.y))
+        yield recs
+
+
+def mesh_from_polys(me, polys):
+    """Rebuilds me from clipped records, welding vertices that share a position."""
+    verts, index, faces, uvs = [], {}, [], []
+    for rec in polys:
+        face, face_uv = [], []
+        for r in rec:
+            key = (round(r[2], 6), round(r[3], 6), round(r[4], 6))
+            if key not in index:
+                index[key] = len(verts)
+                verts.append((r[2], r[3], r[4]))
+            if face and face[-1] == index[key]:
+                continue
+            face.append(index[key])
+            face_uv.append((r[5], r[6]))
+        if len(face) > 1 and face[0] == face[-1]:
+            face.pop(); face_uv.pop()
+        if len(set(face)) >= 3:
+            faces.append(face)
+            uvs.extend(face_uv)
+    materials = list(me.materials)
+    me.clear_geometry()
+    me.from_pydata(verts, [], faces)
+    for m in materials:
+        if m.name not in [x.name for x in me.materials]:
+            me.materials.append(m)
+    layer = me.uv_layers.get('UVMap') or me.uv_layers.new(name='UVMap')
+    layer.data.foreach_set('uv', np.array([c for uv in uvs for c in uv], dtype=np.float32))
+    me.shade_smooth()
+
+
+def rounded_rect_xz(x0, x1, z0, z1, r, seg=8):
+    pts = []
+    for cx, cz, a0 in ((x1 - r, z0 + r, -90), (x1 - r, z1 - r, 0), (x0 + r, z1 - r, 90), (x0 + r, z0 + r, 180)):
+        for k in range(seg + 1):
+            a = math.radians(a0 + 90 * k / seg)
+            pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
 def pbsdf(m):
     return next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
 def setin(node, key, val):
