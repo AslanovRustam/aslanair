@@ -1,17 +1,25 @@
 'use client';
 
+import { useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { useLayoutEffect, useRef } from 'react';
-import { Color, Matrix4, type Group, type InstancedMesh } from 'three';
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import {
+  BoxGeometry,
+  BufferAttribute,
+  Color,
+  type BufferGeometry,
+  type InstancedMesh,
+  type InterleavedBufferAttribute,
+  type Material,
+  type Mesh,
+} from 'three';
+import { armMatrices, SEAT_KIT, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
-import { SEAT_FOOTPRINT, seatWorldPosition } from '@/experience/geometry';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
+import { cabinMaterials } from './materials';
 
-// Placeholder seat blocks (Plan 3 brings real seats). Seats face +X; covers sit on the
-// front of the backrest top, so they face a camera walking aft.
-const BODY = { ...SEAT_FOOTPRINT, height: 0.9, color: '#d9d6cf' };
-const COVER = { depth: 0.06, height: 0.16, width: 0.4 };
+export const KIT_URL = '/models/cabin-kit.glb';
 const OCCUPIED_DIM = 0.75;
 
 const interactive = () => {
@@ -23,14 +31,47 @@ function setCursor(pointer: boolean) {
   document.body.style.cursor = pointer ? 'pointer' : '';
 }
 
+function toFloat(attr: BufferAttribute | InterleavedBufferAttribute): BufferAttribute {
+  const out = new Float32Array(attr.count * attr.itemSize);
+  const get = [attr.getX, attr.getY, attr.getZ, attr.getW];
+  for (let i = 0; i < attr.count; i++) for (let k = 0; k < attr.itemSize; k++) out[i * attr.itemSize + k] = get[k].call(attr, i);
+  return new BufferAttribute(out, attr.itemSize);
+}
+
+const baked = new Map<string, BufferGeometry>();
+
+/**
+ * The kit's geometry for a node name, ready to instance. gltf-transform quantizes positions and normals to
+ * normalized integers and moves the dequantization scale/offset onto the node, which instancing ignores —
+ * so the node's matrix is baked into a float copy once.
+ */
+export function useKitGeometry(): (name: string) => BufferGeometry {
+  const { nodes } = useGLTF(KIT_URL) as unknown as { nodes: Record<string, Mesh> };
+  return (name) => {
+    let g = baked.get(name);
+    if (!g) {
+      const node = nodes[name];
+      node.updateWorldMatrix(true, false);
+      g = node.geometry.clone();
+      for (const key of Object.keys(g.attributes)) g.setAttribute(key, toFloat(g.attributes[key]));
+      g.applyMatrix4(node.matrixWorld);
+      baked.set(name, g);
+    }
+    return g;
+  };
+}
+
+/** Real seats from the cabin kit: one InstancedMesh per part; an invisible box per seat takes the pointer. */
 export default function Seats() {
   const seats = useExperience((s) => s.seats);
   const hoveredId = useExperience((s) => s.hoveredSeatId);
   const selectedId = useExperience((s) => s.selectedSeatId);
-  const group = useRef<Group>(null);
-  const body = useRef<InstancedMesh>(null);
-  const cover = useRef<InstancedMesh>(null);
+  const kit = useKitGeometry();
+  const m = cabinMaterials();
+  const parts = useRef<Record<string, InstancedMesh | null>>({});
+  const hit = useRef<InstancedMesh>(null);
   const lastProgress = useRef(-1);
+  const hitBox = useMemo(() => new BoxGeometry(SEAT_KIT.depth, SEAT_KIT.height, SEAT_KIT.width).translate(0, SEAT_KIT.height / 2, 0), []);
 
   // R3F only raycasts on pointer events. When the camera walks, re-check what is under the
   // still pointer; outside the aisle chapter nothing may stay hovered.
@@ -48,28 +89,26 @@ export default function Seats() {
   });
 
   useLayoutEffect(() => {
-    const m = new Matrix4();
-    seats.forEach((seat, i) => {
-      const [x, y, z] = seatWorldPosition(seat.row, seat.letter);
-      body.current!.setMatrixAt(i, m.makeTranslation(x, y + BODY.height / 2, z));
-      cover.current!.setMatrixAt(i, m.makeTranslation(x + BODY.depth / 2 + COVER.depth / 2, y + BODY.height - 0.1, z));
-    });
-    for (const mesh of [body.current!, cover.current!]) {
+    const perSeat = seatMatrices(seats);
+    const arms = armMatrices();
+    for (const [name, mesh] of Object.entries({ ...parts.current, SeatHit: hit.current })) {
+      if (!mesh) continue;
+      (name === 'SeatArm' ? arms : perSeat).forEach((mat, i) => mesh.setMatrixAt(i, mat));
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
   }, [seats]);
 
   useLayoutEffect(() => {
+    const fabric = parts.current.SeatFabric!;
+    const cover = parts.current.SeatCover!;
     const c = new Color();
     seats.forEach((seat, i) => {
-      c.set(BODY.color);
-      if (seat.status === 'occupied') c.multiplyScalar(OCCUPIED_DIM);
-      body.current!.setColorAt(i, c);
-      cover.current!.setColorAt(i, c.set(SEAT_COLORS[seatVisual(seat, hoveredId, selectedId)]));
+      fabric.setColorAt(i, c.setScalar(seat.status === 'occupied' ? OCCUPIED_DIM : 1));
+      cover.setColorAt(i, c.set(SEAT_COLORS[seatVisual(seat, hoveredId, selectedId)]));
     });
-    body.current!.instanceColor!.needsUpdate = true;
-    cover.current!.instanceColor!.needsUpdate = true;
+    fabric.instanceColor!.needsUpdate = true;
+    cover.instanceColor!.needsUpdate = true;
   }, [seats, hoveredId, selectedId]);
 
   const onMove = (e: ThreeEvent<PointerEvent>) => {
@@ -92,16 +131,38 @@ export default function Seats() {
     if (experienceStore.getState().sit(seats[e.instanceId].id)) setCursor(false);
   };
 
+  const part = (name: string, material: Material, count = seats.length) => (
+    <instancedMesh
+      key={name}
+      name={name}
+      ref={(mesh) => {
+        parts.current[name] = mesh;
+      }}
+      args={[kit(name), material, count]}
+      receiveShadow
+      raycast={() => null}
+    />
+  );
+
   return (
-    <group ref={group}>
-      <instancedMesh ref={body} args={[undefined, undefined, seats.length]} onPointerMove={onMove} onPointerOut={onOut} onClick={onClick}>
-        <boxGeometry args={[BODY.depth, BODY.height, BODY.width]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.9} />
-      </instancedMesh>
-      <instancedMesh ref={cover} args={[undefined, undefined, seats.length]} raycast={() => null}>
-        <boxGeometry args={[COVER.depth, COVER.height, COVER.width]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.8} />
+    <group>
+      {part('SeatFabric', m.fabric)}
+      {part('SeatShell', m.shell)}
+      {part('SeatCover', m.cover)}
+      {part('SeatArm', m.arm, armMatrices().length)}
+      {part('SeatLegs', m.legs)}
+      <instancedMesh
+        name="SeatHit"
+        ref={hit}
+        args={[hitBox, undefined, seats.length]}
+        onPointerMove={onMove}
+        onPointerOut={onOut}
+        onClick={onClick}
+      >
+        <meshBasicMaterial visible={false} />
       </instancedMesh>
     </group>
   );
 }
+
+useGLTF.preload(KIT_URL);
