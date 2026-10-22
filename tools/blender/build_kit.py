@@ -14,7 +14,7 @@ from aslanair import context as ctx  # noqa: E402
 from aslanair.export import export_kit_glb  # noqa: E402
 from aslanair.kit import build_bins, build_curtain, build_exit_sign, build_galley, build_seat_parts, render_seat, triangles  # noqa: E402
 
-SEAT_BUDGET = 1500
+SEAT_BUDGET = 3000
 
 
 def verify_kit(seat_parts):

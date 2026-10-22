@@ -8,7 +8,7 @@ import { linerHalfWidthAt } from './linerProfile';
 const KIT = 'public/models/cabin-kit.glb';
 const kit = JSON.parse(readFileSync('public/models/cabin-kit.meta.json', 'utf8'));
 const aircraftMeta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));
-const SEAT_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatArm', 'SeatLegs'];
+const SEAT_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatArm', 'SeatLegs', 'SeatBelt', 'SeatBuckle'];
 
 describe('cabin kit', () => {
   test('kit seat matches the site footprint', () => {
@@ -19,8 +19,8 @@ describe('cabin kit', () => {
   test('kit keeps the seat nodes and fits its budget', () => {
     for (const n of SEAT_PARTS) expect(glbNodeNames(KIT)).toContain(n);
     const seatTris = SEAT_PARTS.reduce((t, n) => t + kit.triangles[n], 0);
-    expect(seatTris).toBeLessThanOrEqual(1500);
-    expect(statSync(KIT).size).toBeLessThanOrEqual(400_000);
+    expect(seatTris).toBeLessThanOrEqual(3000);
+    expect(statSync(KIT).size).toBeLessThanOrEqual(600_000);
   });
 
   test('bins stay inside the hull along the whole cabin, tail taper included', () => {
@@ -45,6 +45,6 @@ describe('cabin kit', () => {
     expect(kit.curtain).toEqual({ ...CURTAIN });
     expect(kit.exitSign).toEqual({ ...EXIT_SIGN, placements: EXIT_SIGN.placements.map((p) => [...p]) });
     expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['GalleyPanels', 'GalleySteel', 'GalleyWorktop', 'Curtain', 'ExitSign']));
-    expect(statSync(KIT).size).toBeLessThanOrEqual(400_000);
+    expect(statSync(KIT).size).toBeLessThanOrEqual(600_000);
   });
 });

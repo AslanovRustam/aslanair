@@ -115,11 +115,13 @@
     "GalleyPanels": 206,
     "GalleySteel": 440,
     "GalleyWorktop": 44,
-    "SeatArm": 152,
-    "SeatCover": 40,
-    "SeatFabric": 564,
-    "SeatLegs": 352,
-    "SeatShell": 196
+    "SeatArm": 256,
+    "SeatBelt": 88,
+    "SeatBuckle": 56,
+    "SeatCover": 192,
+    "SeatFabric": 686,
+    "SeatLegs": 400,
+    "SeatShell": 380
   },
   "units": "m"
 }

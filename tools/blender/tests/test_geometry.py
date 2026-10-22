@@ -14,10 +14,13 @@ from aslanair.geometry import (  # noqa: E402
     OVERWING_EXITS,
     TAIL0,
     X,
+    backrest_section,
     cabin_wall_inner,
+    cushion_section,
     ceiling_z,
     door_hinge,
     door_rect,
+    lumbar,
     fin_root_z,
     hull_half_width_at,
     hull_normal,
@@ -184,3 +187,19 @@ class CockpitPanesTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SeatProfileTest(unittest.TestCase):
+    def test_bolsters_stand_proud_of_the_centre(self):
+        for t in (0.2, 0.5, 0.8):
+            sec = backrest_section(t)
+            centre = min(sec, key=lambda p: abs(p[0]))[1]
+            self.assertGreater(max(sec[0][1], sec[-1][1]) - centre, 0.025)
+
+    def test_lumbar_bulges_low_on_the_back(self):
+        self.assertGreater(lumbar(0.3), 0.02)
+        self.assertGreater(lumbar(0.3), lumbar(0.8))
+
+    def test_cushion_has_a_rolled_front_lip(self):
+        front = cushion_section(1.0)
+        self.assertLess(front[-1][1], front[-2][1])   # the top falls away at the lip

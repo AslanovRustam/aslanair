@@ -180,6 +180,53 @@ OVERWING_EXITS = [16.05, 16.80]
 SEAT_KIT = {'depth': 0.5, 'width': 0.44, 'pan_top': 0.45, 'arm_top': 0.65, 'height': 1.08, 'back_front_top_x': -0.30,
             'cover_drop': 0.24, 'arm_width': 0.05}
 
+# Seat upholstery profiles. Backrest: across the width at height fraction t, as (lateral, depth) with depth measured
+# forward from a plane BACK_DISH behind the backrest's front line, so the bolster crests reach the front line.
+BACK_DISH = 0.045
+BACK_HALF = (SEAT_KIT['width'] - 0.02) / 2
+CUSHION = {'back_x': -0.19, 'front_x': 0.24, 'thick': 0.10, 'sag': 0.012, 'lip': 0.035}
+
+
+def lumbar(t):
+    """Forward bulge of the backrest centre at height fraction t: a soft hump low on the back."""
+    return 0.025 * math.exp(-((t - 0.3) / 0.15) ** 2)
+
+
+def _smoothstep(a, b, x):
+    u = min(max((x - a) / (b - a), 0.0), 1.0)
+    return u * u * (3 - 2 * u)
+
+
+def backrest_depth(y, t):
+    """Forward depth of the backrest front at lateral y and height fraction t: side bolsters reach the front line
+    (BACK_DISH), the centre sits back in a dish with the lumbar hump; the bolsters soften towards the top."""
+    bolster = BACK_DISH * (1 - 0.25 * _smoothstep(0.85, 1.0, t))
+    side = _smoothstep(0.55, 0.95, abs(y) / BACK_HALF)
+    centre = lumbar(t) * math.cos(min(abs(y) / (0.7 * BACK_HALF), 1.0) * math.pi / 2) ** 2
+    return centre + (bolster - centre) * side
+
+
+def backrest_section(t, n=11):
+    """Front surface of the backrest across its width at height fraction t ∈ [0, 1], as (lateral, depth)."""
+    ys = [-BACK_HALF + 2 * BACK_HALF * i / (n - 1) for i in range(n)]
+    return [(round(y, 5), round(backrest_depth(y, t), 5)) for y in ys]
+
+
+def cushion_section(u):
+    """Seat pan top along its depth at lateral fraction u (0 centre, 1 side), as (x, height above pan_top):
+    a shallow dish in the middle, then a rolled lip falling away at the front."""
+    c = CUSHION
+    lip_x = c['front_x'] - c['lip']
+    pts = []
+    for k in range(7):
+        x = c['back_x'] + (lip_x - c['back_x']) * k / 6
+        dish = c['sag'] * (1 - u * u) * math.sin(math.pi * k / 6) ** 0.7
+        pts.append((x, -dish))
+    for k in range(1, 5):                           # quarter-round over the lip down the front face
+        a = math.pi / 2 * k / 4
+        pts.append((lip_x + c['lip'] * math.sin(a), -c['lip'] * (1 - math.cos(a))))
+    return [(round(x, 5), round(z, 5)) for x, z in pts]
+
 # Overhead bin, one row long; three.js y / |z|. The outer side follows the constant-section liner
 # (in the tail taper it slips behind the liner but stays inside the hull).
 BIN = {'length': 0.76, 'bottom_y': 1.10, 'top_y': 1.72, 'aisle_z': 0.98, 'wall_gap': 0.02, 'door_bulge': 0.03}

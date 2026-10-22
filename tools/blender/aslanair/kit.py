@@ -10,7 +10,8 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import BIN, CEILING_Z, CURTAIN, EXIT_SIGN, FLOOR_Z, GALLEY, SEAT_KIT, X, bin_profile, liner_half_width_at
+from .geometry import (BACK_DISH, BACK_HALF, BIN, CEILING_Z, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY, SEAT_KIT, X,
+                       backrest_depth, backrest_section, bin_profile, cushion_section, liner_half_width_at)
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
 BACK_FOOT = Vector((-0.1775, 0.0, SEAT_KIT['pan_top']))
@@ -62,55 +63,171 @@ def _beam(bm, p0, p1, w):
     _add_box(bm, (w, w, d.length), (p0 + p1) / 2, 0.006, 1, rot)
 
 
+def _rings(bm, rings, cap=True):
+    """Skins consecutive closed rings of 3D points (same count) and caps both ends."""
+    verts = [[bm.verts.new(p) for p in ring] for ring in rings]
+    n = len(verts[0])
+    for a, b in zip(verts, verts[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((a[i], a[j], b[j], b[i]))
+    if cap:
+        bm.faces.new(verts[0])
+        bm.faces.new(verts[-1][::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+
+
+BACK_REAR = 0.09          # fabric thickness behind the front line; the shell starts here
+SHELL = 0.024             # shell thickness at the centre of the back
+TOP_R = 0.04              # rounding of the backrest top (along the recline line)
+
+
+def _cushion_top(x, y):
+    """Height of the seat-pan top above pan_top at (x, y), from the dish profile (lip excluded)."""
+    prof = cushion_section(min(abs(y) / BACK_HALF, 1.0))
+    for (x0, z0), (x1, z1) in zip(prof, prof[1:]):
+        if x0 <= x <= x1:
+            return z0 + (z1 - z0) * (x - x0) / (x1 - x0)
+    return prof[0][1] if x < prof[0][0] else prof[-1][1]
+
+
+def _backrest_ring(t, theta=0.0):
+    """Closed (y, behind) outline of the backrest at height fraction t; theta rounds the top towards the midline."""
+    front = [(y, BACK_DISH - d) for y, d in backrest_section(t)]
+    hw = BACK_HALF
+    ring = front + [(hw + 0.006, 0.03), (hw + 0.002, BACK_REAR - 0.014), (hw - 0.012, BACK_REAR),
+                    (-hw + 0.012, BACK_REAR), (-hw - 0.002, BACK_REAR - 0.014), (-hw - 0.006, 0.03)]
+    mid, c, k = (BACK_DISH + BACK_REAR) / 2, math.cos(theta), 1 - 0.08 * (1 - math.cos(theta))
+    return [(y * k, mid + (b - mid) * c) for y, b in ring]
+
+
+def _corner(y, half):
+    """How far the rounded top corners of the backrest and its cover drop at lateral y."""
+    return 0.035 * (max(abs(y) / half - 0.75, 0.0) / 0.25) ** 2
+
+
+def _shell_back(y):
+    return BACK_REAR + SHELL - 0.01 * (1 - math.cos(math.pi * y / (2 * (BACK_HALF + 0.01))))
+
+
 def build_seat_parts():
+    """Seat v2 after the reference photos: contoured backrest with bolsters and lumbar, cushion with a rolled lip,
+    plastic rear shell with tray table and literature pocket, fabric headrest cover, rounded arms, belt and buckle."""
     rot = Matrix.Rotation(RECLINE, 3, 'Y')
     w = SEAT_KIT['width'] - 0.02
-    lower, upper, thick = 0.36, BACK_LENGTH - 0.37, 0.085
+    top_t = (BACK_LENGTH - TOP_R) / BACK_LENGTH
+    pan = SEAT_KIT['pan_top']
+
+    def at(y, along, behind):
+        p = _back_frame(along, behind)
+        return (p.x, y, p.z)
 
     def fabric(bm):
-        _add_box(bm, (0.44, w, 0.11), Vector((0.02, 0, SEAT_KIT['pan_top'] - 0.055)), 0.035, 3)
-        _add_box(bm, (thick, w, lower), _back_frame(lower / 2, thick / 2), 0.03, 3, rot)
-        _add_box(bm, (thick, w - 0.02, upper), _back_frame(BACK_LENGTH - upper / 2, thick / 2), 0.035, 3, rot)
+        rings = []
+        for k in range(10):                                         # backrest body, its foot sunk into the cushion
+            t = -0.06 + (top_t + 0.06) * k / 9
+            rings.append([at(y, t * BACK_LENGTH, b) for y, b in _backrest_ring(t)])
+        for theta in (0.5, 0.95, 1.3):                              # rounded top, corners rounded too
+            rings.append([at(y, BACK_LENGTH - TOP_R + (TOP_R - _corner(y, BACK_HALF)) * math.sin(theta), b)
+                          for y, b in _backrest_ring(top_t, theta)])
+        _rings(bm, rings)
+        c = CUSHION
+        rows = []
+        for v in (-1, -0.97, -0.85, -0.5, 0, 0.5, 0.85, 0.97, 1):    # seat pan, lofted across the width
+            loop = cushion_section(abs(v)) + [(c['front_x'] - 0.012, -c['thick']), (c['back_x'] + 0.01, -c['thick']),
+                                              (c['back_x'], -0.04)]
+            shrink = {1: 0.12, 0.97: 0.035}.get(abs(v), 0.0)
+            xc, zc = (c['back_x'] + c['front_x']) / 2, -c['thick'] / 2
+            rows.append([(xc + (x - xc) * (1 - shrink), v * BACK_HALF, pan + zc + (z - zc) * (1 - shrink)) for x, z in loop])
+        _rings(bm, rows)
+        _sharpen(bm, 60)
 
     def shell(bm):
-        _add_box(bm, (0.03, w + 0.01, BACK_LENGTH - 0.02), _back_frame(BACK_LENGTH / 2 - 0.01, thick + 0.015), 0.012, 2, rot)
-        _add_box(bm, (0.012, w - 0.06, 0.26), _back_frame(0.38, thick + 0.034), 0.004, 1, rot)   # tray table
-        _add_box(bm, (0.46, w, 0.05), Vector((0.0, 0, SEAT_KIT['pan_top'] - 0.135)), 0.01, 1)     # pan frame
+        sw, rings = BACK_HALF + 0.008, []
+        for k in range(8):
+            along = -0.02 + (top_t * BACK_LENGTH - 0.004 + 0.02) * k / 7
+            back = [(sw - 2 * sw * i / 6, _shell_back(sw - 2 * sw * i / 6)) for i in range(7)]
+            ring = [(-sw, BACK_REAR - 0.035), (-sw - 0.004, BACK_REAR + 0.004)] + back[::-1] + \
+                   [(sw + 0.004, BACK_REAR + 0.004), (sw, BACK_REAR - 0.035), (sw - 0.008, BACK_REAR - 0.035),
+                    (sw - 0.008, BACK_REAR + 0.002), (-sw + 0.008, BACK_REAR + 0.002), (-sw + 0.008, BACK_REAR - 0.035)]
+            rings.append([at(y, along, b) for y, b in ring])
+        _rings(bm, rings)
+        _sharpen(bm, 50)
+        back = _shell_back(0.0)
+        _add_box(bm, (0.012, w - 0.08, 0.26), _back_frame(0.40, back + 0.004), 0.005, 1, rot)        # tray table
+        _add_box(bm, (0.012, 0.045, 0.016), _back_frame(0.555, back + 0.004), 0, 0, rot)            # tray latch
+        _add_box(bm, (0.016, w - 0.07, 0.15), _back_frame(0.13, back + 0.002), 0.006, 1, rot)        # literature pocket
+        _add_box(bm, (0.46, w, 0.05), Vector((0.0, 0, pan - 0.135)), 0.01, 1)                         # pan frame
 
     def cover(bm):
-        # drape over the top: down the front `cover_drop`, over the cushion top and down the back of the shell
-        drop, t, half = SEAT_KIT['cover_drop'], thick / 2 + 0.006, (w - 0.03) / 2
-        cx, rx, rz = -0.015, thick / 2 + 0.021, 0.045        # arc from the front face (+t) to behind the shell
-        prof = [(t, -drop), (t, -rz)]
-        prof += [(cx + rx * math.cos(a), -rz + rz * math.sin(a)) for a in [i * math.pi / 8 for i in range(1, 8)]]
-        prof += [(cx - rx, -rz), (cx - rx, -0.11)]
+        drop, gap, half = SEAT_KIT['cover_drop'], 0.006, BACK_HALF + 0.014      # wraps the shell's side trim
+        mid = (BACK_DISH + BACK_REAR) / 2
         rows = []
-        for y in (-half, 0.0, half):
-            row = []
-            for px, pz in prof:
-                p = _back_frame(BACK_LENGTH + pz, thick / 2 - px)
-                row.append(bm.verts.new((p.x, y, p.z)))
-            rows.append(row)
+        for i in range(9):
+            y = -half + 2 * half * i / 8
+            yy = min(abs(y), BACK_HALF)
+
+            def front(along):
+                return BACK_DISH - backrest_depth(yy, along / BACK_LENGTH) - gap
+            row = [at(y, a, front(a)) for a in (BACK_LENGTH - drop, BACK_LENGTH - drop * 0.6, BACK_LENGTH - drop * 0.3)]
+            fb, sb = front(BACK_LENGTH - TOP_R), _shell_back(yy) + gap
+            for k in range(9):                                  # over the rounded top, front to back
+                a = math.pi * k / 8
+                along = BACK_LENGTH - TOP_R + (TOP_R + gap - _corner(y, half)) * math.sin(a)
+                b = mid - (mid - fb) * math.cos(a) if a <= math.pi / 2 else mid - (sb - mid) * math.cos(a)
+                row.append(at(y, along, b))
+            row.append(at(y, BACK_LENGTH - 0.11, sb))
+            rows.append([bm.verts.new(p) for p in row])
         for a, b in zip(rows, rows[1:]):
-            for i in range(len(prof) - 1):
-                bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
+            for k in range(len(a) - 1):
+                bm.faces.new((a[k], a[k + 1], b[k + 1], b[k]))
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 
     def arm(bm):
-        top = SEAT_KIT['arm_top']
-        _add_box(bm, (0.40, SEAT_KIT['arm_width'], 0.05), Vector((0.0, 0, top - 0.025)), 0.018, 2)
-        _add_box(bm, (0.07, SEAT_KIT['arm_width'] - 0.01, 0.16), Vector((-0.16, 0, top - 0.13)), 0.01, 1)
+        aw, ah, r = SEAT_KIT['arm_width'] / 2, 0.022, 0.012
+        zc = SEAT_KIT['arm_top'] - ah
+        loop = []
+        for cy, cz, a0 in ((aw - r, ah - r, 0), (-aw + r, ah - r, 90), (-aw + r, -ah + r, 180), (aw - r, -ah + r, 270)):
+            loop += [(cy + r * math.cos(math.radians(a0 + 45 * j)), cz + r * math.sin(math.radians(a0 + 45 * j))) for j in range(3)]
+        rings = []
+        for x, s in ((-0.20, 0.8), (-0.195, 1.0), (-0.1, 1.0), (0.0, 1.0), (0.1, 1.0), (0.165, 1.0), (0.172, 1.07),
+                     (0.19, 1.07), (0.198, 0.85)):                # pad, then a slightly proud end cap
+            rings.append([(x, y * s, zc + z * s) for y, z in loop])
+        _rings(bm, rings)
+        _sharpen(bm, 50)
+        _add_box(bm, (0.07, SEAT_KIT['arm_width'] - 0.012, 0.17), Vector((-0.16, 0, zc - ah - 0.085)), 0.008, 1)   # hinge block
 
     def legs(bm):
         for y in (-0.15, 0.15):
             _beam(bm, (0.18, y, 0.0), (0.12, y, 0.27), 0.03)
             _beam(bm, (-0.20, y, 0.0), (-0.10, y, 0.27), 0.03)
             _beam(bm, (0.17, y, 0.015), (-0.19, y, 0.015), 0.025)     # floor track foot
+            for x in (0.18, -0.20):                                    # track fittings
+                _add_box(bm, (0.06, 0.04, 0.012), Vector((x, y, 0.006)), 0, 0)
         _beam(bm, (0.10, -0.21, 0.29), (0.10, 0.21, 0.29), 0.035)      # front spreader
         _beam(bm, (-0.10, -0.21, 0.29), (-0.10, 0.21, 0.29), 0.035)    # rear spreader
 
+    def belt(bm):
+        bw, th = 0.042, 0.003
+        for side in (1, -1):
+            path = [(-0.19, 0.17, pan - 0.04), (-0.17, 0.165, None), (-0.11, 0.14, None), (-0.05, 0.10, None),
+                    (0.0, 0.065, None), (0.02, 0.04, None)]
+            pts = [Vector((x, side * y, z if z is not None else pan + _cushion_top(x, y) + th)) for x, y, z in path]
+            rings = []
+            for i, p in enumerate(pts):
+                d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+                across = d.cross(Vector((0, 0, 1))).normalized() * (bw / 2)
+                up = Vector((0, 0, th / 2))
+                rings.append([tuple(p + across + up), tuple(p - across + up), tuple(p - across - up), tuple(p + across - up)])
+            _rings(bm, rings)
+
+    def buckle(bm):
+        z = pan + _cushion_top(0.02, 0.0) + 0.006
+        _add_box(bm, (0.05, 0.075, 0.008), Vector((0.02, 0, z)), 0.003, 1)           # buckle body
+        _add_box(bm, (0.034, 0.05, 0.004), Vector((0.02, 0, z + 0.005)), 0, 0)       # lift latch
+
     return [_part('SeatFabric', fabric), _part('SeatShell', shell), _part('SeatCover', cover),
-            _part('SeatArm', arm), _part('SeatLegs', legs)]
+            _part('SeatArm', arm), _part('SeatLegs', legs), _part('SeatBelt', belt), _part('SeatBuckle', buckle)]
 
 
 def build_bins():
@@ -236,8 +353,11 @@ def render_seat(parts, samples):
     from .mesh import material
     looks = {'SeatFabric': material('PrevFabric', '#3d4658', rough=0.95), 'SeatShell': material('PrevShell', '#e9e6df', rough=0.5),
              'SeatCover': material('PrevCover', '#3aa6a0', rough=0.9, double=True), 'SeatArm': material('PrevArm', '#5b6070', rough=0.45),
-             'SeatLegs': material('PrevLegs', '#9aa0a8', rough=0.3, metal=0.8)}
+             'SeatLegs': material('PrevLegs', '#9aa0a8', rough=0.3, metal=0.8),
+             'SeatBelt': material('PrevBelt', '#9a2f35', rough=0.8), 'SeatBuckle': material('PrevBuckle', '#c8ccd2', rough=0.25, metal=1.0)}
     scene = bpy.context.scene
+    for ob in scene.collection.objects:
+        ob.hide_render = ob not in parts
     for ob in parts:
         ob.data.materials.append(looks[ob.name])
     arm = next(ob for ob in parts if ob.name == 'SeatArm')
