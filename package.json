@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:blender": "python -m unittest discover -s tools/blender/tests -v"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
