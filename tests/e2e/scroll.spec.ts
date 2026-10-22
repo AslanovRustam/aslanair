@@ -14,6 +14,14 @@ test('scrolling walks from the sky into the aisle', async ({ page }) => {
   await page.screenshot({ path: 'test-results/aisle.png' });
 });
 
+test('the aisle offers "Pick for me"', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
+  await expect.poll(() => progress(page), { timeout: 15_000 }).toBeGreaterThan(0.95);
+  await expect(page.getByRole('button', { name: /pick for me/i })).toBeVisible();
+});
+
 test('reload mid-page restarts at the sky', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);

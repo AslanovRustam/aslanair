@@ -6,7 +6,10 @@ import { copy } from '@/content/copy';
 import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import SmoothScroll from '@/scroll/SmoothScroll';
+import Overlay from '@/ui/Overlay';
 import Aircraft from './aircraft/Aircraft';
+import CabinShell from './cabin/CabinShell';
+import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import SkyAndClouds from './sky/SkyAndClouds';
 
@@ -36,11 +39,15 @@ export default function Experience() {
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>
-            <Aircraft />
+            <Aircraft>
+              <CabinShell />
+              <Seats />
+            </Aircraft>
           </Suspense>
         </Canvas>
       </div>
       <SmoothScroll />
+      <Overlay />
     </>
   );
 }

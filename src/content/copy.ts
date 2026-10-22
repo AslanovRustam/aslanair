@@ -10,4 +10,8 @@ export const copy = {
     door: { title: 'Welcome aboard.', body: 'Step in — the cabin is yours to explore.' },
     aisle: { title: 'Find your seat.', body: 'Hover a seat to see it, click to sit down.' },
   },
+  aisle: {
+    hint: 'Choose a seat to continue',
+    pickForMe: 'Pick for me', // pinned
+  },
 } as const;

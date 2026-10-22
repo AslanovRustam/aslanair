@@ -1,0 +1,84 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: #f7f5f0;
+  text-shadow: 0 1px 12px rgba(10, 20, 40, 0.35);
+}
+
+.caption {
+  position: absolute;
+  left: clamp(1.25rem, 5vw, 4rem);
+  bottom: clamp(1.5rem, 9vh, 5rem);
+  max-width: 34rem;
+  animation: rise 0.6s ease both;
+}
+
+.caption h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.75rem, 3.6vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.caption p {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.tooltip {
+  position: fixed;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(27, 37, 65, 0.88);
+  color: #fff;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  text-shadow: none;
+  backdrop-filter: blur(6px);
+}
+
+.bar {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.25rem, 5vh, 2.5rem);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(27, 37, 65, 0.78);
+  backdrop-filter: blur(8px);
+  text-shadow: none;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+.button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+  background: #f1f0ec;
+  color: #1b2541;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:hover,
+.button:focus-visible {
+  background: #d4683a;
+  color: #fff;
+  outline: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
