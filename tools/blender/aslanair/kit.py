@@ -44,8 +44,9 @@ def _add_box(bm, size, centre, bevel, segments, rotation=None):
     before = set(bm.verts)
     bmesh.ops.create_cube(bm, size=1.0, matrix=m @ Matrix.Diagonal((*size, 1.0)))
     new = [v for v in bm.verts if v not in before]
-    edges = list({e for v in new for e in v.link_edges})
-    bmesh.ops.bevel(bm, geom=new + edges, offset=bevel, offset_type='OFFSET', segments=segments, profile=0.6, affect='EDGES')
+    if bevel > 0:
+        edges = list({e for v in new for e in v.link_edges})
+        bmesh.ops.bevel(bm, geom=new + edges, offset=bevel, offset_type='OFFSET', segments=segments, profile=0.6, affect='EDGES')
 
 
 def _back_frame(along, behind):

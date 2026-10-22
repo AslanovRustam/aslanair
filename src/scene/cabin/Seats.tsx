@@ -4,7 +4,6 @@ import { useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  BoxGeometry,
   BufferAttribute,
   Color,
   type BufferGeometry,
@@ -13,7 +12,8 @@ import {
   type Material,
   type Mesh,
 } from 'three';
-import { armMatrices, SEAT_KIT, seatMatrices } from '@/experience/cabinLayout';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { armMatrices, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
@@ -61,7 +61,7 @@ export function useKitGeometry(): (name: string) => BufferGeometry {
   };
 }
 
-/** Real seats from the cabin kit: one InstancedMesh per part; an invisible box per seat takes the pointer. */
+/** Real seats from the cabin kit: one InstancedMesh per part; an invisible copy of the seat's shape takes the pointer. */
 export default function Seats() {
   const seats = useExperience((s) => s.seats);
   const hoveredId = useExperience((s) => s.hoveredSeatId);
@@ -70,8 +70,10 @@ export default function Seats() {
   const m = cabinMaterials();
   const parts = useRef<Record<string, InstancedMesh | null>>({});
   const hit = useRef<InstancedMesh>(null);
+  // picking runs on the seat's own visible shape (cushions, shell, cover): any box proxy either swallows the air
+  // above the cushion or overhangs the row behind, and the pointer lands on a neighbour
+  const pickShape = useMemo(() => mergeGeometries(['SeatFabric', 'SeatShell', 'SeatCover'].map((n) => kit(n).clone()))!, [kit]);
   const lastProgress = useRef(-1);
-  const hitBox = useMemo(() => new BoxGeometry(SEAT_KIT.depth, SEAT_KIT.height, SEAT_KIT.width).translate(0, SEAT_KIT.height / 2, 0), []);
 
   // R3F only raycasts on pointer events. When the camera walks, re-check what is under the
   // still pointer; outside the aisle chapter nothing may stay hovered.
@@ -153,7 +155,7 @@ export default function Seats() {
       <instancedMesh
         name="SeatHit"
         ref={hit}
-        args={[hitBox, undefined, seats.length]}
+        args={[pickShape, undefined, seats.length]}
         onPointerMove={onMove}
         onPointerOut={onOut}
         onClick={onClick}

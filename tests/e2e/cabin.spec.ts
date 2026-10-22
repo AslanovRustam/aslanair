@@ -156,3 +156,60 @@ test('the cabin is lit by its materials, not by point lights', async ({ page }) 
   expect(state.points).toBe(0);
   expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light', BinPort: 'cabin-light', GalleyPanels: 'cabin-light' });
 });
+
+test('the seat under the pointer is the seat you see', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => {
+    const s = (window as unknown as { __aslan: { scene?: { getObjectByName(n: string): { layers: { mask: number } } | undefined } } }).__aslan.scene?.getObjectByName('SeatFabric');
+    return !!s && (s.layers.mask & 1) === 1;
+  });
+  let visible = 0;
+  let wrong = 0;
+  for (const progress of [0.55, 0.65, 0.75]) {
+    await page.evaluate((p) => (window as unknown as { __aslan: { store: { getState(): { setProgress(v: number): void } } } }).__aslan.store.getState().setProgress(p), progress);
+    await page.waitForTimeout(2500);
+    const r = await page.evaluate(() => {
+      // R3F's own raycaster and camera; three's raycast methods via the prototypes (no three import in the page)
+      type Hit = { distance: number; instanceId?: number; object: { name: string } };
+      type O = { name: string; isMesh?: boolean; isInstancedMesh?: boolean; traverse(f: (c: O) => void): void; raycast(r: unknown, out: Hit[]): void };
+      const w = window as unknown as { __aslan: { scene: { getObjectByName(n: string): O }; store: { getState(): { seats: { id: string }[] } } } };
+      const scene = w.__aslan.scene;
+      const hit = scene.getObjectByName('SeatHit') as O & { __r3f: { root: { getState(): { raycaster: { setFromCamera(p: { x: number; y: number }, c: unknown): void }; camera: { updateMatrixWorld(): void }; size: { width: number; height: number } } } } };
+      const { raycaster, camera, size } = hit.__r3f.root.getState();
+      camera.updateMatrixWorld();
+      const instProto = Object.getPrototypeOf(hit);
+      const meshProto = Object.getPrototypeOf(instProto);
+      const meshes: O[] = [];
+      for (const n of ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatLegs', 'SeatArm', 'BinPort', 'BinStarboard', 'Curtain', 'CabinFloor']) {
+        scene.getObjectByName(n).traverse((c) => {
+          if (c.isMesh) meshes.push(c);
+        });
+      }
+      const seatParts = new Set(['SeatFabric', 'SeatShell', 'SeatCover', 'SeatLegs']);
+      let v = 0;
+      let x = 0;
+      for (let py = 300; py < size.height; py += 12) {
+        for (let px = 0; px < size.width; px += 12) {
+          raycaster.setFromCamera({ x: (px / size.width) * 2 - 1, y: -(py / size.height) * 2 + 1 }, camera);
+          const all: Hit[] = [];
+          for (const o of meshes) (o.isInstancedMesh ? instProto : meshProto).raycast.call(o, raycaster, all);
+          all.sort((a, b) => a.distance - b.distance);
+          const seen = all[0];
+          if (!seen || !seatParts.has(seen.object.name)) continue;
+          const proxy: Hit[] = [];
+          instProto.raycast.call(hit, raycaster, proxy);
+          proxy.sort((a, b) => a.distance - b.distance);
+          v++;
+          if (!proxy[0] || proxy[0].instanceId !== seen.instanceId) x++;
+        }
+      }
+      return { v, x };
+    });
+    visible += r.v;
+    wrong += r.x;
+  }
+  console.log(`seat picks: ${wrong} wrong of ${visible}`);
+  expect(visible).toBeGreaterThan(1000);
+  expect(wrong / visible).toBeLessThanOrEqual(0.02);
+});
