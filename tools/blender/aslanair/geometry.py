@@ -5,7 +5,7 @@ import math
 L = 37.6                    # length
 RW, RT, RB = 1.975, 2.10, 2.04
 NOSE_Z = -0.55
-TAIL0 = 25.5                # start of tail cone
+TAIL0 = 27.8                # start of tail cone (keeps rows 27-30 inside the full section)
 def X(s): return L / 2 - s  # s = distance from nose; nose points to +X, left wing to +Y
 
 def ease(t, p):
@@ -36,6 +36,19 @@ def hull_half_width_at(s, z):
     w, zc, h = section(s)
     k = (z - zc) / h if h > 0 else 2.0
     return w * math.sqrt(1 - k * k) if abs(k) < 1 else 0.0
+
+
+FLOOR_Z = -0.45
+LINER_INSET = 0.10           # cabin shell sits this far inside the hull
+FIN_ROOT_INSET = 0.08        # fin root is buried this far below the hull top
+
+
+def liner_half_width_at(s, z):
+    return max(0.0, hull_half_width_at(s, z) - LINER_INSET)
+
+
+def fin_root_z(s):
+    return hull_top(s) - FIN_ROOT_INSET
 
 
 WINDOW = {'z': 0.62, 'first': 6.55, 'pitch': 0.533, 'last': 29.0, 'w': 0.23, 'h': 0.33, 'r': 0.09}

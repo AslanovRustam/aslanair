@@ -132,8 +132,11 @@ def hstab(sy, mat):
 FIN_Z = [1.2, 1.9, 3.5, 5.5, 7.8]
 def fin_le(z): return 28.6 + (z - 1.9) * math.tan(math.radians(35))
 def fin_c(z): return float(np.interp(z, [1.2, 1.9, 7.8], [6.8, 6.4, 2.1]))
+FIN_ROOT_PLANFORM_Z = 1.6  # chord/LE of the root section; its points then drop onto fin_root_z
 def vfin(mat):
-    secs = [place(airfoil(0.11, m=0), Vector((X(fin_le(z)), 0, z)), fin_c(z), Vector((0, 1, 0))) for z in FIN_Z]
+    root = place(airfoil(0.11, m=0), Vector((X(fin_le(FIN_ROOT_PLANFORM_Z)), 0, 0)), fin_c(FIN_ROOT_PLANFORM_Z), Vector((0, 1, 0)))
+    root = [Vector((p.x, p.y, fin_root_z(L / 2 - p.x))) for p in root]
+    secs = [root] + [place(airfoil(0.11, m=0), Vector((X(fin_le(z)), 0, z)), fin_c(z), Vector((0, 1, 0))) for z in FIN_Z[1:]]
     return loft('Fin', secs, mat, uv=True)
 
 def paint_fin(N=1024):
