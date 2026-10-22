@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, JUMP_SEAT, SEAT_KIT } from '@/experience/cabinLayout';
+import { AFT_GALLEY, BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT } from '@/experience/cabinLayout';
 import { ROWS, rowStation, SEAT_FOOTPRINT } from '@/experience/geometry';
 import { glbNodeNames } from './glb';
 import { linerHalfWidthAt } from './linerProfile';
@@ -53,5 +53,22 @@ describe('cabin kit', () => {
     expect(kit.jumpSeat).toEqual({ ...JUMP_SEAT });
     expect(kit.exitArrows).toEqual({ ...EXIT_ARROWS });
     expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['CockpitDoor', 'CockpitDoorHardware', 'JumpSeat', 'JumpSeatFrame']));
+  });
+
+  test('tail parts match cabinLayout and stay inside the tapering hull', () => {
+    expect(kit.aftGalley).toEqual({ ...AFT_GALLEY });
+    expect(kit.galleyCart).toEqual({ ...GALLEY_CART });
+    expect(kit.lavatory).toMatchObject({ ...LAVATORY });
+    expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['AftGalley', 'AftGalleySteel', 'AftGalleyWorktop', 'Lavatories', 'LavatoryDoors', 'LavatoryTrim', 'GalleyCart']));
+    const inset = aircraftMeta.linerInset;
+    // the lavatories' outer sides follow the liner through the taper
+    for (const [s, outline] of kit.lavatory.outline as [number, [number, number][]][]) {
+      expect(s).toBeGreaterThanOrEqual(LAVATORY.s0);
+      expect(s).toBeLessThanOrEqual(LAVATORY.s1);
+      for (const [z, y] of outline) expect(z, `s ${s} y ${y}`).toBeLessThanOrEqual(linerHalfWidthAt(aircraftMeta, s, y) + inset - 0.01);
+    }
+    for (const s of [AFT_GALLEY.s0, AFT_GALLEY.s1]) {
+      expect(AFT_GALLEY.halfWidth).toBeLessThanOrEqual(linerHalfWidthAt(aircraftMeta, s, AFT_GALLEY.topY) + inset - 0.01);
+    }
   });
 });

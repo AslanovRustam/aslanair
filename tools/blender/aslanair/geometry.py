@@ -255,3 +255,19 @@ EXIT_SIGN = {'w': 0.30, 'h': 0.11, 'd': 0.05, 'y': 1.58, 'placements': [[16.45, 
 COCKPIT_DOOR = {'station': 4.0, 'width': 0.80, 'height': 1.90, 'z': -0.10}
 JUMP_SEAT = {'station': 4.02, 'z': -0.75, 'width': 0.45, 'height': 1.05}
 EXIT_ARROWS = {'station': 4.40, 'y': 1.43, 'w': 0.42}
+
+# Tail (three.js y and |z|): a galley across the aisle end, between two lavatories that run out to the liner, their
+# bi-fold doors facing forward; one trolley stands pulled out of its bay into the aisle (station = its centre).
+AFT_GALLEY = {'s0': 29.85, 's1': 30.45, 'half_width': 0.95, 'top_y': 1.40}
+LAVATORY = {'s0': 29.85, 's1': 30.45, 'inner_z': 0.95}
+GALLEY_CART = {'station': 29.55, 'width': 0.30, 'depth': 0.40, 'height': 1.03}
+
+
+def lavatory_outline(s):
+    """A lavatory's cross-section at station s as (|z|, y): up its inner side, then down along the liner. In the tail
+    the liner curves in under the ceiling, so the block stops where the liner meets its inner side."""
+    top = ceiling_z(s) - 0.01
+    while liner_half_width_at(s, top) - 0.02 < LAVATORY['inner_z'] + 0.01:
+        top -= 0.005
+    wall_y = [top - (top - FLOOR_Z) * k / 10 for k in range(11)]
+    return [(LAVATORY['inner_z'], FLOOR_Z), (LAVATORY['inner_z'], top)] + [(liner_half_width_at(s, y) - 0.02, y) for y in wall_y]

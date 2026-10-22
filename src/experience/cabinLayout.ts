@@ -97,10 +97,16 @@ export const EXIT_SIGN = {
 export const COCKPIT_DOOR = { station: 4.0, width: 0.8, height: 1.9, z: -0.1 } as const;
 export const JUMP_SEAT = { station: 4.02, z: -0.75, width: 0.45, height: 1.05 } as const;
 export const EXIT_ARROWS = { station: 4.4, y: 1.43, w: 0.42 } as const;
+/** Tail, mirrored from the kit meta (|z|): a galley across the aisle end between two lavatories running out to the
+ * liner; one trolley stands pulled out of its bay into the aisle (station = its centre). */
+export const AFT_GALLEY = { s0: 29.85, s1: 30.45, halfWidth: 0.95, topY: 1.4 } as const;
+export const LAVATORY = { s0: 29.85, s1: 30.45, innerZ: 0.95 } as const;
+export const GALLEY_CART = { station: 29.55, width: 0.3, depth: 0.4, height: 1.03 } as const;
 /** How far the door (frame, leaf, handle) and the folded jump seat stand out from the bulkhead. */
 const NOSE_DEPTH = { door: 0.06, jumpSeat: 0.16 };
 
-/** Where the walking camera must keep clear: bins, galley, curtain drapes, exit signs, the nose, row-1 seats. */
+/** Where the walking camera must keep clear: bins, galleys, curtain drapes, exit signs, the nose, the lavatories, the
+ * trolley, row-1 seats. */
 export function furnishingBoxes(): Box3[] {
   const box = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) =>
     new Box3(new Vector3(Math.min(x0, x1), y0, Math.min(z0, z1)), new Vector3(Math.max(x0, x1), y1, Math.max(z0, z1)));
@@ -121,6 +127,12 @@ export function furnishingBoxes(): Box3[] {
   const jx = stationToX(JUMP_SEAT.station);
   const jz = JUMP_SEAT.width / 2;
   boxes.push(box(jx - NOSE_DEPTH.jumpSeat, FLOOR_Y, JUMP_SEAT.z - jz, dx, FLOOR_Y + JUMP_SEAT.height, JUMP_SEAT.z + jz));
+  boxes.push(box(stationToX(AFT_GALLEY.s1), FLOOR_Y, -AFT_GALLEY.halfWidth, stationToX(AFT_GALLEY.s0), AFT_GALLEY.topY, AFT_GALLEY.halfWidth));
+  for (const side of [-1, 1]) {
+    boxes.push(box(stationToX(LAVATORY.s1), FLOOR_Y, side * LAVATORY.innerZ, stationToX(LAVATORY.s0), CEILING_Y, side * CABIN_WALL_Z));
+  }
+  const tx = stationToX(GALLEY_CART.station);
+  boxes.push(box(tx - GALLEY_CART.depth / 2, FLOOR_Y, -GALLEY_CART.width / 2, tx + GALLEY_CART.depth / 2, FLOOR_Y + GALLEY_CART.height, GALLEY_CART.width / 2));
   for (const letter of SEAT_LETTERS) {
     const x = rowX(1);
     const z = SEAT_Z[letter];

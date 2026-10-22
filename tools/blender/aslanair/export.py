@@ -5,8 +5,8 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, JUMP_SEAT, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
-                       bin_profile, door_hinge, door_rect, hull_half_width_at, liner_grid)
+from .geometry import (AFT_GALLEY, BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+                       bin_profile, door_hinge, door_rect, hull_half_width_at, lavatory_outline, liner_grid)
 
 
 def _three(v):
@@ -72,6 +72,10 @@ def kit_meta(parts):
         'cockpitDoor': dict(COCKPIT_DOOR),
         'jumpSeat': dict(JUMP_SEAT),
         'exitArrows': dict(EXIT_ARROWS),
+        'aftGalley': {'s0': AFT_GALLEY['s0'], 's1': AFT_GALLEY['s1'], 'halfWidth': AFT_GALLEY['half_width'], 'topY': AFT_GALLEY['top_y']},
+        'galleyCart': dict(GALLEY_CART),
+        'lavatory': {'s0': LAVATORY['s0'], 's1': LAVATORY['s1'], 'innerZ': LAVATORY['inner_z'],
+                     'outline': [[s, [[round(z, 4), round(y, 4)] for z, y in lavatory_outline(s)]] for s in (LAVATORY['s0'], LAVATORY['s1'])]},
         'triangles': {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in parts},
     }
 

@@ -12,8 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from aslanair import context as ctx  # noqa: E402
 from aslanair.export import export_kit_glb  # noqa: E402
-from aslanair.kit import (build_bins, build_cockpit_door, build_curtain, build_exit_sign, build_galley, build_jump_seat,  # noqa: E402
-                         build_seat_parts, render_seat, triangles)
+from aslanair.kit import (build_aft_galley, build_bins, build_cart, build_cockpit_door, build_curtain, build_exit_sign, build_galley, build_jump_seat,  # noqa: E402
+                         build_lavatories, build_seat_parts, render_seat, triangles)
 
 SEAT_BUDGET = 3000
 
@@ -45,6 +45,9 @@ def main():
     build_exit_sign()
     build_cockpit_door()
     build_jump_seat()
+    build_aft_galley()
+    build_lavatories()
+    build_cart()
     export_kit_glb(ctx.PARTS)
     if 'seat' in args.renders.split(','):
         render_seat(seat, args.samples)

@@ -29,6 +29,7 @@ export interface CabinMaterials {
   panels: MeshStandardMaterial;
   steel: MeshStandardMaterial;
   worktop: MeshStandardMaterial;
+  laminate: MeshStandardMaterial;
 }
 
 let shared: CabinMaterials | null = null;
@@ -78,6 +79,8 @@ export function cabinMaterials(): CabinMaterials {
       panels: new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.55 }),
       steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
       worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
+      // lavatory doors: a warm grey laminate that separates them from the white walls and galley
+      laminate: new MeshStandardMaterial({ color: '#bdb6a9', roughness: 0.6 }),
     };
     // furnishing receives no sun shadow, so it takes no direct sun either
     for (const m of Object.values(shared)) withCabinLight(m, { sun: false });

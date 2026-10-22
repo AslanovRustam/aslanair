@@ -10,8 +10,8 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import (BACK_DISH, BACK_HALF, BIN, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
-                       JUMP_SEAT, SEAT_KIT, X,
+from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
+                       GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, X, lavatory_outline,
                        backrest_depth, backrest_section, bin_profile, cushion_section, liner_half_width_at)
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
@@ -392,6 +392,102 @@ def build_jump_seat():
         _sharpen(bm)
 
     return [_part('JumpSeat', cushions), _part('JumpSeatFrame', frame)]
+
+
+def build_aft_galley():
+    """AftGalley (body: trolley bays below, a worktop recess, ovens and stowage above), AftGalleySteel (trolley doors,
+    oven and drawer fronts), AftGalleyWorktop (worktop, latches, handles; the empty bay's dark back) across the aisle
+    end, front face forward — cabin coordinates."""
+    g = AFT_GALLEY
+    xf, xb, hw = X(g['s0']), X(g['s1']), g['half_width']
+    worktop, recess_top, recess = FLOOR_Z + 1.05, FLOOR_Z + 1.40, 0.28
+    top = g['top_y']
+    bays = [-hw + 0.06 + 0.46 * k + 0.21 for k in range(4)]               # four full-size trolley bays
+    empty = bays[1]                                                        # the pulled-out trolley's bay
+
+    def body(bm):
+        _add_box(bm, (xf - xb, 2 * hw, worktop - FLOOR_Z), Vector(((xf + xb) / 2, 0, (FLOOR_Z + worktop) / 2)), 0.006, 1)
+        _add_box(bm, (xf - xb - recess, 2 * hw, recess_top - worktop), Vector(((xf - recess + xb) / 2, 0, (worktop + recess_top) / 2)), 0, 0)
+        _add_box(bm, (xf - xb, 2 * hw, top - recess_top), Vector(((xf + xb) / 2, 0, (recess_top + top) / 2)), 0.006, 1)
+        _sharpen(bm)
+
+    def steel(bm):
+        for y in bays:
+            if y != empty:
+                _add_box(bm, (0.012, 0.42, 0.98), Vector((xf + 0.004, y, FLOOR_Z + 0.52)), 0.004, 1)       # trolley doors
+        for k, y in enumerate((-0.6, 0.0, 0.6)):
+            _add_box(bm, (0.012, 0.5, 0.26), Vector((xf + 0.004, y, recess_top + 0.16)), 0.004, 1)      # ovens / boilers
+            _add_box(bm, (0.012, 0.5, 0.12), Vector((xf + 0.004, y, top - 0.08)), 0.004, 1)            # drawers
+        _sharpen(bm)
+
+    def trim(bm):
+        _add_box(bm, (recess + 0.03, 2 * hw, 0.03), Vector((xf - recess / 2 + 0.015, 0, worktop + 0.015)), 0.005, 1)   # worktop
+        _add_box(bm, (0.006, 0.40, 0.96), Vector((xf - 0.42, empty, FLOOR_Z + 0.5)), 0, 0)                   # empty bay back
+        for y in bays:
+            if y != empty:
+                _add_box(bm, (0.02, 0.06, 0.03), Vector((xf + 0.016, y, FLOOR_Z + 0.95)), 0.006, 1)            # bay latch
+        for y in (-0.6, 0.0, 0.6):
+            _add_box(bm, (0.02, 0.22, 0.02), Vector((xf + 0.016, y, recess_top + 0.04)), 0.006, 1)             # oven handle
+        _sharpen(bm)
+
+    return [_part('AftGalley', body), _part('AftGalleySteel', steel), _part('AftGalleyWorktop', trim)]
+
+
+def build_lavatories():
+    """Lavatories (two blocks from the galley out to the liner), LavatoryDoors (the bi-fold doors facing forward, two
+    leaves with a fold gap) and LavatoryTrim (occupancy signs and fold handles) — cabin coordinates."""
+    lv = LAVATORY
+    stations = [lv['s0'] + (lv['s1'] - lv['s0']) * k / 4 for k in range(5)]
+    xf = X(lv['s0'])
+
+    def door_centre(side):
+        outer = liner_half_width_at(lv['s0'], FLOOR_Z + 1.0) - 0.02
+        door_w = min(0.62, outer - lv['inner_z'] - 0.08)
+        return side * (lv['inner_z'] + 0.04 + door_w / 2), door_w
+
+    def blocks(bm):
+        for side in (1, -1):
+            _rings(bm, [[(X(s), side * z, y) for z, y in lavatory_outline(s)] for s in stations])
+        _sharpen(bm)
+
+    def doors(bm):
+        for side in (1, -1):
+            yc, door_w = door_centre(side)
+            for k in (-1, 1):                                              # the two leaves, a fold gap between
+                _add_box(bm, (0.014, door_w / 2 - 0.008, 1.80), Vector((xf + 0.006, yc + k * door_w / 4, FLOOR_Z + 0.92)), 0.003, 1)
+        _sharpen(bm)
+
+    def trim(bm):
+        for side in (1, -1):
+            yc, _ = door_centre(side)
+            _add_box(bm, (0.02, 0.14, 0.06), Vector((xf + 0.012, yc, FLOOR_Z + 1.93)), 0.004, 1)               # occupancy sign
+            _add_box(bm, (0.03, 0.025, 0.14), Vector((xf + 0.022, yc, FLOOR_Z + 1.0)), 0.006, 1)               # fold handle
+        _sharpen(bm)
+
+    return [_part('Lavatories', blocks), _part('LavatoryDoors', doors), _part('LavatoryTrim', trim)]
+
+
+def build_cart():
+    """GalleyCart: a full-size trolley pulled out of its bay into the aisle — rounded steel box, door panels, rim,
+    brake pedal and four castors — cabin coordinates (station = its centre)."""
+    c = GALLEY_CART
+    xc, w, d, h = X(c['station']), c['width'], c['depth'], c['height']
+    base = FLOOR_Z + 0.05
+
+    def cart(bm):
+        _add_box(bm, (d, w, h - 0.05), Vector((xc, 0, base + (h - 0.05) / 2)), 0.015, 2)
+        for dx in (-1, 1):                                                # door panels on both ends
+            _add_box(bm, (0.006, w - 0.05, h - 0.2), Vector((xc + dx * (d / 2 + 0.002), 0, base + (h - 0.05) / 2)), 0.003, 1)
+        _add_box(bm, (d + 0.01, w + 0.01, 0.02), Vector((xc, 0, FLOOR_Z + h - 0.01)), 0.006, 1)              # top rim
+        for dx in (-1, 1):
+            for dy in (-1, 1):
+                bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.025, radius2=0.025, depth=0.02,
+                                      matrix=Matrix.Translation((xc + dx * (d / 2 - 0.05), dy * (w / 2 - 0.04), FLOOR_Z + 0.025))
+                                      @ Matrix.Rotation(math.pi / 2, 4, 'X'))
+        _add_box(bm, (0.05, 0.08, 0.012), Vector((xc + d / 2 - 0.02, 0, FLOOR_Z + 0.06)), 0.003, 1)          # brake pedal
+        _sharpen(bm)
+
+    return [_part('GalleyCart', cart)]
 
 
 def build_exit_sign():

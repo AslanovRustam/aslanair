@@ -4,12 +4,15 @@ import {
   armMatrices,
   binBoxes,
   distanceToBoxes,
+  AFT_GALLEY,
   COCKPIT_DOOR,
   EXIT_ARROWS,
   EXIT_SIGN,
   furnishingBoxes,
   GALLEY,
+  GALLEY_CART,
   JUMP_SEAT,
+  LAVATORY,
   isInsideSeat,
   SEAT_KIT,
   SEAT_TRACK_Z,
@@ -21,6 +24,7 @@ import {
   CABIN_WALL_Z,
   EYE_SEATED,
   FLOOR_Y,
+  rowStation,
   rowX,
   SEATED_EYE_AFT,
   SEAT_Z,
@@ -116,5 +120,22 @@ describe('entry zone and signs', () => {
     const legs = Object.values(SEAT_Z).flatMap((z) => [z - 0.15, z + 0.15]);
     for (const z of SEAT_TRACK_Z) expect(Math.min(...legs.map((l) => Math.abs(l - z)))).toBeLessThan(1e-9);
     expect(SEAT_TRACK_Z.filter((z) => z < 0)).toHaveLength(2);
+  });
+
+  test('the tail zone clears row 30 and stays inside the hull', () => {
+    const row30Back = stationToX(rowStation(30) + SEAT_KIT.depth / 2 + 0.15); // reclined back overhang
+    expect(row30Back - stationToX(GALLEY_CART.station + GALLEY_CART.depth / 2)).toBeGreaterThanOrEqual(0.3);
+    // the cart stands in the aisle, out of its bay, beside row 30's backs, never in a seat's footprint
+    expect(GALLEY_CART.station - GALLEY_CART.depth / 2).toBeGreaterThanOrEqual(rowStation(30) + SEAT_KIT.depth / 2);
+    expect(GALLEY_CART.station + GALLEY_CART.depth / 2).toBeLessThan(AFT_GALLEY.s0);
+    expect(GALLEY_CART.width / 2).toBeLessThan(SEAT_Z.D - SEAT_KIT.width / 2);
+    // the galley spans the aisle end between the lavatories, under the aft exit sign
+    expect(AFT_GALLEY.halfWidth).toBeLessThanOrEqual(LAVATORY.innerZ);
+    expect(AFT_GALLEY.topY).toBeLessThan(EXIT_SIGN.y - EXIT_SIGN.h / 2);
+    const boxes = furnishingBoxes();
+    const at = (s: number, y: number, z: number) => boxes.some((b) => b.containsPoint(new Vector3(stationToX(s), y, z)));
+    expect(at(30.1, FLOOR_Y + 1, 0), 'galley box').toBe(true);
+    expect(at(30.1, FLOOR_Y + 1, -1.2) && at(30.1, FLOOR_Y + 1, 1.2), 'lavatory boxes').toBe(true);
+    expect(at(GALLEY_CART.station, FLOOR_Y + 0.5, 0), 'cart box').toBe(true);
   });
 });
