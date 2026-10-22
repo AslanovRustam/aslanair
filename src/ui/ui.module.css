@@ -29,16 +29,94 @@
   opacity: 0.85;
 }
 
-.tooltip {
-  position: fixed;
-  padding: 0.45rem 0.7rem;
-  border-radius: 0.5rem;
-  background: rgba(27, 37, 65, 0.88);
-  color: #fff;
-  font-size: 0.875rem;
-  white-space: nowrap;
+/* Seat card: its bottom tip (the end of the stem) sits on the 3D anchor above the seat. */
+.seatCard {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  animation: seatCardIn 180ms ease-out both;
+}
+
+@keyframes seatCardIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 10px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+
+.seatCardBody {
+  min-width: 11rem;
+  padding: 0.7rem 0.95rem 0.75rem;
+  border: 1px solid rgba(242, 239, 232, 0.14);
+  border-top: 2px solid #d4683a;
+  border-radius: 0.9rem;
+  background: rgba(10, 14, 24, 0.72);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  color: #f2efe8;
   text-shadow: none;
-  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.seatCardTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.seatCardNumber {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.seatCardPrice {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #d4683a;
+}
+
+.seatCardKind {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: rgba(242, 239, 232, 0.8);
+}
+
+.seatCardBadge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(212, 104, 58, 0.18);
+  color: #f0a27d;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.seatCardHint {
+  margin-top: 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(242, 239, 232, 0.55);
+}
+
+.seatCardStem {
+  width: 1px;
+  height: 1.75rem;
+  background: linear-gradient(rgba(242, 239, 232, 0.85), rgba(242, 239, 232, 0.15));
 }
 
 .bar {

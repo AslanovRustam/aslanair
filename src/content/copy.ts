@@ -14,6 +14,12 @@ export const copy = {
     hint: 'Choose a seat to continue',
     pickForMe: 'Pick for me', // pinned
   },
+  seatCard: {
+    kinds: { window: 'Window seat', middle: 'Middle seat', aisle: 'Aisle seat' },
+    extra: 'Extra legroom',
+    click: 'Click to sit',
+    tap: 'Tap again to sit',
+  },
   seated: {
     choose: 'Choose this seat', // pinned
     another: 'See another', // pinned

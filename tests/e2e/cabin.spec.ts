@@ -66,6 +66,28 @@ test('the highlight sits on the hovered seat, then marks the chosen one', async 
   await expect.poll(() => highlightState(page)).toMatchObject({ visible: true, color: '#d4683a' });
 });
 
+test('hovering a seat keeps the pick targets in place', async ({ page }) => {
+  type Hit = { uuid: string; instanceMatrix: { array: Float32Array } };
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
+  await settledProgress(page);
+  const pickTargets = () =>
+    page.evaluate(() => {
+      const h = (window as unknown as SceneWindow).__aslan.scene!.getObjectByName('SeatHit') as unknown as Hit;
+      const a = h.instanceMatrix.array;
+      // how many instances still stand where their seat is (not collapsed to the origin)
+      let placed = 0;
+      for (let i = 0; i < a.length; i += 16) if (Math.abs(a[i + 12]) + Math.abs(a[i + 14]) > 0.1) placed++;
+      return { uuid: h.uuid, placed };
+    });
+  const before = await pickTargets();
+  await scanForHoveredSeat(page);
+  await page.waitForTimeout(200);
+  expect(await pickTargets()).toEqual(before);
+  expect(before.placed).toBe(180);
+});
+
 test('loading the furnished cabin never blocks the main thread for more than 3 s', async ({ page }) => {
   await page.addInitScript(() => {
     const w = window as unknown as { __long: number[] };

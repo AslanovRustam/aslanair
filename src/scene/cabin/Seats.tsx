@@ -2,7 +2,7 @@
 
 import { useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferAttribute,
   Color,
@@ -16,6 +16,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { armMatrices, isInsideSeat, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
+import { tapAction, type PointerKind } from '@/experience/seatCard';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
 import { cabinMaterials } from './materials';
@@ -30,6 +31,9 @@ const interactive = () => {
   const s = experienceStore.getState();
   return s.phase === 'browse' && chapterAt('pre', s.progress).id === 'aisle';
 };
+
+const pointerKind = (e: { nativeEvent: MouseEvent }): PointerKind =>
+  (e.nativeEvent as PointerEvent).pointerType === 'touch' ? 'touch' : 'mouse';
 
 function setCursor(pointer: boolean) {
   document.body.style.cursor = pointer ? 'pointer' : '';
@@ -47,11 +51,12 @@ const baked = new Map<string, BufferGeometry>();
 /**
  * The kit's geometry for a node name, ready to instance. gltf-transform quantizes positions and normals to
  * normalized integers and moves the dequantization scale/offset onto the node, which instancing ignores —
- * so the node's matrix is baked into a float copy once.
+ * so the node's matrix is baked into a float copy once. The getter is stable: geometry memoised on it (the pick
+ * shape) must not be rebuilt on every render, or R3F reconstructs the meshes made from it.
  */
 export function useKitGeometry(): (name: string) => BufferGeometry {
   const { nodes } = useGLTF(KIT_URL) as unknown as { nodes: Record<string, Mesh> };
-  return (name) => {
+  return useCallback((name) => {
     let g = baked.get(name);
     if (!g) {
       const node = nodes[name];
@@ -62,7 +67,7 @@ export function useKitGeometry(): (name: string) => BufferGeometry {
       baked.set(name, g);
     }
     return g;
-  };
+  }, [nodes]);
 }
 
 /** Real seats from the cabin kit: one InstancedMesh per part; an invisible copy of the seat's shape takes the pointer. */
@@ -132,16 +137,18 @@ export default function Seats() {
     cover.instanceColor!.needsUpdate = true;
   }, [seats, hoveredId, selectedId]);
 
+  // on touch there is no hover: a first tap focuses a seat (its card shows), a second tap sits
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    if (!interactive() || e.instanceId === undefined) return;
+    if (!interactive() || e.instanceId === undefined || pointerKind(e) === 'touch') return;
     const seat = seats[e.instanceId];
     const id = seat.status === 'free' ? seat.id : null;
     if (experienceStore.getState().hoveredSeatId !== id) experienceStore.getState().hover(id);
     setCursor(id !== null);
   };
 
-  const onOut = () => {
+  const onOut = (e: ThreeEvent<PointerEvent>) => {
+    if (pointerKind(e) === 'touch') return;
     experienceStore.getState().hover(null);
     setCursor(false);
   };
@@ -149,7 +156,13 @@ export default function Seats() {
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (!interactive() || e.instanceId === undefined) return;
-    if (experienceStore.getState().sit(seats[e.instanceId].id)) setCursor(false);
+    const seat = seats[e.instanceId];
+    const s = experienceStore.getState();
+    if (tapAction(pointerKind(e), s.hoveredSeatId, seat.id) === 'focus') {
+      s.hover(seat.status === 'free' ? seat.id : null);
+      return;
+    }
+    if (s.sit(seat.id)) setCursor(false);
   };
 
   const part = (name: string, material: Material, count = seats.length) => (

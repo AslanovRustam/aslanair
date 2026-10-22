@@ -12,6 +12,7 @@ import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
 import Bins from './cabin/Bins';
 import EntryZone from './cabin/EntryZone';
+import SeatCard from './cabin/SeatCard';
 import SeatHighlight from './cabin/SeatHighlight';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
@@ -59,6 +60,7 @@ export default function Experience() {
                 <Bins />
                 <EntryZone />
               </CompileAsync>
+              <SeatCard />
             </Aircraft>
           </Suspense>
           <BoardingPass3D />
