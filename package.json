@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "e2e": "playwright test",
-    "test:blender": "python -m unittest discover -s tools/blender/tests -v"
+    "test:blender": "python -m unittest discover -s tools/blender/tests -v",
+    "build:aircraft": "node tools/build-aircraft.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
@@ -24,6 +25,7 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "4.5.1",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
     "@types/react": "^19",

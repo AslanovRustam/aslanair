@@ -12,8 +12,8 @@ export const FLOOR_Y = -0.45;
 export const EYE_STANDING = 1.2;
 export const EYE_SEATED = 0.7;
 export const CEILING_Y = 1.75;
-/** Inner cabin wall at window height (|z|). */
-export const CABIN_WALL_Z = 1.8;
+/** Inner cabin wall at window height (|z|); from public/models/airliner.meta.json (cabinWallZ). */
+export const CABIN_WALL_Z = 1.7931;
 
 export const ROWS = 30;
 export const FIRST_ROW_STATION = 7.3;
@@ -49,7 +49,16 @@ export function nearestWindowStation(s: number): number {
   return windowStations().reduce((best, w) => (Math.abs(w - s) < Math.abs(best - s) ? w : best));
 }
 
-export const DOOR_1L = { station: 4.9, y: 0.05, width: 0.82, height: 1.86, side: -1 } as const;
+/** Door 1L, from public/models/airliner.meta.json: a plug door that slides out, then forward. */
+export const DOOR_1L = {
+  station: 4.9,
+  y: 0.525, // centre: sill −0.40 + height / 2
+  width: 0.82,
+  height: 1.85,
+  side: -1,
+  hinge: [14.31, 0.525, -1.7932] as [number, number, number],
+  open: { outward: 0.35, forward: 1.0 },
+} as const;
 
 export function seatWorldPosition(row: number, letter: SeatLetter): [number, number, number] {
   return [rowX(row), FLOOR_Y, SEAT_Z[letter]];

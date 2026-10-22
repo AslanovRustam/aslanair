@@ -7,7 +7,7 @@ from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner
 from .mesh import make_mesh, material, object_from_polys
 from .openings import _bbox, cut_outlines, window_outline, window_outlines
 
-STEP_S = 0.2          # station spacing of the shell grid
+STEP_S = 0.25         # station spacing of the shell grid
 WALL_ROWS = 30        # rows from the floor up to the ceiling edge on each side
 CEILING_COLUMNS = 12
 AISLE_HALF_WIDTH = 0.25

@@ -6,12 +6,13 @@ from .geometry import L, WINDOW, X, hull_half_width_at, window_centres
 from .mesh import face_records, make_mesh, material, merge_into, mesh_from_polys, pbsdf, rounded_rect_xz, setin, split_faces
 
 GLASS_INSET = 0.03   # panes sit this far inside the hull surface
+CORNER_SEGMENTS = 5  # per rounded corner; 8 cost ~4k triangles over 86 windows
 
 
 def window_outline(s, z):
     """Window outline in Blender (X, Z), counter-clockwise."""
     w, h, r = WINDOW['w'], WINDOW['h'], WINDOW['r']
-    return rounded_rect_xz(X(s) - w / 2, X(s) + w / 2, z - h / 2, z + h / 2, r)
+    return rounded_rect_xz(X(s) - w / 2, X(s) + w / 2, z - h / 2, z + h / 2, r, CORNER_SEGMENTS)
 
 
 def _bbox(points):

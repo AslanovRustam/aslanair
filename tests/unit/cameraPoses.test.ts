@@ -9,7 +9,7 @@ import {
   seatedPose,
 } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
-import { nearestWindowStation, rowStation, rowX, stationToX } from '@/experience/geometry';
+import { CABIN_WALL_Z, nearestWindowStation, rowStation, rowX, stationToX } from '@/experience/geometry';
 
 describe('pre-track camera', () => {
   test('starts on the sky shot with a narrow lens', () => {
@@ -38,7 +38,7 @@ describe('seated and post-track camera', () => {
   });
 
   test('exits through the nearest window on the seat side', () => {
-    expect(exitControlPoints(seat)[1].toArray()).toEqual([stationToX(nearestWindowStation(rowStation(14))), 0.62, -1.8]);
+    expect(exitControlPoints(seat)[1].toArray()).toEqual([stationToX(nearestWindowStation(rowStation(14))), 0.62, -CABIN_WALL_Z]);
   });
 
   test('post track starts seated and ends on the pull-back', () => {

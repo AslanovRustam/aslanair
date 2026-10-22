@@ -1,0 +1,36 @@
+{
+  "axes": "three.js: Y up, nose +X, port -Z",
+  "cabin": {
+    "aftStation": 30.5,
+    "frontStation": 4.0
+  },
+  "cabinWallZ": 1.7931,
+  "ceilingY": 1.75,
+  "door1L": {
+    "height": 1.85,
+    "hinge": [
+      14.31,
+      0.525,
+      -1.7932
+    ],
+    "open": {
+      "forward": 1.0,
+      "outward": 0.35
+    },
+    "sillY": -0.4,
+    "station": 4.9,
+    "width": 0.82
+  },
+  "floorY": -0.45,
+  "tail0": 27.8,
+  "triangles": 109280,
+  "units": "m",
+  "window": {
+    "firstStation": 6.55,
+    "h": 0.33,
+    "lastStation": 29.0,
+    "pitch": 0.533,
+    "w": 0.23,
+    "y": 0.62
+  }
+}
