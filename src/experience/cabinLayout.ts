@@ -1,6 +1,6 @@
 // Where the cabin kit's parts go. Pure: instance matrices and boxes, no rendering.
 import { Box3, Matrix4, Ray, Vector3 } from 'three';
-import { CABIN_WALL_Z, CEILING_Y, FLOOR_Y, ROWS, rowX, SEAT_LETTERS, SEAT_Z, seatWorldPosition, stationToX } from './geometry';
+import { CABIN_WALL_Z, CEILING_Y, FLOOR_Y, ROWS, rowX, SEAT_LETTERS, SEAT_Z, seatWorldPosition, stationToX, type SeatLetter } from './geometry';
 import type { Seat } from './seats';
 
 /** Kit seat (metres above the floor / along the seat's facing), mirrored from public/models/cabin-kit.meta.json. */
@@ -29,6 +29,17 @@ export function armMatrices(): Matrix4[] {
 }
 
 /** Overhead bin section (one row long), mirrored from the kit meta; the aisle door bulges `doorBulge` inwards. */
+/** Closer than this to a seat's centre, the camera sits in that seat: the seated eye is 0.62 m from its own seat's
+ * centre, 0.77 m from the neighbour's and ≥ 0.85 m from the seat in front. */
+const INSIDE_SEAT = 0.7;
+const SEAT_CENTRE_Y = 0.55;
+
+/** Whether a camera at `p` sits inside seat `id` (e.g. '14F'): its own seat would fill the edge of the view. */
+export function isInsideSeat(p: Vector3, id: string, radius = INSIDE_SEAT): boolean {
+  const [x, y, z] = seatWorldPosition(Number(id.slice(0, -1)), id.at(-1) as SeatLetter);
+  return p.distanceTo(new Vector3(x, y + SEAT_CENTRE_Y, z)) < radius;
+}
+
 export const BIN = { length: 0.76, bottomY: 1.1, aisleZ: 0.98, doorBulge: 0.03 } as const;
 
 /** One bin section per row, centred on the row; the side lives in the node (BinPort / BinStarboard). */

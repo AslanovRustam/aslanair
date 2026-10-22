@@ -12,13 +12,20 @@ test('seats are the kit model, one instance per seat', async ({ page }) => {
   await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('SeatFabric'));
   const counts = await page.evaluate(() =>
     Object.fromEntries(
-      ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatArm', 'SeatLegs', 'SeatHit'].map((n) => [
+      ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatArm', 'SeatLegs', 'SeatBelt', 'SeatBuckle', 'SeatHit'].map((n) => [
         n,
         (window as unknown as SceneWindow).__aslan.scene!.getObjectByName(n)?.count,
       ]),
     ),
   );
-  expect(counts).toEqual({ SeatFabric: 180, SeatShell: 180, SeatCover: 180, SeatArm: 240, SeatLegs: 180, SeatHit: 180 });
+  expect(counts).toEqual({
+    SeatFabric: 180, SeatShell: 180, SeatCover: 180, SeatArm: 240, SeatLegs: 180, SeatBelt: 180, SeatBuckle: 180, SeatHit: 180,
+  });
+  const printed = await page.evaluate(() => {
+    const fabric = (window as unknown as SceneWindow).__aslan.scene!.getObjectByName('SeatFabric') as unknown as { material: { map: unknown } };
+    return !!fabric.material.map;
+  });
+  expect(printed, 'upholstery carries the printed fabric').toBe(true);
 });
 
 test('instanced seat parts keep the kit seat size (dequantized, node transform baked in)', async ({ page }) => {
@@ -285,6 +292,33 @@ test('sitting down never fills the view with your own seat outline', async ({ pa
   const px = await highlightPixels(page, 'terracotta');
   console.log('seated outline pixels', JSON.stringify(px));
   expect(px.changed / px.frame).toBeLessThan(0.005);
+});
+
+test('your own seat steps out of the seated view and comes back when you stand up', async ({ page }) => {
+  type Store = { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; restart(): void } };
+  type Instanced = { count: number; instanceMatrix: { array: Float32Array } };
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('SeatCover'));
+  // column scale of the seat's instance matrix in every per-seat part: 0 when hidden
+  const scales = () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __aslan: { store: Store; scene: { getObjectByName(n: string): Instanced } } };
+      const i = w.__aslan.store.getState().seats.findIndex((x) => x.id === '14F');
+      return ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatBelt', 'SeatBuckle'].map((n) => {
+        const a = w.__aslan.scene.getObjectByName(n).instanceMatrix.array;
+        return Math.round(Math.hypot(a[i * 16], a[i * 16 + 1], a[i * 16 + 2]) * 1000) / 1000;
+      });
+    });
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: Store } }).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await expect.poll(scales, { timeout: 5000 }).toEqual([0, 0, 0, 0, 0]);
+  await page.evaluate(() => (window as unknown as { __aslan: { store: Store } }).__aslan.store.getState().restart());
+  await expect.poll(scales, { timeout: 5000 }).toEqual([1, 1, 1, 1, 1]);
 });
 
 test('the closed fuselage keeps direct sun off the seats and bins', async ({ page }) => {

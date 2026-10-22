@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { BackSide, Box3, MeshBasicMaterial, NormalBlending, Vector3, type Mesh } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { isInsideSeat } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
 import { seatWorldPosition, type SeatLetter } from '@/experience/geometry';
 import { experienceStore, trackOf } from '@/experience/store';
@@ -12,9 +13,8 @@ import { useKitGeometry } from './Seats';
 const GROW = 1.08;
 const HOVER = { color: '#6fd3cc', opacity: 0.7, pulse: 0.15, hz: 1.2 };
 const SELECTED = { color: '#d4683a', opacity: 0.85 };
-/** Closer than this the camera sits in the seat itself, inside the outline's shell: hide it. */
-const INSIDE = 0.9;
-const SEAT_CENTRE_Y = 0.55;
+/** The grown outline shell reaches further than the seat: hide it from this far out. */
+const OUTLINE_INSIDE = 0.9;
 
 /** Which seat to mark and how, from the store; null hides the highlight. */
 function target(): { id: string; kind: 'hover' | 'selected' } | null {
@@ -33,7 +33,6 @@ function target(): { id: string; kind: 'hover' | 'selected' } | null {
 export default function SeatHighlight() {
   const kit = useKitGeometry();
   const mesh = useRef<Mesh>(null);
-  const centre = useMemo(() => new Vector3(), []);
   const geometry = useMemo(() => {
     const g = mergeGeometries([kit('SeatFabric').clone(), kit('SeatCover').clone()])!;
     const c = new Box3().setFromBufferAttribute(g.getAttribute('position') as never).getCenter(new Vector3());
@@ -53,7 +52,7 @@ export default function SeatHighlight() {
     const [x, y, z] = seatWorldPosition(Number(t.id.slice(0, -1)), t.id.at(-1) as SeatLetter);
     m.position.set(x, y, z);
     // seated in it: the camera is inside the shell and would see a wedge of outline
-    if (camera.position.distanceTo(centre.set(x, y + SEAT_CENTRE_Y, z)) < INSIDE) {
+    if (isInsideSeat(camera.position, t.id, OUTLINE_INSIDE)) {
       m.visible = false;
       return;
     }

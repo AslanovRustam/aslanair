@@ -6,6 +6,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferAttribute,
   Color,
+  Matrix4,
   type BufferGeometry,
   type InstancedMesh,
   type InterleavedBufferAttribute,
@@ -13,7 +14,7 @@ import {
   type Mesh,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { armMatrices, seatMatrices } from '@/experience/cabinLayout';
+import { armMatrices, isInsideSeat, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
@@ -21,6 +22,9 @@ import { cabinMaterials } from './materials';
 
 export const KIT_URL = '/models/cabin-kit.glb';
 const OCCUPIED_DIM = 0.75;
+/** Per-seat parts that leave the view while the camera sits in their seat (arms are shared between neighbours). */
+const OWN_SEAT_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatLegs', 'SeatBelt', 'SeatBuckle'];
+const GONE = new Matrix4().makeScale(0, 0, 0);
 
 const interactive = () => {
   const s = experienceStore.getState();
@@ -74,11 +78,25 @@ export default function Seats() {
   // above the cushion or overhangs the row behind, and the pointer lands on a neighbour
   const pickShape = useMemo(() => mergeGeometries(['SeatFabric', 'SeatShell', 'SeatCover'].map((n) => kit(n).clone()))!, [kit]);
   const lastProgress = useRef(-1);
+  const perSeat = useRef<Matrix4[]>([]);
+  const ownSeat = useRef(-1);
 
   // R3F only raycasts on pointer events. When the camera walks, re-check what is under the
   // still pointer; outside the aisle chapter nothing may stay hovered.
   useFrame((state) => {
     const s = experienceStore.getState();
+    // the seat the camera sits in would fill the edge of the view with its own headrest: take it out meanwhile
+    const own = s.selectedSeatId && isInsideSeat(state.camera.position, s.selectedSeatId) ? s.seats.findIndex((x) => x.id === s.selectedSeatId) : -1;
+    if (own !== ownSeat.current) {
+      for (const name of OWN_SEAT_PARTS) {
+        const mesh = parts.current[name];
+        if (!mesh) continue;
+        if (ownSeat.current >= 0) mesh.setMatrixAt(ownSeat.current, perSeat.current[ownSeat.current]);
+        if (own >= 0) mesh.setMatrixAt(own, GONE);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+      ownSeat.current = own;
+    }
     if (!interactive()) {
       if (s.hoveredSeatId) {
         s.hover(null);
@@ -91,11 +109,12 @@ export default function Seats() {
   });
 
   useLayoutEffect(() => {
-    const perSeat = seatMatrices(seats);
+    perSeat.current = seatMatrices(seats);
+    ownSeat.current = -1;
     const arms = armMatrices();
     for (const [name, mesh] of Object.entries({ ...parts.current, SeatHit: hit.current })) {
       if (!mesh) continue;
-      (name === 'SeatArm' ? arms : perSeat).forEach((mat, i) => mesh.setMatrixAt(i, mat));
+      (name === 'SeatArm' ? arms : perSeat.current).forEach((mat, i) => mesh.setMatrixAt(i, mat));
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
@@ -152,6 +171,8 @@ export default function Seats() {
       {part('SeatCover', m.cover)}
       {part('SeatArm', m.arm, armMatrices().length)}
       {part('SeatLegs', m.legs)}
+      {part('SeatBelt', m.belt)}
+      {part('SeatBuckle', m.buckle)}
       <instancedMesh
         name="SeatHit"
         ref={hit}

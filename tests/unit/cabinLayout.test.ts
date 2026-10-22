@@ -6,6 +6,7 @@ import {
   distanceToBoxes,
   EXIT_SIGN,
   furnishingBoxes,
+  isInsideSeat,
   SEAT_KIT,
   seatMatrices,
   segmentHitsBoxes,
@@ -82,5 +83,13 @@ describe('entry zone and signs', () => {
 
   test('exit signs hang at door 1L, the over-wing exits and the aft door', () => {
     expect(EXIT_SIGN.placements.map(([s]) => s)).toEqual([5.85, 16.45, 16.45, 30.25]);
+  });
+
+  test('the seated camera is inside its own seat and no other', () => {
+    const eye = seatedPose({ row: 14, letter: 'F' }).position;
+    expect(isInsideSeat(eye, '14F')).toBe(true);
+    expect(isInsideSeat(eye, '13F')).toBe(false);
+    expect(isInsideSeat(eye, '14E')).toBe(false);
+    expect(isInsideSeat(poseOnPreTrack(0.6).position, '14F')).toBe(false);
   });
 });
