@@ -13,6 +13,7 @@ import {
 import { copy } from '@/content/copy';
 import { binMatrices, CEILING_STRIPS, INTERIOR_ENV } from '@/experience/cabinLayout';
 import { ROWS } from '@/experience/geometry';
+import { withCabinLight } from './cabinLight';
 import { ATLAS, labelCell, rowLabelQuads } from './rowLabels';
 import { useKitGeometry } from './Seats';
 
@@ -78,7 +79,7 @@ export default function Bins() {
   const kit = useKitGeometry();
   const port = useRef<InstancedMesh>(null);
   const starboard = useRef<InstancedMesh>(null);
-  const plastic = useMemo(() => new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6, envMapIntensity: INTERIOR_ENV }), []);
+  const plastic = useMemo(() => withCabinLight(new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6, envMapIntensity: INTERIOR_ENV })), []);
   const strip = useMemo(() => new MeshBasicMaterial({ color: '#fff1dc' }), []);
   const labels = useMemo(() => {
     const q = rowLabelQuads();
@@ -100,8 +101,8 @@ export default function Bins() {
 
   return (
     <group>
-      <instancedMesh ref={port} name="BinPort" args={[kit('BinPort'), plastic, ROWS]} receiveShadow raycast={() => null} />
-      <instancedMesh ref={starboard} name="BinStarboard" args={[kit('BinStarboard'), plastic, ROWS]} receiveShadow raycast={() => null} />
+      <instancedMesh ref={port} name="BinPort" args={[kit('BinPort'), plastic, ROWS]} raycast={() => null} />
+      <instancedMesh ref={starboard} name="BinStarboard" args={[kit('BinStarboard'), plastic, ROWS]} raycast={() => null} />
       {CEILING_STRIPS.map((s) => (
         <mesh
           key={s.side}

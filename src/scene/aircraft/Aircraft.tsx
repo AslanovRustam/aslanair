@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { MathUtils, type Group, type Material, type Mesh, type MeshStandardMaterial } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { INTERIOR_ENV } from '@/experience/cabinLayout';
+import { withCabinLight } from '../cabin/cabinLight';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { experienceStore, trackOf } from '@/experience/store';
@@ -39,7 +40,11 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
         // three's shadow pass ignores opacity: see-through glass would write opaque depth and keep the sun out
         const material = (o as Mesh).material as Material;
         o.castShadow = !material.transparent && !INTERIOR.test(o.name);
-        if (INTERIOR.test(o.name)) (material as MeshStandardMaterial).envMapIntensity = INTERIOR_ENV;
+        if (INTERIOR.test(o.name)) {
+          (material as MeshStandardMaterial).envMapIntensity = INTERIOR_ENV;
+          withCabinLight(material);
+          material.needsUpdate = true;
+        }
         o.receiveShadow = true;
         if (o.userData.decal) {
           // glazing, door window and lettering sit millimetres off the skin: bias them so they never z-fight at range

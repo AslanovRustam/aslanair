@@ -137,3 +137,22 @@ test('no sun streaks on the upper wall', async ({ page }) => {
   console.log('streak energy', withShadows.toFixed(3), 'vs', without.toFixed(3));
   expect(withShadows).toBeLessThanOrEqual(1.25 * without);
 });
+
+test('the cabin is lit by its materials, not by point lights', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
+  const state = await page.evaluate(() => {
+    let points = 0;
+    const keys: Record<string, string> = {};
+    type O = { name: string; isPointLight?: boolean; isMesh?: boolean; material?: { customProgramCacheKey(): string } };
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: O) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isPointLight) points++;
+      if (o.isMesh && ['CabinShell', 'SeatFabric', 'BinPort', 'GalleyPanels'].includes(o.name)) keys[o.name] = o.material!.customProgramCacheKey();
+    });
+    return { points, keys };
+  });
+  expect(state.points).toBe(0);
+  expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light', BinPort: 'cabin-light', GalleyPanels: 'cabin-light' });
+});

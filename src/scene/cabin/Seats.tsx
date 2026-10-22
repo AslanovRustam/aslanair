@@ -139,7 +139,6 @@ export default function Seats() {
         parts.current[name] = mesh;
       }}
       args={[kit(name), material, count]}
-      receiveShadow
       raycast={() => null}
     />
   );

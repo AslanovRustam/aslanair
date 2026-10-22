@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90_000,
+  // Every worker renders the full WebGL scene on the same GPU (often the integrated one); more than two
+  // starve each other and time out ordinary 5 s expectations.
+  workers: 2,
   use: {
     baseURL: 'http://localhost:3100',
     viewport: { width: 1440, height: 800 },

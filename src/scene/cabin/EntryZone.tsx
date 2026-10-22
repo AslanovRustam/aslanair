@@ -37,10 +37,10 @@ export default function EntryZone() {
 
   return (
     <group>
-      <mesh name="GalleyPanels" geometry={kit('GalleyPanels')} material={m.panels} receiveShadow />
-      <mesh name="GalleySteel" geometry={kit('GalleySteel')} material={m.steel} receiveShadow />
-      <mesh name="GalleyWorktop" geometry={kit('GalleyWorktop')} material={m.worktop} receiveShadow />
-      <mesh name="Curtain" geometry={kit('Curtain')} material={m.curtain} receiveShadow />
+      <mesh name="GalleyPanels" geometry={kit('GalleyPanels')} material={m.panels} />
+      <mesh name="GalleySteel" geometry={kit('GalleySteel')} material={m.steel} />
+      <mesh name="GalleyWorktop" geometry={kit('GalleyWorktop')} material={m.worktop} />
+      <mesh name="Curtain" geometry={kit('Curtain')} material={m.curtain} />
       {stations.map((s) => (
         <group key={s} position={[stationToX(s), EXIT_SIGN.y, 0]}>
           <mesh name="ExitSign" geometry={kit('ExitSign')} material={m.panels} />
