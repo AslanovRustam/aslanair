@@ -7,12 +7,14 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .clip import intersect_convex, subtract_convex
-from .geometry import DOOR_1L, L, X, door_hinge, door_rect
-from .mesh import face_records, material, merge_into, mesh_from_polys, rounded_rect_xz, split_faces
+from .clip import close_t_junctions, intersect_convex, subtract_convex
+from .geometry import DOOR_1L, L, X, door_hinge, door_rect, hull_half_width_at
+from .mesh import face_records, material, merge_into, mesh_from_polys, object_from_polys, rounded_rect_xz, split_faces
 
 PANEL_GAP = 0.012     # visible seam between panel and frame
 PANEL_THICKNESS = 0.06
+# the door's window is geometry: painted into the 2048 px livery it pixelates right where the camera flies in
+DOOR_WINDOW = {'below_top': 0.45, 'w': 0.22, 'h': 0.30, 'r': 0.08, 'frame': 0.025, 'standoff': 0.003, 'cell': 0.03}
 
 
 def _door_region(v):
@@ -43,6 +45,37 @@ def _thicken(panel, inner_mat):
     panel.data.shade_smooth()
 
 
+def _on_skin(polys, origin):
+    """(x, z) records → points just off the hull skin, relative to `origin`."""
+    side, off = DOOR_1L['side'], DOOR_WINDOW['standoff']
+    out = []
+    for poly in polys:
+        out.append([(x, z, x - origin.x, side * (hull_half_width_at(L / 2 - x, z) + off) - origin.y, z - origin.z, x, z)
+                    for x, z, *_ in poly])
+    return out
+
+
+def _door_window(panel, origin):
+    """Dark pane and light frame ring on the panel's skin, children of the panel so they ride with it."""
+    w, h, r, f, cell = (DOOR_WINDOW[k] for k in ('w', 'h', 'r', 'frame', 'cell'))
+    xc, zc = X(DOOR_1L['station']), door_rect()[3] - DOOR_WINDOW['below_top']
+    pane = rounded_rect_xz(xc - w / 2, xc + w / 2, zc - h / 2, zc + h / 2, r)
+    ring = rounded_rect_xz(xc - w / 2 - f, xc + w / 2 + f, zc - h / 2 - f, zc + h / 2 + f, r + f)
+    n = int((w + 2 * f) / cell) + 2, int((h + 2 * f) / cell) + 2
+    x0, z0 = xc - n[0] * cell / 2, zc - n[1] * cell / 2
+    cells = [[(x0 + i * cell, z0 + j * cell), (x0 + (i + 1) * cell, z0 + j * cell),
+              (x0 + (i + 1) * cell, z0 + (j + 1) * cell), (x0 + i * cell, z0 + (j + 1) * cell)]
+             for i in range(n[0]) for j in range(n[1])]
+    glass = [p for c in cells if (p := intersect_convex(c, pane))]
+    frame = close_t_junctions([q for c in cells if (p := intersect_convex(c, ring)) for q in subtract_convex(p, pane)])
+    parts = (object_from_polys('Door1LWindow', _on_skin(glass, origin),
+                               material('DoorWindowGlass', '#0b0f17', rough=0.08, coat=0.6, double=True)),
+             object_from_polys('Door1LWindowFrame', _on_skin(frame, origin),
+                               material('DoorWindowFrame', '#c9ccd0', rough=0.45, double=True)))
+    for ob in parts:
+        ob.parent = panel
+
+
 def make_door_1l(fuselage):
     """Cuts the doorway out of `fuselage` and returns the Door1L panel (origin on the hinge)."""
     region = split_faces(fuselage, _door_region, 'DoorRegion')
@@ -64,5 +97,6 @@ def make_door_1l(fuselage):
     panel.data.transform(Matrix.Translation(-hinge))
     panel.location = hinge
     ctx.PARTS.append(panel)
+    _door_window(panel, hinge)
     ctx.log('door 1L: hinge', tuple(round(c, 4) for c in hinge))
     return panel

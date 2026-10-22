@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 interface GltfJson {
-  nodes?: { name?: string }[];
+  nodes?: { name?: string; children?: number[] }[];
   images?: { bufferView?: number; mimeType?: string }[];
   bufferViews?: { byteOffset?: number; byteLength: number }[];
 }
@@ -19,6 +19,13 @@ function chunks(path: string): { json: GltfJson; bin: Buffer } {
 
 export function glbNodeNames(path: string): string[] {
   return (chunks(path).json.nodes ?? []).map((n) => n.name ?? '');
+}
+
+/** Names of the nodes whose children include a node called `name`. */
+export function glbParentsOf(path: string, name: string): string[] {
+  const nodes = chunks(path).json.nodes ?? [];
+  const index = nodes.findIndex((n) => n.name === name);
+  return nodes.filter((n) => n.children?.includes(index)).map((n) => n.name ?? '');
 }
 
 function imageSize(b: Buffer): [number, number] {

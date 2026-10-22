@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { CABIN_WALL_Z, CEILING_Y, DOOR_1L, FLOOR_Y, ROWS, rowStation, SEAT_FOOTPRINT, SEAT_Z, WINDOW } from '@/experience/geometry';
-import { glbImageSizes, glbNodeNames } from './glb';
+import { glbImageSizes, glbNodeNames, glbParentsOf } from './glb';
 
 const GLB = 'public/models/airliner.glb';
 const meta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));
@@ -50,6 +50,10 @@ describe('aircraft asset budget', () => {
     for (const n of ['Fuselage', 'Door1L', 'CabinShell', 'CabinFloor', 'WindowGlass', 'Lettering_L', 'Lettering_R']) {
       expect(names).toContain(n);
     }
+  });
+
+  test("door 1L's window is geometry riding on the door, not livery pixels", () => {
+    expect(glbParentsOf(GLB, 'Door1LWindow')).toEqual(['Door1L']);
   });
 
   test('textures are at most 2048 px per side', () => {

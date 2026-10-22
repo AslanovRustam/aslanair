@@ -72,7 +72,7 @@ def paint_livery(W=4096, H=1024):
     for cs, cz, hw, hh, r in doors:
         d = rrect(cs, cz, hw, hh, r)
         blend(cov(np.abs(d) - 0.006) * 0.55 * (SIDE > 0.55), (0.12, 0.12, 0.13))
-    for cs, cz in ((DOOR_1L['station'], dz1 - 0.45), (31.0, 0.78)):
+    for cs, cz in ((31.0, 0.78),):   # door 1L's window is geometry (door.py)
         d = rrect(cs, cz, 0.11, 0.15, 0.08)
         blend(cov(d - 0.025) * (SIDE > 0.55), (0.78, 0.79, 0.8))
         blend(cov(d) * (SIDE > 0.55), (0.04, 0.05, 0.07)); glass = np.maximum(glass, cov(d) * (SIDE > 0.55))

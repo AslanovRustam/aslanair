@@ -354,7 +354,9 @@ def build_aircraft():
     details(M)
     ellipsoid('BellyFairing', (X(17.3), 0, -1.55), (7.4, 1.98, 0.95), M['navy'], 64, 32)
     root = bpy.data.objects.new('Airliner', None); bpy.context.scene.collection.objects.link(root)
-    for ob in ctx.PARTS: ob.parent = root
+    for ob in ctx.PARTS:
+        if ob.parent is None:   # the door's window stays on the door
+            ob.parent = root
     tris = sum(len(p.vertices) - 2 for ob in ctx.PARTS for p in ob.data.polygons)
     ctx.log(f'{len(ctx.PARTS)} parts, ~{tris} triangles')
     return root
