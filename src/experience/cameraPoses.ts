@@ -35,10 +35,11 @@ const DOOR_CURVE = new CatmullRomCurve3(
   'centripetal',
 );
 const DOOR_CENTRE = v(13.9, 0.6, -1.9);
-const CABIN_LOOK = v(5, 1.1, 0);
 
-// --- aisle
-const AISLE = { startX: 12.6, endX: -11.6, lookAhead: v(-6, -0.15, 0), fov: 60 };
+// --- aisle: stops level with row 26 so rows 27–30 stay in view ahead
+const AISLE = { startX: 12.6, endX: rowX(26) + 0.6, lookAhead: v(-6, -0.15, 0), fov: 60 };
+/** Where the door flight hands over to the aisle walk. */
+const CABIN_LOOK = v(AISLE.startX, EYE_STANDING, 0).add(AISLE.lookAhead);
 
 function skyPose(t: number): CameraPose {
   return {
@@ -49,9 +50,10 @@ function skyPose(t: number): CameraPose {
 }
 
 function doorPose(t: number): CameraPose {
+  const target = SKY.targetTo.clone().lerp(DOOR_CENTRE, smoothstep(t, 0, 0.35)).lerp(CABIN_LOOK, smoothstep(t, 0.7, 1));
   return {
     position: DOOR_CURVE.getPoint(t),
-    target: DOOR_CENTRE.clone().lerp(CABIN_LOOK, smoothstep(t, 0.7, 1)),
+    target,
     fov: lerp(30, AISLE.fov, smoothstep(t, 0.55, 0.9)),
   };
 }
@@ -107,14 +109,15 @@ export function poseOnPostTrack(progress: number, seat: SeatRef): CameraPose {
   const { id, t } = chapterAt('post', progress);
   if (id === 'pass') return seatedPose(seat);
   const points = exitControlPoints(seat);
+  const fly = aircraftFlyAway(progress);
+  const aircraft = v(fly.offsetX, fly.climb, 0);
   if (id === 'exit') {
     const curve = new CatmullRomCurve3(points, false, 'centripetal');
     return {
       position: curve.getPoint(t),
-      target: seatedPose(seat).target.lerp(v(0, 0, 0), smoothstep(t, 0.35, 0.75)),
+      target: seatedPose(seat).target.lerp(aircraft, smoothstep(t, 0.35, 0.75)),
       fov: lerp(55, 35, smoothstep(t, 0.2, 0.9)),
     };
   }
-  const fly = aircraftFlyAway(progress);
-  return { position: points[3].clone(), target: v(fly.offsetX, fly.climb, 0), fov: 35 };
+  return { position: points[3].clone(), target: aircraft, fov: 35 };
 }

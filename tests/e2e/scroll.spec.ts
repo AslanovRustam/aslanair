@@ -1,5 +1,42 @@
 import { expect, test } from '@playwright/test';
-import { progress, waitForStore } from './helpers';
+import { progress, scrollToEnd, settledProgress, visibleLights, waitForAircraft, waitForStore } from './helpers';
+
+test('rotating a phone keeps the story position', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 2; i++) await page.mouse.wheel(0, 600);
+  const before = await settledProgress(page);
+  expect(before).toBeGreaterThan(0.2);
+  expect(before).toBeLessThan(0.6);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(800);
+  expect(Math.abs((await progress(page)) - before)).toBeLessThan(0.02);
+});
+
+test('scroll restoration stays manual after a resize and a confirmed seat', async ({ page }) => {
+  const mode = () => page.evaluate(() => history.scrollRestoration);
+  await page.goto('/');
+  await waitForStore(page);
+  expect(await mode()).toBe('manual');
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await page.waitForTimeout(500);
+  expect(await mode()).toBe('manual');
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: /pick for me/i }).click();
+  await page.getByRole('button', { name: /choose this seat/i }).click();
+  await page.waitForTimeout(500);
+  expect(await mode()).toBe('manual');
+});
+
+test('the visible light count never changes (no shader recompiles on entry)', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  const atSky = await visibleLights(page);
+  await scrollToEnd(page);
+  expect(await visibleLights(page)).toBe(atSky);
+});
 
 test('scrolling walks from the sky into the aisle', async ({ page }) => {
   await page.goto('/');

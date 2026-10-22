@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { aisleProgressForRow } from '@/experience/cameraPoses';
 import { pickRecommendedSeat } from '@/experience/seats';
 import { experienceStore, trackOf } from '@/experience/store';
 
@@ -25,16 +24,18 @@ describe('experience store', () => {
     expect(s().sit(free.id)).toBe(false);
   });
 
-  test('standing up returns to the aisle level with that row', () => {
+  test('standing up returns to where the visitor was in the aisle (spec 4.1)', () => {
     const free = s().seats.find((x) => x.status === 'free')!;
+    s().setProgress(0.55);
     s().sit(free.id);
     s().standUp();
     expect(s().phase).toBe('browse');
     expect(s().selectedSeatId).toBeNull();
-    expect(s().progress).toBeCloseTo(aisleProgressForRow(free.row));
+    expect(s().progress).toBeCloseTo(0.55);
   });
 
-  test('pick-for-me, confirm, change seat', () => {
+  test('pick-for-me, confirm, change seat returns to where the visitor was', () => {
+    s().setProgress(0.6);
     s().autoPick();
     const picked = pickRecommendedSeat(s().seats);
     expect(s().selectedSeatId).toBe(picked.id);
@@ -45,7 +46,7 @@ describe('experience store', () => {
     s().changeSeat();
     expect(s().phase).toBe('browse');
     expect(s().selectedSeatId).toBeNull();
-    expect(s().progress).toBeCloseTo(aisleProgressForRow(picked.row));
+    expect(s().progress).toBeCloseTo(0.6);
   });
 
   test('the form ends in thanks; restart goes back to the top', () => {

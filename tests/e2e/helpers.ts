@@ -4,9 +4,15 @@ export interface StoreSnapshot {
   phase: 'browse' | 'seated' | 'confirmed' | 'thanks';
   progress: number;
   selectedSeatId: string | null;
+  hoveredSeatId: string | null;
 }
 
-type StoreWindow = Window & { __aslan: { store: { getState(): StoreSnapshot } } };
+interface SceneLike {
+  traverseVisible(cb: (o: { isLight?: boolean }) => void): void;
+  getObjectByName(name: string): unknown;
+}
+
+type StoreWindow = Window & { __aslan: { store: { getState(): StoreSnapshot }; scene?: SceneLike } };
 
 /** The scene (and its test hook) loads via a client-only dynamic import, after `goto` resolves. */
 export const waitForStore = (page: Page) => page.waitForFunction(() => !!(window as unknown as Partial<StoreWindow>).__aslan);
@@ -18,6 +24,34 @@ export const state = (page: Page) =>
   });
 
 export const progress = async (page: Page) => (await state(page)).progress;
+
+export const hoveredSeat = (page: Page) =>
+  page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().hoveredSeatId);
+
+/** Waits until Lenis has finished easing: two reads 300 ms apart agree. */
+export async function settledProgress(page: Page): Promise<number> {
+  let last = -1;
+  for (let i = 0; i < 30; i++) {
+    const now = await progress(page);
+    if (Math.abs(now - last) < 1e-4) return now;
+    last = now;
+    await page.waitForTimeout(300);
+  }
+  return last;
+}
+
+/** Waits for the aircraft (and everything mounted with it) to be in the scene. */
+export const waitForAircraft = (page: Page) =>
+  page.waitForFunction(() => !!(window as unknown as StoreWindow).__aslan?.scene?.getObjectByName('Fuselage'));
+
+export const visibleLights = (page: Page) =>
+  page.evaluate(() => {
+    let n = 0;
+    (window as unknown as StoreWindow).__aslan.scene!.traverseVisible((o) => {
+      if ((o as { isLight?: boolean }).isLight) n++;
+    });
+    return n;
+  });
 
 /** Wheel until the current scroll track reaches its end. */
 export async function scrollToEnd(page: Page) {

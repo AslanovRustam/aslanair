@@ -3,9 +3,9 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { chapterAt } from '@/experience/chapters';
 import { CABIN_WALL_Z, CEILING_Y, DOOR_1L, FLOOR_Y, WINDOW, stationToX, windowStations } from '@/experience/geometry';
-import { experienceStore, trackOf } from '@/experience/store';
+import { experienceStore } from '@/experience/store';
+import { cabinVisible } from '@/experience/visibility';
 
 // Placeholder cabin (Plan 3 replaces it). Geometry is built in aircraft space so the
 // window cut-outs can test the vertex position directly.
@@ -19,6 +19,9 @@ const HEIGHT = CEILING_Y - FLOOR_Y;
 const CENTER_Y = (CEILING_Y + FLOOR_Y) / 2;
 /** The painted door on the hull sits low; the opening runs from the floor to head height. */
 const DOOR_TOP_Y = FLOOR_Y + 1.9;
+
+const LIGHTS = { ambient: 0.35, hemisphere: 0.6, point: 4 };
+const POINT_LIGHT_X = [11, 5, -1, -7];
 
 const f = (n: number) => n.toFixed(4);
 
@@ -57,15 +60,11 @@ function wall(side: -1 | 1): THREE.BufferGeometry {
   return g.translate(CENTER_X, CENTER_Y, side * CABIN_WALL_Z);
 }
 
-function isVisible(): boolean {
-  const s = experienceStore.getState();
-  if (s.phase === 'seated') return true;
-  const { id } = chapterAt(trackOf(s.phase), s.progress);
-  return id === 'door' || id === 'aisle' || id === 'pass' || id === 'exit';
-}
-
 export default function CabinShell() {
-  const group = useRef<THREE.Group>(null);
+  const shell = useRef<THREE.Group>(null);
+  const ambient = useRef<THREE.AmbientLight>(null);
+  const hemisphere = useRef<THREE.HemisphereLight>(null);
+  const points = useRef<(THREE.PointLight | null)[]>([]);
   const parts = useMemo(
     () => ({
       floor: new THREE.PlaneGeometry(LENGTH, CABIN_WALL_Z * 2).rotateX(-Math.PI / 2).translate(CENTER_X, FLOOR_Y, 0),
@@ -80,31 +79,51 @@ export default function CabinShell() {
     [],
   );
 
+  // The shell is hidden from outside; the lights stay in the scene and only dim, so the
+  // number of lights (part of every material's shader key) never changes.
   useFrame(() => {
-    if (group.current) group.current.visible = isVisible();
+    const s = experienceStore.getState();
+    const inside = cabinVisible(s.phase, s.progress);
+    if (shell.current) shell.current.visible = inside;
+    const k = inside ? 1 : 0;
+    if (ambient.current) ambient.current.intensity = LIGHTS.ambient * k;
+    if (hemisphere.current) hemisphere.current.intensity = LIGHTS.hemisphere * k;
+    for (const p of points.current) if (p) p.intensity = LIGHTS.point * k;
   });
 
   return (
-    <group ref={group}>
-      <mesh geometry={parts.floor}>
-        <meshStandardMaterial color="#9c968c" roughness={0.95} />
-      </mesh>
-      <mesh geometry={parts.ceiling}>
-        <meshStandardMaterial color="#f4f1ea" roughness={0.9} />
-      </mesh>
-      <mesh geometry={parts.front}>
-        <meshStandardMaterial color="#e2ddd2" roughness={0.9} />
-      </mesh>
-      <mesh geometry={parts.aft}>
-        <meshStandardMaterial color="#e2ddd2" roughness={0.9} />
-      </mesh>
-      <mesh geometry={parts.left} material={parts.leftMaterial} />
-      <mesh geometry={parts.right} material={parts.rightMaterial} />
-      <ambientLight color="#fff3e2" intensity={0.35} />
-      <hemisphereLight args={['#fff6ea', '#8a7f70', 0.6]} />
-      {[11, 5, -1, -7].map((x) => (
-        <pointLight key={x} position={[x, CEILING_Y - 0.15, 0]} color="#fff1dc" intensity={4} distance={9} decay={2} />
+    <>
+      <group ref={shell}>
+        <mesh geometry={parts.floor}>
+          <meshStandardMaterial color="#9c968c" roughness={0.95} />
+        </mesh>
+        <mesh geometry={parts.ceiling}>
+          <meshStandardMaterial color="#f4f1ea" roughness={0.9} />
+        </mesh>
+        <mesh geometry={parts.front}>
+          <meshStandardMaterial color="#e2ddd2" roughness={0.9} />
+        </mesh>
+        <mesh geometry={parts.aft}>
+          <meshStandardMaterial color="#e2ddd2" roughness={0.9} />
+        </mesh>
+        <mesh geometry={parts.left} material={parts.leftMaterial} />
+        <mesh geometry={parts.right} material={parts.rightMaterial} />
+      </group>
+      <ambientLight ref={ambient} color="#fff3e2" intensity={0} />
+      <hemisphereLight ref={hemisphere} args={['#fff6ea', '#8a7f70', 0]} />
+      {POINT_LIGHT_X.map((x, i) => (
+        <pointLight
+          key={x}
+          ref={(l) => {
+            points.current[i] = l;
+          }}
+          position={[x, CEILING_Y - 0.15, 0]}
+          color="#fff1dc"
+          intensity={0}
+          distance={9}
+          decay={2}
+        />
       ))}
-    </group>
+    </>
   );
 }

@@ -28,6 +28,23 @@ test('pick, reconsider, confirm', async ({ page }) => {
   await page.screenshot({ path: 'test-results/pass.png' });
 });
 
+test('the outro panels can be wheel-scrolled on a short window', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 480 });
+  await page.goto('/');
+  await waitForStore(page);
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: /pick for me/i }).click();
+  await page.getByRole('button', { name: /choose this seat/i }).click();
+  await expect.poll(async () => (await state(page)).phase).toBe('confirmed');
+  await scrollToEnd(page);
+
+  const outro = page.locator('section', { has: page.getByRole('heading', { name: /have a nice flight/i }) });
+  await expect(outro).toBeVisible();
+  await page.mouse.move(720, 240);
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => outro.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+});
+
 test('take off, fill the form, start again', async ({ page }) => {
   const posts: string[] = [];
   page.on('request', (r) => {

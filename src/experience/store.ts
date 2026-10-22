@@ -1,6 +1,5 @@
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
-import { aisleProgressForRow } from './cameraPoses';
 import type { Track } from './chapters';
 import { generateSeatMap, pickRecommendedSeat, type Seat } from './seats';
 
@@ -13,6 +12,8 @@ export interface ExperienceState {
   selectedSeatId: string | null;
   /** 0..1 along the current scroll track. */
   progress: number;
+  /** Aisle progress when the visitor sat down; standing up or changing seat returns here. */
+  aisleReturn: number;
   soundOn: boolean;
   setProgress(p: number): void;
   hover(id: string | null): void;
@@ -30,9 +31,7 @@ export function trackOf(phase: Phase): Track {
 }
 
 export const experienceStore = createStore<ExperienceState>()((set, get) => {
-  const selectedRow = () => get().seats.find((s) => s.id === get().selectedSeatId)?.row ?? 1;
-  const backToAisle = () =>
-    set({ phase: 'browse', selectedSeatId: null, hoveredSeatId: null, progress: aisleProgressForRow(selectedRow()) });
+  const backToAisle = () => set({ phase: 'browse', selectedSeatId: null, hoveredSeatId: null, progress: get().aisleReturn });
 
   return {
     phase: 'browse',
@@ -40,6 +39,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     hoveredSeatId: null,
     selectedSeatId: null,
     progress: 0,
+    aisleReturn: 0,
     soundOn: false,
     setProgress: (p) => set({ progress: Math.min(1, Math.max(0, p)) }),
     hover: (id) => {
@@ -48,7 +48,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     sit: (id) => {
       const seat = get().seats.find((s) => s.id === id);
       if (get().phase !== 'browse' || !seat || seat.status !== 'free') return false;
-      set({ phase: 'seated', selectedSeatId: id, hoveredSeatId: null });
+      set({ phase: 'seated', selectedSeatId: id, hoveredSeatId: null, aisleReturn: get().progress });
       return true;
     },
     standUp: () => {
@@ -66,7 +66,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     submitForm: () => {
       if (get().phase === 'confirmed') set({ phase: 'thanks' });
     },
-    restart: () => set({ phase: 'browse', progress: 0, selectedSeatId: null, hoveredSeatId: null }),
+    restart: () => set({ phase: 'browse', progress: 0, aisleReturn: 0, selectedSeatId: null, hoveredSeatId: null }),
   };
 });
 

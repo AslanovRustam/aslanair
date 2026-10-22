@@ -1,12 +1,13 @@
 'use client';
 
-import type { ThreeEvent } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect, useRef } from 'react';
-import { Color, Matrix4, type InstancedMesh } from 'three';
+import { Color, Matrix4, type Group, type InstancedMesh } from 'three';
 import { chapterAt } from '@/experience/chapters';
 import { seatWorldPosition } from '@/experience/geometry';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
+import { cabinVisible } from '@/experience/visibility';
 
 // Placeholder seat blocks (Plan 3 brings real seats). Seats face +X; covers sit on the
 // front of the backrest top, so they face a camera walking aft.
@@ -27,8 +28,26 @@ export default function Seats() {
   const seats = useExperience((s) => s.seats);
   const hoveredId = useExperience((s) => s.hoveredSeatId);
   const selectedId = useExperience((s) => s.selectedSeatId);
+  const group = useRef<Group>(null);
   const body = useRef<InstancedMesh>(null);
   const cover = useRef<InstancedMesh>(null);
+  const lastProgress = useRef(-1);
+
+  // R3F only raycasts on pointer events. When the camera walks, re-check what is under the
+  // still pointer; outside the aisle chapter nothing may stay hovered.
+  useFrame((state) => {
+    const s = experienceStore.getState();
+    if (group.current) group.current.visible = cabinVisible(s.phase, s.progress);
+    if (!interactive()) {
+      if (s.hoveredSeatId) {
+        s.hover(null);
+        setCursor(false);
+      }
+    } else if (s.progress !== lastProgress.current) {
+      state.events.update?.();
+    }
+    lastProgress.current = s.progress;
+  });
 
   useLayoutEffect(() => {
     const m = new Matrix4();
@@ -76,7 +95,7 @@ export default function Seats() {
   };
 
   return (
-    <>
+    <group ref={group}>
       <instancedMesh ref={body} args={[undefined, undefined, seats.length]} onPointerMove={onMove} onPointerOut={onOut} onClick={onClick}>
         <boxGeometry args={[BODY.depth, BODY.height, BODY.width]} />
         <meshStandardMaterial color="#ffffff" roughness={0.9} />
@@ -85,6 +104,6 @@ export default function Seats() {
         <boxGeometry args={[COVER.depth, COVER.height, COVER.width]} />
         <meshStandardMaterial color="#ffffff" roughness={0.8} />
       </instancedMesh>
-    </>
+    </group>
   );
 }

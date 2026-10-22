@@ -9,9 +9,14 @@ import { TRACKS } from '@/experience/chapters';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 
 gsap.registerPlugin(ScrollTrigger);
+// ScrollTrigger re-applies the scrollRestoration it saw at registration on every refresh;
+// pin it to 'manual' so a reload always starts at the sky.
+ScrollTrigger.clearScrollMemory('manual');
 
 let lenis: Lenis | null = null;
 let trigger: ScrollTrigger | null = null;
+/** True while a track swap scrolls to its own target; resize restoration stays out of the way. */
+let swapping = false;
 
 /** Scrolls the page so the current track sits at progress p (0..1). */
 export function scrollToProgress(p: number, immediate: boolean): void {
@@ -32,14 +37,30 @@ export default function SmoothScroll() {
     const tick = (time: number) => instance.raf(time * 1000);
     gsap.ticker.add(tick);
     gsap.ticker.lagSmoothing(0);
+
+    // A resize or rotation changes the pixel height of every vh section; keep the story position.
+    let saved = 0;
+    const onRefreshInit = () => {
+      if (!swapping) saved = experienceStore.getState().progress;
+    };
+    const onRefresh = () => {
+      if (swapping) return;
+      instance.resize();
+      scrollToProgress(saved, true);
+      experienceStore.getState().setProgress(saved);
+    };
+    ScrollTrigger.addEventListener('refreshInit', onRefreshInit);
+    ScrollTrigger.addEventListener('refresh', onRefresh);
     return () => {
+      ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
+      ScrollTrigger.removeEventListener('refresh', onRefresh);
       gsap.ticker.remove(tick);
       instance.destroy();
       lenis = null;
     };
   }, []);
 
-  // Sitting down freezes the scroll at once; standing up returns to the aisle at that row.
+  // Sitting down freezes the scroll at once; standing up returns to where the visitor was in the aisle.
   useEffect(
     () =>
       experienceStore.subscribe((s, prev) => {
@@ -65,6 +86,7 @@ export default function SmoothScroll() {
       onUpdate: (self) => experienceStore.getState().setProgress(self.progress),
     });
     trigger = st;
+    swapping = true;
     lenis?.resize();
     ScrollTrigger.refresh();
     if (phase !== 'seated') {
@@ -72,6 +94,7 @@ export default function SmoothScroll() {
       setProgress(target);
       lenis?.start();
     }
+    swapping = false;
     return () => {
       st.kill();
       trigger = null;

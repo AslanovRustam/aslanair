@@ -1,6 +1,6 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
 import { installTestHooks } from '@/dev/testHooks';
@@ -17,6 +17,13 @@ import SkyAndClouds from './sky/SkyAndClouds';
 
 const start = poseOnPreTrack(0);
 
+/** Hands the scene to the test hooks once the canvas exists. */
+function SceneTestHook() {
+  const scene = useThree((s) => s.scene);
+  useEffect(() => installTestHooks({ scene }), [scene]);
+  return null;
+}
+
 function hasWebGL2(): boolean {
   return !!document.createElement('canvas').getContext('webgl2');
 }
@@ -24,7 +31,7 @@ function hasWebGL2(): boolean {
 export default function Experience() {
   const [supported] = useState(hasWebGL2);
 
-  useEffect(installTestHooks, []);
+  useEffect(() => installTestHooks(), []);
 
   if (!supported) {
     return <p className="fallback">{copy.fallback.noWebgl}</p>;
@@ -38,6 +45,7 @@ export default function Experience() {
           shadows
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
+          <SceneTestHook />
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>

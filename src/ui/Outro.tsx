@@ -28,7 +28,8 @@ export default function Outro() {
 
   const t = copy.outro;
   return (
-    <section className={styles.outro}>
+    // data-lenis-prevent: let the wheel scroll this panel natively when it overflows a short window.
+    <section className={styles.outro} aria-label="Booking" data-lenis-prevent>
       <div className={styles.panel}>
         <h2>{t.title}</h2>
         {phase === 'thanks' ? (

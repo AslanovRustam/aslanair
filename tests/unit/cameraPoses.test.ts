@@ -47,6 +47,31 @@ describe('seated and post-track camera', () => {
   });
 });
 
+describe('aisle end', () => {
+  test('the walk stops with the last rows still ahead, well clear of the aft bulkhead', () => {
+    const end = poseOnPreTrack(1).position.x;
+    expect(end - stationToX(30.5)).toBeGreaterThan(3);
+    expect(end).toBeGreaterThan(rowX(30) + 2.5);
+  });
+});
+
+describe('continuity at chapter boundaries', () => {
+  // Tiny step: the fly-away target already moves ~1 km per unit of progress at 0.7.
+  const eps = 1e-9;
+  const seat = { row: 14, letter: 'A' as const };
+  const close = (a: ReturnType<typeof poseOnPreTrack>, b: ReturnType<typeof poseOnPreTrack>) => {
+    expect(a.position.distanceTo(b.position)).toBeLessThan(1e-3);
+    expect(a.target.distanceTo(b.target)).toBeLessThan(1e-3);
+    expect(Math.abs(a.fov - b.fov)).toBeLessThan(1e-3);
+  };
+  for (const b of [0.2, 0.45]) {
+    test(`pre track is continuous at ${b}`, () => close(poseOnPreTrack(b - eps), poseOnPreTrack(b)));
+  }
+  for (const b of [0.15, 0.7]) {
+    test(`post track is continuous at ${b}`, () => close(poseOnPostTrack(b - eps, seat), poseOnPostTrack(b, seat)));
+  }
+});
+
 describe('aircraft fly-away', () => {
   test('waits until 60% of the post track, then flies 900 m away', () => {
     expect(aircraftFlyAway(0.5)).toEqual({ offsetX: 0, climb: 0, bank: 0 });

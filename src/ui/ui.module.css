@@ -105,8 +105,9 @@
   z-index: 3;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
+  align-items: safe center;
+  align-content: safe center;
+  justify-content: safe center;
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
