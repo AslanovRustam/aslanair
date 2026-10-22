@@ -11,6 +11,7 @@ import Overlay from '@/ui/Overlay';
 import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
 import CabinLights from './cabin/CabinLights';
+import SeatHighlight from './cabin/SeatHighlight';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import SkyAndClouds from './sky/SkyAndClouds';
@@ -52,6 +53,7 @@ export default function Experience() {
             <Aircraft>
               <CabinLights />
               <Seats />
+              <SeatHighlight />
             </Aircraft>
           </Suspense>
           <BoardingPass3D />

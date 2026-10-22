@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { waitForAircraft, waitForStore } from './helpers';
+import { seatWorldPosition, type SeatLetter } from '@/experience/geometry';
+import { highlightState, scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
 
 type Node = { count?: number };
 type SceneWindow = Window & { __aslan: { scene?: { getObjectByName(n: string): Node | undefined } } };
@@ -41,4 +42,19 @@ test('instanced seat parts keep the kit seat size (dequantized, node transform b
     expect(y0, `${name} floor`).toBeGreaterThanOrEqual(-0.01);
     expect(y1, `${name} top`).toBeLessThanOrEqual(1.08 + 0.01);
   }
+});
+
+test('the highlight sits on the hovered seat, then marks the chosen one', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
+  await settledProgress(page);
+  const hit = await scanForHoveredSeat(page);
+  const [x, , z] = seatWorldPosition(Number(hit.id.slice(0, -1)), hit.id.at(-1) as SeatLetter);
+  const hl = await highlightState(page);
+  expect(hl).toMatchObject({ visible: true, color: '#6fd3cc' });
+  expect(hl.x).toBeCloseTo(x, 2);
+  expect(hl.z).toBeCloseTo(z, 2);
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => highlightState(page)).toMatchObject({ visible: true, color: '#d4683a' });
 });
