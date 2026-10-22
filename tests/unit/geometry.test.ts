@@ -3,6 +3,8 @@ import {
   nearestWindowStation,
   ROWS,
   rowStation,
+  SEATED_EYE_AFT,
+  seatWindowStation,
   seatWorldPosition,
   sideOf,
   stationToX,
@@ -21,10 +23,13 @@ describe('aircraft geometry', () => {
     expect(rowStation(30)).toBeCloseTo(29.04);
   });
 
-  test('every row has its own window beside it', () => {
-    const rows = Array.from({ length: ROWS }, (_, i) => rowStation(i + 1));
-    for (const s of rows) expect(Math.abs(nearestWindowStation(s) - s), `row at ${s}`).toBeLessThanOrEqual(WINDOW.pitch / 2);
-    expect(new Set(rows.map(nearestWindowStation)).size).toBe(ROWS);
+  test('every row has its own window, the one nearest the seated eye', () => {
+    const rows = Array.from({ length: ROWS }, (_, i) => i + 1);
+    for (const r of rows) {
+      const eye = rowStation(r) + SEATED_EYE_AFT;
+      expect(Math.abs(seatWindowStation(r) - eye), `row ${r}`).toBeLessThanOrEqual(WINDOW.pitch / 2);
+    }
+    expect(new Set(rows.map(seatWindowStation)).size).toBe(ROWS);
   });
 
   test('cabin windows match the livery texture', () => {

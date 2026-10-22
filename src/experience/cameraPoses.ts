@@ -5,11 +5,11 @@ import {
   DOOR_1L,
   EYE_SEATED,
   EYE_STANDING,
+  SEATED_EYE_AFT,
   SEAT_Z,
   WINDOW,
-  nearestWindowStation,
-  rowStation,
   rowX,
+  seatWindowStation,
   sideOf,
   stationToX,
   type SeatLetter,
@@ -77,16 +77,17 @@ export function aisleProgressForRow(row: number): number {
 }
 
 function windowX(row: number): number {
-  return stationToX(nearestWindowStation(rowStation(row)));
+  return stationToX(seatWindowStation(row));
 }
 
 export function seatedPose(seat: SeatRef): CameraPose {
   const side = sideOf(seat.letter);
-  return {
-    position: v(rowX(seat.row) - 0.15, EYE_SEATED, SEAT_Z[seat.letter]),
-    target: v(windowX(seat.row), WINDOW.y - 0.05, side * (CABIN_WALL_Z + 3)),
-    fov: 55,
-  };
+  const eye = v(rowX(seat.row) - SEATED_EYE_AFT, EYE_SEATED, SEAT_Z[seat.letter]);
+  // level gaze through the middle of the row's window (up to ~0.27 m along the aisle from the eye)
+  const toWindow = v(windowX(seat.row), 0, side * CABIN_WALL_Z).sub(v(eye.x, 0, eye.z));
+  const target = eye.clone().addScaledVector(toWindow, 3.4 / Math.abs(toWindow.z));
+  target.y = WINDOW.y - 0.05;
+  return { position: eye, target, fov: 55 };
 }
 
 export function exitControlPoints(seat: SeatRef): Vector3[] {

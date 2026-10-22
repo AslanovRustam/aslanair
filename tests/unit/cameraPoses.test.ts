@@ -9,7 +9,7 @@ import {
   seatedPose,
 } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
-import { CABIN_WALL_Z, nearestWindowStation, rowStation, rowX, stationToX } from '@/experience/geometry';
+import { CABIN_WALL_Z, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
 
 describe('pre-track camera', () => {
   test('starts on the sky shot with a narrow lens', () => {
@@ -37,8 +37,22 @@ describe('seated and post-track camera', () => {
     expect(seatedPose(seat).position.toArray().map((v) => +v.toFixed(3))).toEqual([+(rowX(14) - 0.15).toFixed(3), 0.7, -1.42]);
   });
 
+  test('every window seat looks out through the middle of its own window', () => {
+    for (let row = 1; row <= ROWS; row++) {
+      for (const letter of ['A', 'F'] as const) {
+        const { position: eye, target } = seatedPose({ row, letter });
+        const wallZ = Math.sign(eye.z) * CABIN_WALL_Z;
+        const hit = eye.clone().lerp(target, (wallZ - eye.z) / (target.z - eye.z));
+        expect(Math.abs(hit.x - stationToX(seatWindowStation(row))), `${row}${letter} along`).toBeLessThan(0.02);
+        expect(Math.abs(hit.y - WINDOW.y), `${row}${letter} height`).toBeLessThan(WINDOW.h / 4);
+        const obliquity = Math.atan2(Math.abs(target.x - eye.x), Math.abs(target.z - eye.z));
+        expect(obliquity, `${row}${letter} looks at its window face-on enough`).toBeLessThan((36 * Math.PI) / 180);
+      }
+    }
+  });
+
   test('exits through the nearest window on the seat side', () => {
-    expect(exitControlPoints(seat)[1].toArray()).toEqual([stationToX(nearestWindowStation(rowStation(14))), 0.62, -CABIN_WALL_Z]);
+    expect(exitControlPoints(seat)[1].toArray()).toEqual([stationToX(seatWindowStation(14)), 0.62, -CABIN_WALL_Z]);
   });
 
   test('post track starts seated and ends on the pull-back', () => {

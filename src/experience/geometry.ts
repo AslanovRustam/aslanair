@@ -63,6 +63,14 @@ export const DOOR_1L = {
   open: { outward: 0.35, forward: 1.0 },
 } as const;
 
+/** The seated eye sits this far aft of the row's station (head against the backrest). */
+export const SEATED_EYE_AFT = 0.15;
+
+/** The window a seated passenger of this row looks out of: the one nearest their eye. */
+export function seatWindowStation(row: number): number {
+  return nearestWindowStation(rowStation(row) + SEATED_EYE_AFT);
+}
+
 export function seatWorldPosition(row: number, letter: SeatLetter): [number, number, number] {
   return [rowX(row), FLOOR_Y, SEAT_Z[letter]];
 }
