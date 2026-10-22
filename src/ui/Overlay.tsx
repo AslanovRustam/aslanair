@@ -75,6 +75,7 @@ export default function Overlay() {
           </button>
         </div>
       )}
+      <p className={styles.disclaimer}>{copy.footer.disclaimer}</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { copy } from '@/content/copy';
 import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import SmoothScroll from '@/scroll/SmoothScroll';
+import Outro from '@/ui/Outro';
 import Overlay from '@/ui/Overlay';
 import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
@@ -50,6 +51,7 @@ export default function Experience() {
       </div>
       <SmoothScroll />
       <Overlay />
+      <Outro />
     </>
   );
 }

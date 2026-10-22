@@ -27,3 +27,32 @@ test('pick, reconsider, confirm', async ({ page }) => {
   await page.waitForTimeout(1200);
   await page.screenshot({ path: 'test-results/pass.png' });
 });
+
+test('take off, fill the form, start again', async ({ page }) => {
+  const posts: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST') posts.push(r.url());
+  });
+  await page.goto('/');
+  await waitForStore(page);
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: /pick for me/i }).click();
+  await page.getByRole('button', { name: /choose this seat/i }).click();
+  await expect.poll(async () => (await state(page)).phase).toBe('confirmed');
+
+  await scrollToEnd(page);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/outro.png' });
+
+  await page.getByLabel(/name/i).fill('Test');
+  await page.getByLabel(/e-mail/i).fill('t@example.com');
+  await page.getByRole('button', { name: /^buy$/i }).click();
+  await expect(page.getByText(/concept/i).first()).toBeVisible();
+  // The footer also says "concept" on every chapter, so prove the form was replaced.
+  await expect(page.getByRole('button', { name: /^buy$/i })).toHaveCount(0);
+  expect(posts).toEqual([]);
+
+  await page.getByRole('button', { name: /start again/i }).click();
+  await expect.poll(async () => (await state(page)).phase).toBe('browse');
+  await expect.poll(async () => (await state(page)).progress).toBe(0);
+});

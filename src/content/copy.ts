@@ -35,4 +35,27 @@ export const copy = {
     boarding: 'Boarding',
     backNote: 'AslanAir is a fictional airline — a concept project.',
   },
+  outro: {
+    title: 'Have a nice flight.',
+    lead: 'Leave your details and we will hold this seat for you.',
+    name: 'Name', // pinned
+    email: 'E-mail', // pinned
+    comment: 'Comment', // pinned
+    buy: 'Buy', // pinned
+    thanks: 'Thank you! AslanAir is a concept, so nothing was sent — but that seat suits you.', // contains "concept" (pinned)
+    restart: 'Start again', // pinned
+    howItsMade: {
+      title: "How it's made",
+      items: [
+        'Next.js, React Three Fiber, GSAP ScrollTrigger and Lenis.',
+        'The airliner is built from code — a Python script drives Blender.',
+        'Clouds are raymarched in a shader, live, every frame.',
+        'Every seat is a real 3D object you can pick.',
+      ],
+      author: 'Concept & code: [Author name] · [Portfolio link]',
+    },
+  },
+  footer: {
+    disclaimer: 'AslanAir is a fictional airline — a concept project.',
+  },
 } as const;
