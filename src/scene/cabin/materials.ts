@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { withCabinLight } from './cabinLight';
+import { aisleRunnerTexels, carpetTexels } from './carpet';
 import { weaveNormals } from './fabric';
 import { fabricPrint } from './fabricPrint';
 
@@ -22,6 +23,8 @@ export interface CabinMaterials {
   legs: MeshLambertMaterial;
   belt: MeshLambertMaterial;
   buckle: MeshStandardMaterial;
+  track: MeshStandardMaterial;
+  trackSlot: MeshLambertMaterial;
   curtain: MeshStandardMaterial;
   panels: MeshStandardMaterial;
   steel: MeshStandardMaterial;
@@ -69,6 +72,8 @@ export function cabinMaterials(): CabinMaterials {
       legs: new MeshLambertMaterial({ color: '#9aa0a8' }),
       belt: new MeshLambertMaterial({ color: '#9a2f35' }),
       buckle: new MeshStandardMaterial({ color: '#c8ccd2', roughness: 0.25, metalness: 1 }),
+      track: new MeshStandardMaterial({ color: '#b9bfc7', roughness: 0.35, metalness: 0.7 }),
+      trackSlot: new MeshLambertMaterial({ color: '#23272e' }),
       curtain: new MeshStandardMaterial({ color: '#1b2541', roughness: 0.95, normalMap: weave, side: DoubleSide }),
       panels: new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.55 }),
       steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
@@ -78,4 +83,33 @@ export function cabinMaterials(): CabinMaterials {
     for (const m of Object.values(shared)) withCabinLight(m, { sun: false });
   }
   return shared;
+}
+
+let floor: { carpet: DataTexture; runner: DataTexture } | null = null;
+
+function floorTexture(texels: Uint8Array, size: number): DataTexture {
+  const tex = new DataTexture(texels, size, size);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.minFilter = LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 8; // seen at a grazing angle down the aisle
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** Floor maps for the GLB's `Carpet` and `AisleCarpet` materials. The floor's UVs are metres (u along the cabin,
+ * v across it, from the aisle centreline): a carpet tile is 0.5 m; the runner spans the 0.5 m aisle exactly once
+ * across, its edges on v = ±0.25. */
+export function floorMaps(): { carpet: DataTexture; runner: DataTexture } {
+  if (!floor) {
+    const size = 256;
+    const carpet = floorTexture(carpetTexels(size, 11), size);
+    carpet.repeat.set(2, 2);
+    const runner = floorTexture(aisleRunnerTexels(size, 11), size);
+    runner.repeat.set(2, 2);
+    runner.offset.set(0, 0.5);
+    floor = { carpet, runner };
+  }
+  return floor;
 }

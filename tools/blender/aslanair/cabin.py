@@ -6,7 +6,8 @@ from mathutils import Vector
 
 from .clip import boundary_ring, close_t_junctions
 from .door import door_outline
-from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal, shell_stations, floor_half_width
+from .geometry import (CABIN, FLOOR_Z, L, PLINTH, X, ceiling_z, door_rect, floor_half_width, hull_half_width_at, liner_half_width_at,
+                       liner_normal, shell_stations)
 from .mesh import make_mesh, material, object_from_polys
 from .openings import _bbox, cut_outlines, window_outlines
 
@@ -119,10 +120,12 @@ def build_cabin():
     make_mesh('CockpitDoor', [(x, -hw, FLOOR_Z), (x, hw, FLOOR_Z), (x, hw, top), (x, -hw, top)], [(0, 1, 2, 3)], None,
               material('CockpitDoor', '#cfcac0', rough=0.6, double=True), recalc=False, sharp=None)
     _floor()
+    _plinth()
     return shell
 
 
 def _floor():
+    """Carpet with an aisle runner (materials Carpet / AisleCarpet); the site maps its patterns on by position."""
     carpet = material('Carpet', '#7d8590', rough=0.95)
     aisle = material('AisleCarpet', '#5e6a7a', rough=0.95)
     verts, faces, aisle_faces = [], [], []
@@ -145,3 +148,24 @@ def _floor():
         for p in floor.data.polygons:
             p.flip()
     return floor
+
+
+def _plinth():
+    """CabinPlinth: a dark skirting band along both walls, just inside the liner, with a lip back to the wall;
+    it stops at door 1L, whose sill sits lower than the band's top."""
+    s0, s1, _, _ = door_rect()
+    h, inset = PLINTH['height'], PLINTH['inset']
+    verts, faces = [], []
+    for side in (1, -1):
+        stations = shell_stations()
+        for a, b in zip(stations, stations[1:]):
+            if side == 1 and b > s0 and a < s1:
+                continue
+            base = len(verts)
+            for s in (a, b):
+                verts += [(X(s), side * (liner_half_width_at(s, FLOOR_Z) - inset), FLOOR_Z),
+                          (X(s), side * (liner_half_width_at(s, FLOOR_Z + h) - inset), FLOOR_Z + h),
+                          (X(s), side * liner_half_width_at(s, FLOOR_Z + h), FLOOR_Z + h)]
+            quads = [(base, base + 1, base + 4, base + 3), (base + 1, base + 2, base + 5, base + 4)]   # face, lip
+            faces += quads if side == 1 else [q[::-1] for q in quads]                                  # into the cabin, up
+    return make_mesh('CabinPlinth', verts, faces, None, material('CabinPlinth', '#2e333c', rough=0.6), recalc=False, sharp=50)

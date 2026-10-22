@@ -146,6 +146,7 @@ def cabin_wall_inner(s):
 
 
 SHELL_STEP = 0.25   # station spacing of the shell grid
+PLINTH = {'height': 0.09, 'inset': 0.004}   # dark skirting band along both walls at floor level
 FLOOR_TUCK = 0.005  # the floor runs this far under the wall, so compression never opens a seam there
 
 

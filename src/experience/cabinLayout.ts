@@ -29,6 +29,11 @@ export function armMatrices(): Matrix4[] {
 }
 
 /** Overhead bin section (one row long), mirrored from the kit meta; the aisle door bulges `doorBulge` inwards. */
+/** The kit seat's legs stand this far either side of the seat centre (three.js z). */
+const SEAT_LEG_Z = 0.15;
+/** Seat tracks (three.js z): two per triple, under the inner legs of the window and aisle seats. */
+export const SEAT_TRACK_Z = [SEAT_Z.A + SEAT_LEG_Z, SEAT_Z.C - SEAT_LEG_Z, SEAT_Z.D + SEAT_LEG_Z, SEAT_Z.F - SEAT_LEG_Z] as const;
+
 /** Closer than this to a seat's centre, the camera sits in that seat: the seated eye is 0.62 m from its own seat's
  * centre, 0.77 m from the neighbour's and ≥ 0.85 m from the seat in front. */
 const INSIDE_SEAT = 0.7;

@@ -8,6 +8,7 @@ import {
   furnishingBoxes,
   isInsideSeat,
   SEAT_KIT,
+  SEAT_TRACK_Z,
   seatMatrices,
   segmentHitsBoxes,
 } from '@/experience/cabinLayout';
@@ -18,6 +19,7 @@ import {
   FLOOR_Y,
   rowX,
   SEATED_EYE_AFT,
+  SEAT_Z,
   seatWindowStation,
   seatWorldPosition,
   stationToX,
@@ -91,5 +93,12 @@ describe('entry zone and signs', () => {
     expect(isInsideSeat(eye, '13F')).toBe(false);
     expect(isInsideSeat(eye, '14E')).toBe(false);
     expect(isInsideSeat(poseOnPreTrack(0.6).position, '14F')).toBe(false);
+  });
+
+  test('seat tracks run under the seat legs, two per triple', () => {
+    expect(SEAT_TRACK_Z).toHaveLength(4);
+    const legs = Object.values(SEAT_Z).flatMap((z) => [z - 0.15, z + 0.15]);
+    for (const z of SEAT_TRACK_Z) expect(Math.min(...legs.map((l) => Math.abs(l - z)))).toBeLessThan(1e-9);
+    expect(SEAT_TRACK_Z.filter((z) => z < 0)).toHaveLength(2);
   });
 });

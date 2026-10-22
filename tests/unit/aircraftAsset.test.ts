@@ -63,7 +63,7 @@ describe('aircraft asset budget', () => {
 
   test('keeps the nodes the site animates and swaps', () => {
     const names = glbNodeNames(GLB);
-    for (const n of ['Fuselage', 'Door1L', 'CabinShell', 'CabinFloor', 'WindowGlass', 'Lettering_L', 'Lettering_R']) {
+    for (const n of ['Fuselage', 'Door1L', 'CabinShell', 'CabinFloor', 'CabinPlinth', 'WindowGlass', 'Lettering_L', 'Lettering_R']) {
       expect(names).toContain(n);
     }
   });

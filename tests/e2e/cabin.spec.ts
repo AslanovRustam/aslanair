@@ -28,6 +28,28 @@ test('seats are the kit model, one instance per seat', async ({ page }) => {
   expect(printed, 'upholstery carries the printed fabric').toBe(true);
 });
 
+test('the floor is carpet with an aisle runner, and seat tracks run along the rows', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('SeatTracks'));
+  const floor = await page.evaluate(() => {
+    type M = { name: string; map: unknown };
+    const scene = (window as unknown as SceneWindow).__aslan.scene as unknown as {
+      getObjectByName(n: string): { count: number };
+      traverse(f: (o: { material?: M | M[]; geometry?: { attributes: Record<string, unknown> } }) => void): void;
+    };
+    // a pattern needs both the map and texture coordinates on the floor
+    const maps: Record<string, boolean> = {};
+    scene.traverse((o) => {
+      for (const m of ([] as M[]).concat(o.material ?? []))
+        if (m.name === 'Carpet' || m.name === 'AisleCarpet') maps[m.name] = !!m.map && !!o.geometry?.attributes.uv;
+    });
+    return { tracks: scene.getObjectByName('SeatTracks').count, maps };
+  });
+  expect(floor).toEqual({ tracks: 4, maps: { Carpet: true, AisleCarpet: true } });
+});
+
 test('instanced seat parts keep the kit seat size (dequantized, node transform baked in)', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
