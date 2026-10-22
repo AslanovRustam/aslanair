@@ -3,7 +3,7 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { MathUtils, type Group, type Mesh } from 'three';
+import { MathUtils, type Group, type Material, type Mesh } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
@@ -33,7 +33,8 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
   useEffect(() => {
     scene.traverse((o) => {
       if ((o as Mesh).isMesh) {
-        o.castShadow = true;
+        // three's shadow pass ignores opacity: see-through glass would write opaque depth and keep the sun out
+        o.castShadow = !((o as Mesh).material as Material).transparent;
         o.receiveShadow = true;
       }
     });

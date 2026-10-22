@@ -25,3 +25,20 @@ test('door 1L opens as the camera arrives', async ({ page }) => {
   await page.screenshot({ path: 'test-results/door.png' });
   await settledProgress(page);
 });
+
+test('see-through glass lets the sun into the cabin; the hull still casts shadow', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForTimeout(300);
+  const shadows = await page.evaluate(() => {
+    type Node = { name: string; isMesh?: boolean; castShadow: boolean; material?: { transparent: boolean } };
+    const out: Record<string, boolean> = {};
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: Node) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isMesh && (o.material!.transparent || o.name.startsWith('Fuselage'))) out[o.name] = o.castShadow;
+    });
+    return out;
+  });
+  expect(Object.keys(shadows).some((n) => n.startsWith('WindowGlass'))).toBe(true);
+  for (const [name, casts] of Object.entries(shadows)) expect(casts, name).toBe(name.startsWith('Fuselage'));
+});
