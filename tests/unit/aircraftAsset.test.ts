@@ -56,6 +56,11 @@ describe('aircraft asset budget', () => {
     expect(glbParentsOf(GLB, 'Door1LWindow')).toEqual(['Door1L']);
   });
 
+  test('cockpit glazing is geometry, not livery pixels', () => {
+    const names = glbNodeNames(GLB);
+    for (const n of ['CockpitGlass', 'CockpitFrame']) expect(names).toContain(n);
+  });
+
   test('textures are at most 2048 px per side', () => {
     const sizes = glbImageSizes(GLB);
     expect(sizes.length).toBeGreaterThan(0);

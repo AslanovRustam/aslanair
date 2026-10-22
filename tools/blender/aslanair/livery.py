@@ -92,25 +92,6 @@ def paint_livery(W=4096, H=1024):
     blend(cov(np.abs(dng) - 0.005) * 0.5, (0.06, 0.07, 0.1))
     blend(cov(AB - 0.004) * (np.abs(S - 3.85) < 0.85) * 0.5, (0.06, 0.07, 0.1))
 
-    # cockpit glazing, defined in (s, arc-from-crown) -- mirrored on both sides by |theta|
-    def sz2a(sv, z):
-        w_, zc_, h_ = section(sv)
-        return math.acos(max(-1, min(1, (z - zc_) / h_))) * h_
-    panes = [
-        [(2.06, 0.07), (2.72, 0.07), (3.06, sz2a(3.06, 1.0)), (2.50, sz2a(2.50, 0.58))],
-        [(3.26, sz2a(3.26, 1.00)), (3.92, sz2a(3.92, 0.92)), (3.92, sz2a(3.92, 0.58)), (3.26, sz2a(3.26, 0.58))],
-        [(4.02, sz2a(4.02, 0.90)), (4.40, sz2a(4.40, 0.80)), (4.40, sz2a(4.40, 0.58)), (4.02, sz2a(4.02, 0.58))],
-    ]
-    cols = s < 5.0
-    Sc, Ac = S[:, cols], A[:, cols]
-    sub = img[:, cols]
-    for pane in panes:
-        d = poly_sdf(Sc, Ac, pane)
-        m1 = np.clip(0.5 - (d - 0.035) / px, 0, 1)[..., None]
-        sub[:] = sub * (1 - m1) + np.array([0.16, 0.17, 0.19]) * m1
-        m2 = np.clip(0.5 - d / px, 0, 1)[..., None]
-        sub[:] = sub * (1 - m2) + np.array([0.03, 0.04, 0.055]) * m2
-        g = glass[:, cols]; glass[:, cols] = np.maximum(g, m2[..., 0])
-    img[:, cols] = sub
+    # cockpit glazing is geometry (cockpit.py)
     rough = 0.32 - 0.27 * glass
     return image_from('livery', img), image_from('livery_rough', np.repeat(rough[..., None], 3, axis=2))

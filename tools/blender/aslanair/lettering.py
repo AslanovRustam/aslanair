@@ -65,6 +65,7 @@ def make_lettering(side, mat):
         me.update()
     me.materials.append(mat)
     ob = bpy.data.objects.new(name, me)
+    ob['decal'] = True
     ob['first_glyph_vertex'] = first
     ob['last_glyph_vertex'] = last
     bpy.context.scene.collection.objects.link(ob)

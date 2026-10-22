@@ -4,6 +4,7 @@ Vertices are tuples (x, z, *payload). Clipping happens in the (x, z) projection;
 (3D position, UV, …) is interpolated linearly along the clipped edges. Outlines are lists of
 (x, z) in counter-clockwise order.
 """
+import math
 
 
 def area(poly):
@@ -126,3 +127,19 @@ def boundary_ring(points, outline, eps=1e-9):
                 break
             start += length
     return [p for _, p in sorted(ring.values(), key=lambda e: e[0])]
+
+
+def offset_convex(poly, d, seg=6):
+    """The convex polygon grown by d with rounded corners (seg steps per quarter turn), counter-clockwise, (x, z) only."""
+    steps = 4 * seg
+    pts = sorted({(p[0] + d * math.cos(2 * math.pi * k / steps), p[1] + d * math.sin(2 * math.pi * k / steps))
+                  for p in poly for k in range(steps)})
+
+    def chain(points):
+        out = []
+        for p in points:
+            while len(out) >= 2 and _side(out[-2], out[-1], p) <= 0:
+                out.pop()
+            out.append(p)
+        return out[:-1]
+    return chain(pts) + chain(pts[::-1])

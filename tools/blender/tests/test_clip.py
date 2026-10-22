@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from aslanair.clip import area, boundary_ring, close_t_junctions, intersect_convex, subtract_convex  # noqa: E402
+from aslanair.clip import area, boundary_ring, close_t_junctions, intersect_convex, offset_convex, subtract_convex  # noqa: E402
 
 SQUARE = [(0.0, 0.0, 0.0), (4.0, 0.0, 1.0), (4.0, 4.0, 2.0), (0.0, 4.0, 1.0)]  # (x, z, payload)
 HOLE = [(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0)]                        # convex, counter-clockwise
@@ -85,6 +85,18 @@ class BoundaryRingTest(unittest.TestCase):
     def test_ring_keeps_the_payload_of_the_points(self):
         points = [(1.0, 1.0, 'a'), (3.0, 1.0, 'b'), (3.0, 3.0, 'c'), (1.0, 3.0, 'd'), (2.0, 2.0, 'inside'), (0.5, 1.0, 'off')]
         self.assertEqual([v[2] for v in boundary_ring(points, HOLE)], ['a', 'b', 'c', 'd'])
+
+
+class OffsetTest(unittest.TestCase):
+    def test_offset_grows_by_a_rounded_band(self):
+        grown = offset_convex(HOLE, 0.1, seg=16)
+        self.assertAlmostEqual(area(grown), 4.0 + 4 * 2 * 0.1 + 3.14159 * 0.01, places=2)
+
+    def test_offset_is_counter_clockwise_and_contains_the_original(self):
+        grown = offset_convex(HOLE, 0.1)
+        signed = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(grown, grown[1:] + grown[:1]))
+        self.assertGreater(signed, 0)
+        self.assertAlmostEqual(area(intersect_convex([(x, z) for x, z in HOLE], grown)), 4.0)
 
 
 if __name__ == '__main__':

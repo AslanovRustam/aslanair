@@ -11,6 +11,7 @@ from .geometry import *  # noqa: F401,F403
 from .livery import ACCENT, NAVY, WHITE, paint_livery
 from .mesh import *  # noqa: F401,F403
 from .cabin import build_cabin
+from .cockpit import build_cockpit_glazing
 from .door import make_door_1l
 from .lettering import build_lettering
 from .openings import cut_hull_windows, make_window_glass
@@ -346,6 +347,7 @@ def build_aircraft():
     make_window_glass()
     build_cabin()
     build_lettering()
+    build_cockpit_glazing()
     for sy in (1, -1):
         wing(sy, M['wing']); hstab(sy, M['stab']); engine(sy, M)
         for y in (6.6, 10.0, 13.4):

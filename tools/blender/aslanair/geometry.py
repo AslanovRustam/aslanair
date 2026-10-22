@@ -38,6 +38,39 @@ def hull_half_width_at(s, z):
     return w * math.sqrt(1 - k * k) if abs(k) < 1 else 0.0
 
 
+def hull_point(s, a, side):
+    """Point on the hull at station s, surface coordinate a = |θ|·h from the crown, on side +1 (port, +Y) or -1."""
+    w, zc, h = section(s)
+    t = -side * a / h
+    return (X(s), -w * math.sin(t), zc + h * math.cos(t))
+
+
+def hull_normal(s, a, side, e=1e-4):
+    """Outward unit normal of the hull at (s, a) on the given side."""
+    p = hull_point(s, a, side)
+    ds = [q - r for q, r in zip(hull_point(s + e, a, side), hull_point(s - e, a, side))]
+    da = [q - r for q, r in zip(hull_point(s, a + e, side), hull_point(s, a - e, side))]
+    n = (ds[1] * da[2] - ds[2] * da[1], ds[2] * da[0] - ds[0] * da[2], ds[0] * da[1] - ds[1] * da[0])
+    _, zc, _ = section(s)
+    if n[1] * p[1] + n[2] * (p[2] - zc) < 0:
+        n = tuple(-c for c in n)
+    length = sum(c * c for c in n) ** 0.5
+    return tuple(c / length for c in n)
+
+
+def crown_arc(s, z):
+    """Surface coordinate a = |θ|·h (the livery's arc from the crown) of height z at station s."""
+    w, zc, h = section(s)
+    return math.acos(max(-1.0, min(1.0, (z - zc) / h))) * h
+
+
+# cockpit glazing in (s, a), mirrored on both sides: windshield (0.14 m centre post), sliding window, rear side window
+COCKPIT_PANES = [
+    [(2.06, 0.07), (2.72, 0.07), (3.06, crown_arc(3.06, 1.0)), (2.50, crown_arc(2.50, 0.58))],
+    [(3.26, crown_arc(3.26, 1.00)), (3.92, crown_arc(3.92, 0.92)), (3.92, crown_arc(3.92, 0.58)), (3.26, crown_arc(3.26, 0.58))],
+    [(4.02, crown_arc(4.02, 0.90)), (4.40, crown_arc(4.40, 0.80)), (4.40, crown_arc(4.40, 0.58)), (4.02, crown_arc(4.02, 0.58))],
+]
+
 FLOOR_Z = -0.45
 LINER_INSET = 0.10           # cabin shell sits this far inside the hull
 FIN_ROOT_INSET = 0.08        # fin root is buried this far below the hull top

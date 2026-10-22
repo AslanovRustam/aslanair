@@ -42,3 +42,21 @@ test('see-through glass lets the sun into the cabin; the hull still casts shadow
   expect(Object.keys(shadows).some((n) => n.startsWith('WindowGlass'))).toBe(true);
   for (const [name, casts] of Object.entries(shadows)) expect(casts, name).toBe(name.startsWith('Fuselage'));
 });
+
+test('skin decals (glazing, door window, lettering) win the depth test at any range', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForTimeout(300);
+  const decals = await page.evaluate(() => {
+    type Node = { name: string; isMesh?: boolean; userData: { decal?: boolean }; material?: { polygonOffset: boolean; polygonOffsetFactor: number } };
+    const out: Record<string, boolean> = {};
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: Node) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isMesh && o.userData.decal) out[o.name] = o.material!.polygonOffset && o.material!.polygonOffsetFactor < 0;
+    });
+    return out;
+  });
+  for (const n of ['CockpitGlass', 'CockpitFrame', 'Door1LWindow', 'Door1LWindowFrame', 'Lettering_L', 'Lettering_R']) {
+    expect(decals[n], n).toBe(true);
+  }
+});

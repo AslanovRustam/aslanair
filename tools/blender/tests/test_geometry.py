@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from aslanair.geometry import (  # noqa: E402
     CABIN,
+    COCKPIT_PANES,
     CEILING_Z,
     DOOR_OPEN,
     FLOOR_Z,
@@ -18,6 +19,8 @@ from aslanair.geometry import (  # noqa: E402
     door_rect,
     fin_root_z,
     hull_half_width_at,
+    hull_normal,
+    hull_point,
     hull_top,
     liner_half_width_at,
     liner_normal,
@@ -125,6 +128,43 @@ class LinerNormalTest(unittest.TestCase):
 
     def test_no_fore_aft_tilt_in_the_constant_section(self):
         self.assertAlmostEqual(liner_normal(15.0, 0.62, 1)[0], 0.0)
+
+
+class HullSurfaceTest(unittest.TestCase):
+    def test_points_lie_on_the_hull_port_for_positive_side(self):
+        for s, a in ((2.5, 0.6), (4.0, 1.2), (15.0, 2.0)):
+            x, y, z = hull_point(s, a, 1)
+            self.assertAlmostEqual(x, X(s))
+            self.assertGreater(y, 0)
+            self.assertAlmostEqual(y, hull_half_width_at(s, z), places=6)
+            self.assertAlmostEqual(hull_point(s, a, -1)[1], -y)
+
+    def test_normal_is_unit_and_points_outwards(self):
+        for s, a, side in ((2.5, 0.6, 1), (3.5, 1.1, -1), (15.0, 2.0, 1)):
+            n = hull_normal(s, a, side)
+            self.assertAlmostEqual(sum(c * c for c in n), 1.0)
+            x, y, z = hull_point(s, a, side)
+            _, zc, _ = section(s)
+            self.assertGreater(n[1] * y + n[2] * (z - zc), 0)
+
+
+class CockpitPanesTest(unittest.TestCase):
+    def _signed(self, poly):
+        return sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1])) / 2
+
+    def test_panes_are_convex_and_counter_clockwise_in_station_arc_space(self):
+        for pane in COCKPIT_PANES:
+            self.assertGreater(self._signed(pane), 0)
+            for i in range(len(pane)):
+                (ax, az), (bx, bz), (cx, cz) = pane[i], pane[(i + 1) % len(pane)], pane[(i + 2) % len(pane)]
+                self.assertGreaterEqual((bx - ax) * (cz - bz) - (bz - az) * (cx - bx), 0)
+
+    def test_windshield_halves_leave_a_centre_post(self):
+        self.assertAlmostEqual(min(a for _, a in COCKPIT_PANES[0]), 0.07)
+
+    def test_glazing_and_its_frame_stay_ahead_of_door_1l(self):
+        s0 = door_rect()[0]
+        self.assertLess(max(s for pane in COCKPIT_PANES for s, _ in pane) + 0.035, s0)
 
 
 if __name__ == '__main__':

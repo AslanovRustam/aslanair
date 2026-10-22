@@ -74,6 +74,7 @@ def _door_window(panel, origin):
                                material('DoorWindowFrame', '#c9ccd0', rough=0.45, double=True)))
     for ob in parts:
         ob.parent = panel
+        ob['decal'] = True
 
 
 def make_door_1l(fuselage):

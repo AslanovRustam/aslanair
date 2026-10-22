@@ -45,7 +45,8 @@ def export_glb(root):
     for ob in ctx.PARTS + [root]:
         ob.select_set(True)
     glb = os.path.join(ctx.OUT, 'airliner.glb')
-    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True, export_yup=True)
+    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
+                              export_extras=True)   # 'decal' flags → userData
     with open(os.path.join(ctx.OUT, 'airliner.meta.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(meta(), f, indent=2, sort_keys=True)
         f.write('\n')

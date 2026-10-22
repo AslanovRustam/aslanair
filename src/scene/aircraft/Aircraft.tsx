@@ -36,6 +36,13 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
         // three's shadow pass ignores opacity: see-through glass would write opaque depth and keep the sun out
         o.castShadow = !((o as Mesh).material as Material).transparent;
         o.receiveShadow = true;
+        if (o.userData.decal) {
+          // glazing, door window and lettering sit millimetres off the skin: bias them so they never z-fight at range
+          const m = (o as Mesh).material as Material;
+          m.polygonOffset = true;
+          m.polygonOffsetFactor = -1;
+          m.polygonOffsetUnits = -4;
+        }
       }
     });
   }, [scene]);
