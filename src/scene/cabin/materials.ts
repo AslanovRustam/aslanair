@@ -1,5 +1,6 @@
 // Cabin materials shared by the kit parts (the kit GLB carries geometry only).
 import { DataTexture, DoubleSide, LinearMipmapLinearFilter, MeshStandardMaterial, NoColorSpace, RepeatWrapping } from 'three';
+import { INTERIOR_ENV } from '@/experience/cabinLayout';
 import { weaveNormals } from './fabric';
 
 export interface CabinMaterials {
@@ -44,6 +45,7 @@ export function cabinMaterials(): CabinMaterials {
       steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
       worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
     };
+    for (const m of Object.values(shared)) m.envMapIntensity = INTERIOR_ENV;
   }
   return shared;
 }

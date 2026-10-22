@@ -146,6 +146,11 @@ def cabin_wall_inner(s):
 
 
 SHELL_STEP = 0.25   # station spacing of the shell grid
+FLOOR_TUCK = 0.005  # the floor runs this far under the wall, so compression never opens a seam there
+
+
+def floor_half_width(s):
+    return liner_half_width_at(s, FLOOR_Z) + FLOOR_TUCK
 
 
 def shell_stations():

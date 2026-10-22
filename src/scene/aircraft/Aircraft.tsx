@@ -3,13 +3,16 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { MathUtils, type Group, type Material, type Mesh } from 'three';
+import { MathUtils, type Group, type Material, type Mesh, type MeshStandardMaterial } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
+import { INTERIOR_ENV } from '@/experience/cabinLayout';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { experienceStore, trackOf } from '@/experience/store';
 
 const MODEL_URL = '/models/airliner.glb';
+/** The cabin shell, floor and cockpit door: inside the hull, so they never cast sun shadows. */
+const INTERIOR = /^(Cabin|CockpitDoor)/;
 
 /** How much idle bob to apply: full in the sky shot, none once the camera is inside. */
 function bobWeight(): number {
@@ -34,7 +37,9 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
     scene.traverse((o) => {
       if ((o as Mesh).isMesh) {
         // three's shadow pass ignores opacity: see-through glass would write opaque depth and keep the sun out
-        o.castShadow = !((o as Mesh).material as Material).transparent;
+        const material = (o as Mesh).material as Material;
+        o.castShadow = !material.transparent && !INTERIOR.test(o.name);
+        if (INTERIOR.test(o.name)) (material as MeshStandardMaterial).envMapIntensity = INTERIOR_ENV;
         o.receiveShadow = true;
         if (o.userData.decal) {
           // glazing, door window and lettering sit millimetres off the skin: bias them so they never z-fight at range

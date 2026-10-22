@@ -5,7 +5,7 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (BIN, CURTAIN, EXIT_SIGN, GALLEY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+from .geometry import (L, BIN, CURTAIN, EXIT_SIGN, GALLEY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
                        bin_profile, door_hinge, door_rect, liner_grid)
 
 
@@ -17,6 +17,19 @@ def _three(v):
 
 def triangle_count():
     return sum(len(p.vertices) - 2 for ob in ctx.PARTS if ob.type == 'MESH' for p in ob.data.polygons)
+
+
+def wing_root():
+    """Three points on the port wing root's upper surface (three.js coords): highest vertices beside the fuselage
+    in three chord bins — what a cabin light must not reach."""
+    ob = bpy.data.objects['Wing_L']
+    near = [v.co for v in ob.data.vertices if 1.9 <= v.co.y <= 2.4]
+    out = []
+    for s in (14.5, 16.5, 18.5):
+        bin_ = [co for co in near if abs((L / 2 - co.x) - s) < 0.6]
+        top = max(bin_, key=lambda co: co.z)
+        out.append(_three((top.x, top.y, top.z)))
+    return out
 
 
 def meta():
@@ -36,6 +49,7 @@ def meta():
                    'sillY': round(z0, 4), 'hinge': _three(door_hinge()),
                    'open': {'outward': DOOR_OPEN['outward'], 'forward': DOOR_OPEN['forward']}},
         'tail0': TAIL0,
+        'wingRoot': wing_root(),
         'triangles': triangle_count(),
     }
 

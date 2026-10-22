@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aslanair import context as ctx  # noqa: E402
 from aslanair.export import export_glb  # noqa: E402
 from aslanair.cabin import wall_corner_normal  # noqa: E402
-from aslanair.geometry import FLOOR_Z, L, hull_half_width_at  # noqa: E402
+from aslanair.geometry import CABIN, FLOOR_Z, L, X, hull_half_width_at  # noqa: E402
 from aslanair.hull import build_aircraft  # noqa: E402
 from aslanair.render import render  # noqa: E402
 
@@ -66,7 +66,14 @@ def verify_cabin_shading():
                 off += 1
     if off:
         sys.exit(f'cabin shading check failed: {off} wall corners off the liner normal')
-    ctx.log('cabin wall shades with the liner normal')
+    flat = 0
+    ends = (X(CABIN['front_station']), X(CABIN['aft_station']))
+    for p in me.polygons:   # bulkheads are flat: their corners keep the face's ±X normal
+        if any(all(abs(me.vertices[v].co.x - x) < 1e-4 for v in p.vertices) for x in ends):
+            flat += sum(1 for li in p.loop_indices if corner[li].vector.dot(p.normal) < 0.99985)
+    if flat:
+        sys.exit(f'cabin shading check failed: {flat} bulkhead corners off the bulkhead normal')
+    ctx.log('cabin wall shades with the liner normal, bulkheads flat')
 
 
 def main():

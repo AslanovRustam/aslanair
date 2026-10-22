@@ -76,3 +76,64 @@ test('loading the furnished cabin never blocks the main thread for more than 3 s
   const longest = await page.evaluate(() => Math.max(0, ...(window as unknown as { __long: number[] }).__long));
   expect(longest).toBeLessThanOrEqual(3000);
 });
+
+const CABIN_PARTS = /^(Cabin|CockpitDoor|Seat|Bin|RowLabels|CeilingStrip|Galley|Curtain|ExitSign|WindowGlass)/;
+
+test('only the exterior casts sun shadows', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await waitForAircraft(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
+  await page.waitForTimeout(300);
+  const meshes = await page.evaluate(() => {
+    const out: { name: string; cast: boolean }[] = [];
+    type O = { name: string; isMesh?: boolean; castShadow: boolean };
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: O) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isMesh) out.push({ name: o.name, cast: o.castShadow });
+    });
+    return out;
+  });
+  expect(meshes.find((m) => m.name === 'Fuselage')?.cast).toBe(true);
+  const casting = meshes.filter((m) => CABIN_PARTS.test(m.name) && m.cast).map((m) => m.name);
+  expect(casting).toEqual([]);
+});
+
+test('no sun streaks on the upper wall', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
+  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(2500);
+  const clip = { x: 200, y: 180, width: 520, height: 280 };
+  const energy = async (png: Buffer) =>
+    page.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      const lum = (i: number) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      let sum = 0;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width - 1; x++) sum += Math.abs(lum((y * c.width + x + 1) * 4) - lum((y * c.width + x) * 4));
+      return sum / (c.height * (c.width - 1));
+    }, png.toString('base64'));
+  const withShadows = await energy(await page.screenshot({ clip }));
+  await page.evaluate(() => {
+    type O = { isMesh?: boolean; receiveShadow: boolean; material?: { needsUpdate: boolean } };
+    (window as unknown as { __aslan: { scene: { traverse(f: (o: O) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.isMesh) {
+        o.receiveShadow = false;
+        if (o.material) o.material.needsUpdate = true;
+      }
+    });
+  });
+  await page.waitForTimeout(800);
+  const without = await energy(await page.screenshot({ clip }));
+  console.log('streak energy', withShadows.toFixed(3), 'vs', without.toFixed(3));
+  expect(withShadows).toBeLessThanOrEqual(1.25 * without);
+});

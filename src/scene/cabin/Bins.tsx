@@ -11,7 +11,7 @@ import {
   type InstancedMesh,
 } from 'three';
 import { copy } from '@/content/copy';
-import { binMatrices, CEILING_STRIPS } from '@/experience/cabinLayout';
+import { binMatrices, CEILING_STRIPS, INTERIOR_ENV } from '@/experience/cabinLayout';
 import { ROWS } from '@/experience/geometry';
 import { ATLAS, labelCell, rowLabelQuads } from './rowLabels';
 import { useKitGeometry } from './Seats';
@@ -78,7 +78,7 @@ export default function Bins() {
   const kit = useKitGeometry();
   const port = useRef<InstancedMesh>(null);
   const starboard = useRef<InstancedMesh>(null);
-  const plastic = useMemo(() => new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6 }), []);
+  const plastic = useMemo(() => new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6, envMapIntensity: INTERIOR_ENV }), []);
   const strip = useMemo(() => new MeshBasicMaterial({ color: '#fff1dc' }), []);
   const labels = useMemo(() => {
     const q = rowLabelQuads();

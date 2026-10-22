@@ -104,3 +104,16 @@ export function segmentHitsBoxes(a: Vector3, b: Vector3, boxes: Box3[]): boolean
   const hit = new Vector3();
   return boxes.some((box) => box.containsPoint(a) || (ray.intersectBox(box, hit) !== null && hit.distanceTo(a) <= length));
 }
+
+/**
+ * Ceiling lights on the centreline, a fixed count (the light count keys every shader). Their reach stops short of
+ * the wing root outside — point lights cast no shadows, so the hull would not keep them in.
+ */
+export const CABIN_LIGHTS = Array.from({ length: 8 }, (_, i) => ({
+  position: [stationToX(5.8 + (23 * i) / 7), CEILING_Y - 0.1, 0] as [number, number, number],
+  distance: 3.2,
+  intensity: 5,
+}));
+
+/** Interior surfaces take this much of the sky environment; the cabin lights carry the rest. */
+export const INTERIOR_ENV = 0.35;

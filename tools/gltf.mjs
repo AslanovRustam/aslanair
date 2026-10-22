@@ -13,7 +13,8 @@ export function run(command, args, options = {}) {
 }
 
 export function runBlender(script, args) {
-  run(BLENDER, ['-b', '--factory-startup', '-P', script, '--', '--out', OUT, ...args]);
+  // --python-exit-code: a Python exception in the build must fail the run, not ship a half-written meta
+  run(BLENDER, ['-b', '--factory-startup', '--python-exit-code', '1', '-P', script, '--', '--out', OUT, ...args]);
 }
 
 // Keep named nodes (Door1L, CabinShell, Seat*…) separate and the geometry untouched; only compress.

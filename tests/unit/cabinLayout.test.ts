@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import {
   armMatrices,
   binBoxes,
+  CABIN_LIGHTS,
   distanceToBoxes,
   EXIT_SIGN,
   furnishingBoxes,
@@ -82,5 +84,23 @@ describe('entry zone and signs', () => {
 
   test('exit signs hang at door 1L, the over-wing exits and the aft door', () => {
     expect(EXIT_SIGN.placements.map(([s]) => s)).toEqual([5.85, 16.45, 16.45, 30.25]);
+  });
+});
+
+describe('cabin light', () => {
+  const aircraftMeta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));
+
+  test('cabin lights reach the aisle floor but never the wing root', () => {
+    expect(CABIN_LIGHTS).toHaveLength(8);
+    expect(aircraftMeta.wingRoot).toHaveLength(3);
+    for (const l of CABIN_LIGHTS) {
+      for (const p of aircraftMeta.wingRoot) {
+        expect(new Vector3(...l.position).distanceTo(new Vector3(...p))).toBeGreaterThan(l.distance);
+      }
+    }
+    for (let s = 6; s <= 29; s += 0.25) {
+      const floor = new Vector3(stationToX(s), FLOOR_Y, 0);
+      expect(Math.min(...CABIN_LIGHTS.map((l) => new Vector3(...l.position).distanceTo(floor) / l.distance)), `station ${s}`).toBeLessThan(0.95);
+    }
   });
 });

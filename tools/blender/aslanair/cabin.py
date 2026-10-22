@@ -6,7 +6,7 @@ from mathutils import Vector
 
 from .clip import boundary_ring, close_t_junctions
 from .door import door_outline
-from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal, shell_stations
+from .geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at, liner_normal, shell_stations, floor_half_width
 from .mesh import make_mesh, material, object_from_polys
 from .openings import _bbox, cut_outlines, window_outlines
 
@@ -50,10 +50,15 @@ def wall_corner_normal(co, face_normal):
 
 
 def _shade_walls(shell):
-    """Wall corners take the liner normal; every other corner keeps its smooth normal."""
+    """Wall corners take the liner normal; bulkhead corners their flat face normal; the rest stay smooth."""
     me = shell.data
     normals = [tuple(c.vector) for c in me.corner_normals]
+    ends = (X(CABIN['front_station']), X(CABIN['aft_station']))
     for p in me.polygons:
+        if any(all(abs(me.vertices[v].co.x - x) < 1e-4 for v in p.vertices) for x in ends):
+            for li in p.loop_indices:
+                normals[li] = tuple(p.normal)
+            continue
         for li in p.loop_indices:
             n = wall_corner_normal(me.vertices[me.loops[li].vertex_index].co, p.normal)
             if n is not None:
@@ -122,7 +127,7 @@ def _floor():
     verts, faces, aisle_faces = [], [], []
     stations = shell_stations()
     for s in stations:
-        w = liner_half_width_at(s, FLOOR_Z)
+        w = floor_half_width(s)
         verts += [(X(s), y, FLOOR_Z) for y in (-w, -AISLE_HALF_WIDTH, AISLE_HALF_WIDTH, w)]
     for i in range(len(stations) - 1):
         for k in range(3):

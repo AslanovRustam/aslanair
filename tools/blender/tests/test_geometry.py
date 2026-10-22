@@ -23,6 +23,7 @@ from aslanair.geometry import (  # noqa: E402
     hull_normal,
     hull_point,
     hull_top,
+    floor_half_width,
     liner_grid,
     liner_half_width_at,
     liner_normal,
@@ -51,6 +52,12 @@ class FuselageSectionTest(unittest.TestCase):
 class TailAndFinTest(unittest.TestCase):
     def test_tail_cone_starts_behind_the_cabin(self):
         self.assertAlmostEqual(TAIL0, 27.8)
+
+    def test_the_floor_tucks_under_the_wall_but_stays_inside_the_hull(self):
+        for s in (5.0, 15.0, 29.5):
+            gap = floor_half_width(s) - liner_half_width_at(s, FLOOR_Z)
+            self.assertGreater(gap, 0.0)
+            self.assertLess(gap, LINER_INSET / 4)
 
     def test_overwing_exits_are_beside_rows_13_and_14(self):
         rows = [round((s - 7.0) / 0.76) + 1 for s in OVERWING_EXITS]
