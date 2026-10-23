@@ -236,7 +236,8 @@ test('the seat under the pointer is the seat you see', async ({ page }) => {
   });
   let visible = 0;
   let wrong = 0;
-  for (const progress of [0.55, 0.65, 0.75]) {
+  // along the aisle walk (where these stood on the track before the journey's chapters)
+  for (const progress of [pre('aisle', 0.17), pre('aisle', 0.35), pre('aisle', 0.54)]) {
     await page.evaluate((p) => (window as unknown as { __aslan: { store: { getState(): { setProgress(v: number): void } } } }).__aslan.store.getState().setProgress(p), progress);
     await page.waitForTimeout(2500);
     const r = await page.evaluate(() => {
