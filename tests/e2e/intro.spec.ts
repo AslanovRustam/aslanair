@@ -1,0 +1,119 @@
+import { expect, test, type Page } from '@playwright/test';
+import { trackProgress } from '@/experience/chapters';
+import { INTRO } from '@/experience/introState';
+import { waitForStore } from './helpers';
+
+type Node = { visible: boolean; layers: { mask: number } };
+type IntroWindow = Window & {
+  __aslan: { scene?: { getObjectByName(n: string): Node | undefined }; store: { getState(): { setProgress(p: number): void } } };
+};
+
+const sky = (t: number) => trackProgress('pre', 'sky', t);
+/** The picture alone, all but landed: the 3D plane is still hidden. */
+const BEFORE = sky(INTRO.swapAt - INTRO.crossfade - 0.01);
+/** The 3D plane alone: the picture has faded out and the camera still holds the capture pose. */
+const AFTER = sky(INTRO.swapAt + INTRO.crossfade);
+
+async function ready(page: Page) {
+  await page.goto('/');
+  await waitForStore(page);
+  // the cabin seen through the windows compiles off-thread: wait until it shows, as the capture did
+  await page.waitForFunction(() => {
+    const seats = (window as unknown as IntroWindow).__aslan.scene?.getObjectByName('SeatFabric');
+    return !!seats && seats.layers.mask === 1;
+  });
+}
+
+async function showAt(page: Page, progress: number) {
+  await page.evaluate((p) => (window as unknown as IntroWindow).__aslan.store.getState().setProgress(p), progress);
+  await page.waitForTimeout(700);
+}
+
+/** Where the plane lies on screen at the swap: the picture is full height and centred, like the 3D frame. */
+function planeBox(page: Page) {
+  const { width: vw, height: vh } = page.viewportSize()!;
+  const w = (vh * INTRO.picture.width) / INTRO.picture.height;
+  const left = (vw - w) / 2;
+  const { plane } = INTRO.picture;
+  const x0 = Math.max(0, Math.floor(left + plane.left * w));
+  const x1 = Math.min(vw, Math.ceil(left + plane.right * w));
+  const y0 = Math.floor(plane.top * vh);
+  const y1 = Math.ceil(plane.bottom * vh);
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+/** Mean per-channel difference of two same-size screenshots, and the share of lit pixels in each. */
+function compare(page: Page, a: Buffer, b: Buffer) {
+  return page.evaluate(
+    async ([a64, b64]) => {
+      const pixels = async (b64: string) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${b64}`;
+        await img.decode();
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        return ctx.getImageData(0, 0, c.width, c.height).data;
+      };
+      const [da, db] = await Promise.all([pixels(a64), pixels(b64)]);
+      const lit = (d: Uint8ClampedArray, i: number) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] > 40;
+      let diff = 0, litA = 0, litB = 0;
+      for (let i = 0; i < da.length; i += 4) {
+        diff += Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
+        if (lit(da, i)) litA++;
+        if (lit(db, i)) litB++;
+      }
+      const n = da.length / 4;
+      return { mean: diff / (n * 3), litBefore: litA / n, litAfter: litB / n };
+    },
+    [a.toString('base64'), b.toString('base64')] as const,
+  );
+}
+
+async function expectSeamlessSwap(page: Page) {
+  const box = planeBox(page);
+  await showAt(page, BEFORE);
+  expect(await page.evaluate(() => (window as unknown as IntroWindow).__aslan.scene!.getObjectByName('Aircraft')!.visible)).toBe(false);
+  const before = await page.screenshot({ clip: box });
+  await showAt(page, AFTER);
+  await expect(page.getByTestId('intro-plane')).toBeHidden();
+  const after = await page.screenshot({ clip: box });
+  const r = await compare(page, before, after);
+  // both frames really show the plane, and it does not jump
+  expect(r.litBefore, 'picture shows the plane').toBeGreaterThan(0.12);
+  expect(r.litAfter, '3D shows the plane').toBeGreaterThan(0.12);
+  expect(r.mean, `mean difference ${r.mean.toFixed(2)}`).toBeLessThanOrEqual(10);
+}
+
+test('at the top the picture shows, small and high, and the 3D plane is hidden', async ({ page }) => {
+  await ready(page);
+  const picture = page.getByTestId('intro-plane');
+  await expect(picture).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as IntroWindow).__aslan.scene!.getObjectByName('Aircraft')!.visible)).toBe(false);
+  const img = (await picture.locator('img').boundingBox())!;
+  const { height } = page.viewportSize()!;
+  expect(img.height / height).toBeCloseTo(INTRO.heroScale, 2);
+  expect(img.y + img.height / 2).toBeLessThan(height / 2 - 0.1 * height);
+});
+
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 2100, height: 900 },
+  { width: 412, height: 915 },
+]) {
+  test(`the picture hands over to the 3D plane without a jump at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await ready(page);
+    await expectSeamlessSwap(page);
+  });
+}
+
+test('resizing at the swap point keeps the picture and the 3D plane aligned', async ({ page }) => {
+  await ready(page);
+  await showAt(page, BEFORE);
+  await page.setViewportSize({ width: 1180, height: 860 });
+  await page.waitForTimeout(500);
+  await expectSeamlessSwap(page);
+});

@@ -6,9 +6,6 @@ import { INTRO } from '@/experience/introState';
 import Aircraft from './aircraft/Aircraft';
 import SkyAndClouds from './sky/SkyAndClouds';
 
-/** The picture's size: the hero shows it full height, so the live frame and the picture line up at any aspect. */
-export const CAPTURE_SIZE = { width: 1600, height: 900 };
-
 /** Flags the page ready once the cabin behind the windows has compiled and a few frames have settled. */
 function Ready() {
   const frames = useRef(0);
@@ -34,7 +31,7 @@ export default function CaptureMode({ cabin }: { cabin: ReactNode }) {
   }, []);
 
   return (
-    <div style={{ width: CAPTURE_SIZE.width, height: CAPTURE_SIZE.height }}>
+    <div style={{ width: INTRO.picture.width, height: INTRO.picture.height }}>
       <Canvas
         dpr={1}
         shadows
@@ -47,7 +44,7 @@ export default function CaptureMode({ cabin }: { cabin: ReactNode }) {
       >
         <SkyAndClouds background={false} />
         <Suspense fallback={null}>
-          <Aircraft>{cabin}</Aircraft>
+          <Aircraft intro={false}>{cabin}</Aircraft>
           <Ready />
         </Suspense>
       </Canvas>

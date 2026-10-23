@@ -1,7 +1,7 @@
 'use client';
 
 import { useGLTF } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferAttribute,
@@ -13,12 +13,14 @@ import {
   type Mesh,
   type MeshStandardMaterial,
   type Object3D,
+  type Texture,
 } from 'three';
 import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
+import { introState } from '@/experience/introState';
 import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideCabin } from '@/experience/worldState';
 import NightLights from './NightLights';
@@ -51,10 +53,16 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
   mesh.geometry.setAttribute('uv', new BufferAttribute(uv, 2));
 }
 
-/** The airliner; children (the cabin) ride along with its fly-away. It holds still before that: the hero shows a
- * picture of it captured at rest, and the live model has to take over without a jump. */
-export default function Aircraft({ children }: { children?: ReactNode }) {
+/**
+ * The airliner; children (the cabin) ride along with its fly-away. It holds still before that: the hero shows a
+ * picture of it captured at rest, and the live model takes over at the intro's swap — hidden until then unless
+ * `intro` is off (the capture mode photographs it).
+ */
+export default function Aircraft({ children, intro = true }: { children?: ReactNode; intro?: boolean }) {
   const { scene } = useGLTF(MODEL_URL);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
+  const root = useThree((s) => s.scene);
   const group = useRef<Group>(null);
   const windowGlass = useRef<MeshStandardMaterial | null>(null);
   const eyeLocal = useRef(new Vector3());
@@ -109,15 +117,27 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
     });
   }, [scene]);
 
+  useEffect(() => {
+    // hidden until the swap: compile its shaders and upload its textures now, so the hand-over never stalls a frame
+    const g = group.current!;
+    gl.compileAsync(g, camera, root).catch(() => {});
+    g.traverse((o) => {
+      const material = (o as Mesh).material as Material | undefined;
+      if (!material) return;
+      for (const value of Object.values(material)) if ((value as Texture | null)?.isTexture) gl.initTexture(value as Texture);
+    });
+  }, [gl, camera, root, scene]);
+
   useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
+    const s = experienceStore.getState();
+    g.visible = !intro || s.phase !== 'browse' || introState(s.progress).aircraftVisible;
     // the windows glow seen from outside; from inside, the glass must not tint the night view
     if (windowGlass.current) {
       const eye = g.worldToLocal(eyeLocal.current.copy(camera.position));
       windowGlass.current.emissiveIntensity = pointInsideCabin(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
     }
-    const s = experienceStore.getState();
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
     g.position.set(fly.offsetX, fly.climb, 0);
     g.rotation.set(fly.bank, 0, 0);
@@ -128,7 +148,7 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
   }, -3);
 
   return (
-    <group ref={group}>
+    <group ref={group} name="Aircraft">
       <primitive object={scene} />
       <NightLights />
       {children}

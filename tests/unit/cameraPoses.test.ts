@@ -10,6 +10,7 @@ import {
   seatedPose,
 } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
+import { INTRO } from '@/experience/introState';
 import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
 import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
 
@@ -17,6 +18,33 @@ describe('pre-track camera', () => {
   test('starts on the sky shot with a narrow lens', () => {
     expect(poseOnPreTrack(0).position.toArray()).toEqual([42, 6.5, -36]);
     expect(poseOnPreTrack(0).fov).toBe(30);
+  });
+
+  test('the camera holds the capture pose until the swap', () => {
+    expect(poseOnPreTrack(trackProgress('pre', 'sky', 0.3)).position.equals(INTRO.swapPose.position)).toBe(true);
+  });
+
+  test('the camera stays on the capture pose until the picture has faded, then eases off it', () => {
+    const hold = INTRO.swapAt + INTRO.crossfade;
+    for (const t of [0, INTRO.swapAt, hold]) {
+      const pose = poseOnPreTrack(trackProgress('pre', 'sky', t));
+      expect(pose.position.distanceTo(INTRO.swapPose.position), `t=${t}`).toBeLessThan(1e-9);
+      expect(pose.target.distanceTo(INTRO.swapPose.target), `t=${t}`).toBeLessThan(1e-9);
+      expect(pose.fov).toBe(INTRO.swapPose.fov);
+    }
+    // it sets off from rest: the first step past the hold is far shorter than an even share of the way
+    const step = 0.01;
+    const moved = poseOnPreTrack(trackProgress('pre', 'sky', hold + step)).position.distanceTo(INTRO.swapPose.position);
+    const total = poseOnPreTrack(trackProgress('pre', 'sky', 1)).position.distanceTo(INTRO.swapPose.position);
+    expect(moved).toBeLessThan((total * step) / (1 - hold) / 4);
+  });
+
+  test('the sky shot meets the door flight at the speed the door flight starts with', () => {
+    const at = trackProgress('pre', 'door', 0);
+    const h = 1e-5;
+    const before = poseOnPreTrack(at - h).position.distanceTo(poseOnPreTrack(at - 2 * h).position) / h;
+    const after = poseOnPreTrack(at + 2 * h).position.distanceTo(poseOnPreTrack(at + h).position) / h;
+    expect(Math.abs(before - after) / after).toBeLessThan(0.05);
   });
 
   test('the door flight ends at the aisle start and threads the door', () => {

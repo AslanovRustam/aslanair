@@ -1,11 +1,13 @@
-/* The showcase hero over the dark stage: one orchestrated entrance, then it hands over to the flight. */
+/* The showcase hero over the dark stage: one orchestrated entrance, then it hands over to the flight.
+   It sits under the plane picture (IntroPlane, z 2): the huge title reads behind the plane. */
 
 .hero {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
   color: var(--ink);
+  container-type: size;
 }
 
 .title {
@@ -33,18 +35,59 @@
   }
 }
 
+/* The plane's box in the hero picture (vars from Hero.tsx, in frame heights): notes and leaders are laid out in it,
+   so they keep pointing at the plane at any window size. */
+.planeBox {
+  position: absolute;
+  left: calc(50cqw + var(--box-x) * 100cqh);
+  top: calc(var(--box-y) * 100cqh);
+  width: calc(var(--box-w) * 100cqh);
+  height: calc(var(--box-h) * 100cqh);
+}
+
+.leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.leaders line {
+  stroke: rgba(242, 239, 232, 0.4);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  animation: leaderIn 0.55s ease-out both;
+}
+
+@keyframes leaderIn {
+  from {
+    opacity: 0;
+  }
+}
+
 .notes {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* a note's text starts (or ends) a little past its leader's outer end */
 .note {
   position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--y) * 100%);
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  translate: 0.75rem -50%;
   animation: noteIn 0.55s ease-out both;
+}
+
+.note[data-runs='left'] {
+  align-items: flex-end;
+  text-align: right;
+  translate: calc(-100% - 0.75rem) -50%;
 }
 
 .noteLabel {
@@ -61,16 +104,6 @@
   white-space: nowrap;
 }
 
-/* thin leader line from the note towards the plane */
-.leader {
-  position: absolute;
-  width: var(--length);
-  height: 1px;
-  background: linear-gradient(to right, rgba(242, 239, 232, 0.5), rgba(242, 239, 232, 0.1));
-  transform-origin: 0 50%;
-  transform: rotate(var(--angle));
-}
-
 @keyframes noteIn {
   from {
     opacity: 0;
@@ -79,40 +112,15 @@
 }
 
 .route {
-  top: 32vh;
-  right: 14vw;
-  align-items: flex-end;
-  text-align: right;
   animation-delay: 0.35s;
 }
 
-.route .leader {
-  top: 50%;
-  left: -0.75rem;
-}
-
 .cabin {
-  bottom: 30vh;
-  left: 12vw;
   animation-delay: 0.5s;
 }
 
-.cabin .leader {
-  top: 0.4rem;
-  left: calc(100% + 0.75rem);
-}
-
 .price {
-  bottom: 24vh;
-  right: 18vw;
-  align-items: flex-end;
-  text-align: right;
   animation-delay: 0.65s;
-}
-
-.price .leader {
-  top: 0.4rem;
-  left: -0.75rem;
 }
 
 .lead {
@@ -160,6 +168,7 @@
 @media (prefers-reduced-motion: reduce) {
   .title,
   .note,
+  .leaders line,
   .lead,
   .scroll {
     animation: none;
@@ -173,23 +182,30 @@
     font-size: 19vw;
   }
 
-  .notes {
-    position: absolute;
+  .planeBox {
     left: 1.25rem;
     right: 1.25rem;
+    top: auto;
     bottom: calc(var(--footer-h) + 6rem);
+    width: auto;
+    height: auto;
+  }
+
+  .notes {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.9rem 1.25rem;
   }
 
-  .note {
+  .note,
+  .note[data-runs='left'] {
     position: static;
     align-items: flex-start;
     text-align: left;
+    translate: none;
   }
 
-  .leader,
+  .leaders,
   .lead {
     display: none;
   }

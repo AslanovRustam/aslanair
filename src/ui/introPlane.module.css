@@ -1,0 +1,21 @@
+/* The plane picture over the stage: same box as the canvas, so full height here is the 3D frame's height. */
+
+.frame {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.picture {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: auto;
+  height: 100%;
+  max-width: none;
+  transform: translate(-50%, 0);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { INTRO } from '@/experience/introState';
 import { settledProgress, waitForStore } from './helpers';
 
 type StoreWindow = Window & {
@@ -96,6 +97,47 @@ test('the hero shows the title, three notes and the scroll hint, then gives way 
   await page.mouse.wheel(0, 600);
   await expect.poll(() => heroOpacity(page), { timeout: 5000 }).toBeLessThan(0.2);
 });
+
+type Box = { x: number; y: number; width: number; height: number };
+const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 2100, height: 900 },
+  { width: 1024, height: 768 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} each hero note points at the plane and keeps clear of it and the title`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await page.waitForTimeout(1600); // the entrance
+    const img = (await page.getByTestId('intro-plane').locator('img').boundingBox())!;
+    const { plane } = INTRO.picture;
+    const planeBox = {
+      x: img.x + plane.left * img.width,
+      y: img.y + plane.top * img.height,
+      width: (plane.right - plane.left) * img.width,
+      height: (plane.bottom - plane.top) * img.height,
+    };
+    const ends = await page.getByTestId('hero-leader').evaluateAll((lines) =>
+      lines.map((l) => {
+        const line = l as SVGLineElement;
+        const p = new DOMPoint(line.x2.baseVal.value, line.y2.baseVal.value).matrixTransform(line.getScreenCTM()!);
+        return { x: p.x, y: p.y };
+      }),
+    );
+    expect(ends).toHaveLength(3);
+    for (const [i, e] of ends.entries()) expect(overlaps({ ...e, width: 1, height: 1 }, planeBox), `leader ${i} ends on the plane`).toBe(true);
+    const notes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as Box));
+    const title = (await page.getByTestId('hero').getByRole('heading').boundingBox())!;
+    const rail = (await page.getByRole('navigation', { name: 'Chapters' }).boundingBox())!;
+    for (const [i, n] of notes.entries()) {
+      expect(overlaps(n, planeBox), `note ${i} vs plane`).toBe(false);
+      expect(overlaps(n, title), `note ${i} vs title`).toBe(false);
+      expect(overlaps(n, rail), `note ${i} vs chapter rail`).toBe(false);
+      expect(n.x >= 0 && n.x + n.width <= viewport.width, `note ${i} on screen`).toBe(true);
+    }
+  });
+}
 
 test('on a phone the hero notes stack and nothing overflows', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 });

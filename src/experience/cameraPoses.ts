@@ -1,6 +1,7 @@
 import { CatmullRomCurve3, MathUtils, Vector3 } from 'three';
 import { chapterAt, trackProgress } from './chapters';
 import { COCKPIT_DOOR } from './cabinLayout';
+import { INTRO } from './introState';
 import {
   CABIN_WALL_Z,
   DOOR_1L,
@@ -28,8 +29,15 @@ type SeatRef = { row: number; letter: SeatLetter };
 const { lerp, smoothstep, clamp } = MathUtils;
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
 
-// --- sky
-const SKY = { from: v(42, 6.5, -36), to: v(34, 4.5, -30), targetFrom: v(0, 0, 0), targetTo: v(8, 0.5, -1), fov: 30 };
+// --- sky: holds the pose the hero picture was captured at until the picture has handed over, then sets off
+const SKY = {
+  from: INTRO.swapPose.position,
+  to: v(34, 4.5, -30),
+  targetFrom: INTRO.swapPose.target,
+  targetTo: v(8, 0.5, -1),
+  fov: INTRO.swapPose.fov,
+  hold: INTRO.swapAt + INTRO.crossfade,
+};
 
 // --- door: one curve from the sky shot, through door 1L, to the aisle start
 const DOOR_CURVE = new CatmullRomCurve3(
@@ -49,10 +57,26 @@ const AISLE = { startX: 12.6, endX: rowX(26) + 0.6, lookAhead: v(-6, -0.15, 0), 
 /** Where the door flight hands over to the aisle walk. */
 const CABIN_LOOK = v(AISLE.startX, EYE_STANDING, 0).add(AISLE.lookAhead);
 
+const span = (id: 'sky' | 'door') => trackProgress('pre', id, 1) - trackProgress('pre', id, 0);
+/**
+ * The camera's speed leaving the sky shot, in lengths of the sky move per unit of it, so that it meets the door
+ * curve at the curve's own starting speed.
+ */
+const SKY_EXIT_SPEED = (() => {
+  const h = 1e-4;
+  const doorSpeed = DOOR_CURVE.getPoint(h).distanceTo(DOOR_CURVE.getPoint(0)) / h / span('door');
+  return (doorSpeed * span('sky') * (1 - SKY.hold)) / SKY.from.distanceTo(SKY.to);
+})();
+
 function skyPose(t: number): CameraPose {
+  const u = clamp((t - SKY.hold) / (1 - SKY.hold), 0, 1);
+  // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = SKY_EXIT_SPEED
+  const k = SKY_EXIT_SPEED;
+  const f = (k - 2) * u ** 3 + (3 - k) * u ** 2;
   return {
-    position: SKY.from.clone().lerp(SKY.to, t),
-    target: SKY.targetFrom.clone().lerp(SKY.targetTo, t),
+    position: SKY.from.clone().lerp(SKY.to, f),
+    // the door flight's gaze starts at rest, so this one comes to rest
+    target: SKY.targetFrom.clone().lerp(SKY.targetTo, smoothstep(u, 0, 1)),
     fov: SKY.fov,
   };
 }
