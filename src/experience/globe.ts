@@ -115,6 +115,12 @@ export function flightAt(flight: ArcFlight, now: number): { position: Vector3; h
   return { ...along(flight, easeInOut(u)), done };
 }
 
+/** How much of the chosen flight's arc is drawn (0 … 1): it draws with the plane, eased the same way; all of it at rest. */
+export function arcDrawn(flight: ArcFlight | null, now: number): number {
+  if (!flight) return 1;
+  return easeInOut(MathUtils.clamp((now - flight.startedAt) / FLIGHT.seconds, 0, 1));
+}
+
 /** The plane over the globe (its frame): on its flight, or before any pick waiting over Chișinău, nose to `chosen`. */
 export function planeOnGlobe(flight: ArcFlight | null, chosen: LatLon, now: number): { position: Vector3; heading: Vector3 } {
   if (flight) {

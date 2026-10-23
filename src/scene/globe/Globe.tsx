@@ -23,7 +23,7 @@ import {
 } from 'three';
 import { CITY_LIGHTS } from '@/experience/cities';
 import { DESTINATIONS, destination, HOME } from '@/experience/destinations';
-import { arcPoints, FLIGHT, GLOBE, globeFade, globeTurnAt, latLonToVector } from '@/experience/globe';
+import { arcDrawn, arcPoints, GLOBE, globeFade, globeTurnAt, latLonToVector } from '@/experience/globe';
 import { experienceStore, useExperience } from '@/experience/store';
 import { landMask } from './landMask';
 
@@ -312,8 +312,8 @@ export default function Globe() {
     // pixels per metre at 1 m: the points keep their size in metres whatever the lens
     const fov = MathUtils.degToRad((camera as PerspectiveCamera).fov);
     const scale = gl.getDrawingBufferSize(buffer.current).y / (2 * Math.tan(fov / 2));
-    // the arc draws with the plane's flight (the flight to the chosen city; none yet: already drawn)
-    const draw = s.flight ? MathUtils.clamp((now - s.flight.startedAt) / FLIGHT.seconds, 0, 1) : 1;
+    // the arc draws with the plane's flight (none yet: already drawn)
+    const draw = arcDrawn(s.flight, now);
     const index = (code: string | null) => (code ? 1 + DESTINATIONS.findIndex((d) => d.code === code) : -1);
     for (const child of g.children) {
       const uniforms = ((child as Mesh).material as ShaderMaterial).uniforms;

@@ -99,7 +99,8 @@ export default function Destinations() {
 
       <aside className={styles.card} data-testid="flight-card" aria-live="polite">
         <p className={styles.cardLabel}>{t.card}</p>
-        <p className={styles.cardRoute}>{`${chosen.city} · ${chosen.code} · ${chosen.flight}`}</p>
+        {/* the flight number never breaks across lines */}
+        <p className={styles.cardRoute}>{`${chosen.city} · ${chosen.code} · ${chosen.flight.replace(' ', ' ')}`}</p>
         <p className={styles.cardMeta}>{t.departs(chosen.departs)}</p>
         <p className={styles.cardFare}>
           {t.from(chosen.fareUsd)} <span>{t.oneWay}</span>

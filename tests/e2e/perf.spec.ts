@@ -1,7 +1,11 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { Vector3 } from 'three';
+import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
+import { GLOBE } from '@/experience/globe';
 import { INTRO } from '@/experience/introState';
+import { aircraftStage, projectedBox } from '@/experience/stage';
 import { pre, waitForStore } from './helpers';
 
 // Runs as its own Playwright project after the main suite, so no other browser shares the GPU.
@@ -13,6 +17,7 @@ type StoreWindow = Window & {
       getState(): {
         seats: { id: string; status: string }[];
         setProgress(p: number): void;
+        pickDestination(code: string, now: number): boolean;
         restart(): void;
         sit(id: string): boolean;
         confirm(): void;
@@ -30,8 +35,9 @@ async function ready(page: Page) {
 
 /** Door chapter t 0.78: the look at the flight-deck door, jump seat and arrowed exit sign. */
 const ENTRY = trackProgress('pre', 'door', 0.78);
-/** The intro just after the swap: the live plane full frame on the showcase dark. */
-const SWAP = trackProgress('pre', 'sky', INTRO.swapAt + INTRO.crossfade);
+/** Picks a destination now: the plane flies the arc (1.6 s) while the frames are timed or the shot is taken. */
+const pick = (page: Page, code: string) =>
+  page.evaluate((c) => (window as unknown as StoreWindow).__aslan.store.getState().pickDestination(c, performance.now() / 1000), code);
 
 const setProgress = (page: Page, p: number) => page.evaluate((v) => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(v), p);
 
@@ -53,7 +59,7 @@ const frameTimes = (page: Page) =>
       }),
   );
 
-test('the night flight holds 45 fps — showcase, swap, door, entry, aisle, aisle end, seat, pass and exit', async ({ page }) => {
+test('the night flight holds 45 fps — the journey, the door, the cabin, the seat, the pass and the exit', async ({ page }) => {
   test.setTimeout(180_000);
   await ready(page);
   const report: Record<string, { median: number; mean: number }> = {};
@@ -66,8 +72,17 @@ test('the night flight holds 45 fps — showcase, swap, door, entry, aisle, aisl
   };
   await setProgress(page, pre('sky', 0.25));
   await measure('showcase');
-  await setProgress(page, SWAP);
-  await measure('swap');
+  await setProgress(page, pre('sky', 0.5));
+  await measure('first-screen');
+  await setProgress(page, pre('destinations', 0.5));
+  await page.waitForTimeout(2500);
+  await pick(page, 'HND');
+  report['globe-flight'] = await frameTimes(page);
+  await measure('globe');
+  await setProgress(page, pre('transfer', 0.75));
+  await measure('transfer');
+  await setProgress(page, pre('ready', 0.7));
+  await measure('ready');
   await setProgress(page, pre('door', 0.88));
   await measure('door');
   await setProgress(page, ENTRY);
@@ -94,10 +109,38 @@ test('the night flight holds 45 fps — showcase, swap, door, entry, aisle, aisl
   }
 });
 
+/** A box on the 1440×800 screen from fractions of the frame, cut to it. */
+function onScreen(b: { x0: number; y0: number; x1: number; y1: number }) {
+  const [vw, vh] = [1440, 800];
+  const cut = (v: number) => Math.min(1, Math.max(0, v));
+  const [x0, y0, x1, y1] = [cut(b.x0) * vw, cut(b.y0) * vh, cut(b.x1) * vw, cut(b.y1) * vh].map(Math.round);
+  return { x: x0, y: y0, width: Math.max(1, x1 - x0), height: Math.max(1, y1 - y0) };
+}
+
+/** Where the plane stands on the 1440×800 screen at a point of the journey's first chapters (no globe flight). */
+const planeAt = (progress: number) => onScreen(projectedBox(aircraftStage('browse', progress), poseOnPreTrack(progress, 1440 / 800), 1440 / 800));
+
+/** Where the globe lies on the 1440×800 screen: the square inside its disc (the night sea and land, no sky). */
+function globeAt(progress: number) {
+  const aspect = 1440 / 800;
+  const pose = poseOnPreTrack(progress, aspect);
+  const view = pose.target.clone().sub(pose.position).normalize();
+  const toCentre = GLOBE.center.clone().sub(pose.position);
+  // the frame's half-height and half-width in tangents, shifted by the lens lift
+  const tanY = Math.tan(((pose.fov / 2) * Math.PI) / 180);
+  const right = view.clone().cross(new Vector3(0, 1, 0)).normalize();
+  const up = right.clone().cross(view);
+  const depth = toCentre.dot(view);
+  const [cx, cy] = [toCentre.dot(right) / depth / (tanY * aspect), toCentre.dot(up) / depth / tanY + 2 * (pose.lift ?? 0)];
+  // the disc's radius in frame half-heights, and the square inside it
+  const r = (GLOBE.radius / Math.sqrt(toCentre.lengthSq() - GLOBE.radius ** 2) / tanY) * Math.SQRT1_2;
+  return onScreen({ x0: (cx - r / aspect + 1) / 2, x1: (cx + r / aspect + 1) / 2, y0: (1 - (cy + r)) / 2, y1: (1 - (cy - r)) / 2 });
+}
+
 /**
  * Where the plane lies on the 1440×800 screen when the picture (or the 3D frame it matches) is shown at `scale`,
  * lifted by `lift` frame heights: the showcase chapters sit on the site's plain dark by design, so they are judged
- * on the plane, not on the whole frame.
+ * on the plane (or the globe), not on the whole frame.
  */
 function planeOnScreen(scale: number, lift: number) {
   const [vw, vh] = [1440, 800];
@@ -128,13 +171,15 @@ function luminance(page: Page, png: Buffer) {
     const d = ctx.getImageData(0, 0, c.width, c.height).data;
     let sum = 0;
     let sq = 0;
+    let lit = 0;
     const n = d.length / 4;
     for (let i = 0; i < d.length; i += 4) {
       const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
       sum += l;
       sq += l * l;
+      if (l > 40) lit++;
     }
-    return { mean: sum / n, variance: sq / n - (sum / n) ** 2 };
+    return { mean: sum / n, variance: sq / n - (sum / n) ** 2, lit: lit / n };
   }, png.toString('base64'));
 }
 
@@ -144,15 +189,17 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   mkdirSync(dir, { recursive: true });
   const shots: string[] = [];
   const report: string[] = [];
-  type Box = ReturnType<typeof planeOnScreen>;
-  const shoot = async (name: string, { settle = 2500, dark = false, judgeOn }: { settle?: number; dark?: boolean; judgeOn?: Box } = {}) => {
+  type Box = ReturnType<typeof onScreen>;
+  /** `night`: a night globe — dark sea by design — passes when enough of it is lit (land, cities, markers). */
+  const shoot = async (name: string, { settle = 2500, dark = false, night = false, judgeOn }: { settle?: number; dark?: boolean; night?: boolean; judgeOn?: Box } = {}) => {
     await page.waitForTimeout(settle);
     const png = await page.screenshot({ path: `${dir}/${name}.png` });
     const l = await luminance(page, judgeOn ? await page.screenshot({ clip: judgeOn }) : png);
-    report.push(`${name} mean ${l.mean.toFixed(1)} variance ${l.variance.toFixed(0)}`);
+    report.push(`${name} mean ${l.mean.toFixed(1)} variance ${l.variance.toFixed(0)} lit ${(l.lit * 100).toFixed(1)} %`);
     expect(l.variance, `${name} is not blank`).toBeGreaterThan(1);
     // the "not a black screen" guard: the plane or the cabin is clearly lit (the loader is meant to be dark)
-    if (!dark) expect(l.mean, `${name} mean luminance`).toBeGreaterThanOrEqual(18);
+    if (night) expect(l.lit, `${name} share lit`).toBeGreaterThanOrEqual(0.05);
+    else if (!dark) expect(l.mean, `${name} mean luminance`).toBeGreaterThanOrEqual(18);
     shots.push(name);
   };
   const sit = (id: string) =>
@@ -171,13 +218,26 @@ test('review screenshot set — never a black screen', async ({ page }) => {
     await r.continue();
   });
   await page.goto('/');
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' }); // the dev build's badge
   await shoot('loader', { settle: 2000, dark: true });
   await waitForStore(page);
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
 
   await shoot('hero', { judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
-  await setProgress(page, SWAP);
-  await shoot('intro-swap', { judgeOn: planeOnScreen(1, 0) });
+  await setProgress(page, pre('sky', 0.45));
+  await shoot('first-screen', { judgeOn: planeAt(pre('sky', 0.45)) });
+  await setProgress(page, pre('sky', 0.9));
+  await shoot('globe-rising', { night: true, judgeOn: globeAt(pre('sky', 0.9)) });
+  await setProgress(page, pre('destinations', 0));
+  await shoot('ribbons', { settle: 1200 });
+  await setProgress(page, pre('destinations', 0.5));
+  await shoot('destinations', { night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
+  await pick(page, 'GIG');
+  await shoot('destinations-flight', { settle: 800, night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
+  await setProgress(page, pre('transfer', 0.75));
+  await shoot('transfer', { judgeOn: planeAt(pre('transfer', 0.75)) });
+  await setProgress(page, pre('ready', 0.7));
+  await shoot('ready', { judgeOn: planeAt(pre('ready', 0.7)) });
   for (const [name, p] of [['door', pre('door', 0.64)], ['entry', ENTRY], ['aisle', pre('aisle', 0.27)], ['aisle-end', 1]] as const) {
     await setProgress(page, p);
     await shoot(name);
@@ -194,5 +254,5 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await setProgress(page, 0.9);
   await shoot('outro');
   console.log(report.join('\n'));
-  expect(shots).toHaveLength(13);
+  expect(shots).toHaveLength(19);
 });

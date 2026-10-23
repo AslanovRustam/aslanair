@@ -5,6 +5,7 @@ import { trackProgress } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
 import { FUSELAGE_LENGTH } from '@/experience/geometry';
 import {
+  arcDrawn,
   arcPoints,
   FLIGHT,
   flightAt,
@@ -176,6 +177,18 @@ describe('the flight over the globe', () => {
       const along = ahead.sub(up.multiplyScalar(ahead.dot(up)));
       expect(heading.dot(along.normalize()), `along its way at ${now}`).toBeGreaterThan(0.999);
     }
+  });
+
+  test('the arc draws in step with the plane: its tip is where the plane is along the way', () => {
+    const f = homeFlight('GIG', 0);
+    const home = latLonToVector(HOME.lat, HOME.lon);
+    const total = home.angleTo(latLonToVector(city('GIG').lat, city('GIG').lon));
+    for (const now of [0.2, 0.6, 0.8, 1.1, 1.4]) {
+      const along = flightAt(f, now).position.normalize().angleTo(home) / total;
+      expect(arcDrawn(f, now), `at ${now} s`).toBeCloseTo(along, 3);
+    }
+    expect(arcDrawn(null, 5)).toBe(1);
+    expect(arcDrawn(f, 9)).toBe(1);
   });
 
   test('a pick mid-flight sets off from where the plane is and never goes back through Chișinău', () => {

@@ -430,3 +430,36 @@ test('a header jump from the aisle to Destinations and back moves the plane on s
   }
 });
 
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 412, height: 915 }, hasTouch: true });
+
+  test('every chapter of the journey fits the screen, and a destination is a tap away', async ({ page }) => {
+    await open(page);
+    for (const [id, t, section] of [
+      ['sky', 0, 'hero'],
+      ['destinations', 0.45, 'departures'],
+      ['transfer', 0.75, null],
+      ['ready', 0.6, 'ready'],
+    ] as const) {
+      await page.evaluate(([id, t]) => (window as unknown as PageWindow).__aslan.store.getState().setProgress(__pre(id as 'sky', t as number)), [id, t] as const);
+      await page.waitForTimeout(900);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${id}: no sideways scroll`).toBe(true);
+      // every heading of the chapter on screen, whole
+      const headings = await page.locator('h1:visible, h2:visible').evaluateAll((els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect();
+          return { text: e.textContent, inside: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight };
+        }),
+      );
+      expect(headings.length, `${id}: a heading shows`).toBeGreaterThan(0);
+      for (const h of headings) expect(h.inside, `${id}: "${h.text}" on screen`).toBe(true);
+      if (section) await expect(page.getByTestId(section)).toBeVisible();
+    }
+    await page.evaluate(() => (window as unknown as PageWindow).__aslan.store.getState().setProgress(__pre('destinations', 0.45)));
+    await page.waitForTimeout(900);
+    await page.getByTestId('departures').getByRole('button', { name: /Tokyo/ }).tap();
+    expect(await chosen(page)).toBe('HND');
+    await expect(page.getByTestId('flight-card')).toContainText('Tokyo');
+  });
+});
+
