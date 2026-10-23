@@ -16,7 +16,7 @@ type PageWindow = {
   __aslan: {
     scene: { position: { constructor: new (x: number, y: number, z: number) => Vec }; getObjectByName(name: string): Node | undefined };
     camera: unknown;
-    store: { getState(): { destinationId: string; transferId: string } };
+    store: { getState(): { destinationId: string; transferId: string; setProgress(p: number): void } };
   };
 };
 
@@ -215,4 +215,93 @@ for (const viewport of [
     }
   });
 }
+
+/** Puts the scroll position straight into the store (exact, unlike the wheel) and lets two frames draw it. */
+async function showAt(page: Page, id: 'ready', t: number) {
+  await page.evaluate(
+    ([id, t]) =>
+      new Promise<void>((done) => {
+        (window as unknown as PageWindow).__aslan.store.getState().setProgress(__pre(id as 'ready', t as number));
+        requestAnimationFrame(() => requestAnimationFrame(() => done()));
+      }),
+    [id, t] as const,
+  );
+}
+
+test('ready: the promise lights up word by word, all of it by the end, with opacity alone', async ({ page }) => {
+  await open(page);
+  await wheelTo(page, pre('ready', 0.05));
+  const words = page.getByTestId('ready').locator('[data-part="word"]');
+  const total = await words.count();
+  expect(total).toBeGreaterThan(15);
+  const lit = () => words.evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e.lastElementChild!).opacity) > 0.95).length);
+  const counts: number[] = [];
+  for (let t = 0.1; t <= 0.901; t += 0.1) {
+    await showAt(page, 'ready', t);
+    counts.push(await lit());
+  }
+  for (let i = 1; i < counts.length; i++) expect(counts[i], counts.join(',')).toBeGreaterThanOrEqual(counts[i - 1]);
+  expect(counts[0]).toBeLessThan(total / 4);
+  await showAt(page, 'ready', 0.95);
+  expect(await lit()).toBe(total);
+  await expect(page.getByTestId('ready').locator('h2')).toHaveText('Ready to choose your seat?');
+  const props = await page.getByTestId('ready').evaluate((el) =>
+    el.getAnimations({ subtree: true }).flatMap((a) =>
+      (a.effect as KeyframeEffect).getKeyframes().flatMap((k) => Object.keys(k).filter((x) => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))),
+    ),
+  );
+  // visibility only switches at the end of a fade (so hidden words take no focus); it never moves anything
+  expect(props.every((p) => p === 'transform' || p === 'opacity' || p === 'visibility'), props.join(',')).toBe(true);
+});
+
+test('ready: door 1L glows warm in its doorway as it comes ajar', async ({ page }) => {
+  await open(page);
+  await wheelTo(page, pre('ready', 0.5));
+  await showAt(page, 'ready', 0.9);
+  await page.addStyleTag({ content: 'body > *:not(.stage), nextjs-portal { visibility: hidden !important; }' });
+  await page.waitForTimeout(300);
+  // the door's rectangle on screen, from its outline in the aircraft's frame
+  const door = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as PageWindow).__aslan;
+    const plane = scene.getObjectByName('Aircraft')!;
+    plane.updateWorldMatrix(true, false);
+    const V = scene.position.constructor;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const [x, y] of [[13.49, -0.4], [14.31, -0.4], [13.49, 1.45], [14.31, 1.45]]) {
+      const p = new V(x, y, -1.79).applyMatrix4(plane.matrixWorld).project(camera);
+      xs.push(((p.x + 1) / 2) * innerWidth);
+      ys.push(((1 - p.y) / 2) * innerHeight);
+    }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  });
+  const pad = { x: (door.x1 - door.x0) * 0.8, y: (door.y1 - door.y0) * 0.5 };
+  const clip = { x: door.x0 - pad.x, y: door.y0 - pad.y, width: door.x1 - door.x0 + 2 * pad.x, height: door.y1 - door.y0 + 2 * pad.y };
+  const png = (await page.screenshot({ clip })).toString('base64');
+  const r = await page.evaluate(
+    async ([src, inner]) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${src}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      [c.width, c.height] = [img.width, img.height];
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let [inSum, inN, outSum, outN] = [0, 0, 0, 0];
+      for (let y = 0; y < c.height; y++)
+        for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+          const inside = x >= inner.x && x < inner.x + inner.w && y >= inner.y && y < inner.y + inner.h;
+          if (inside) [inSum, inN] = [inSum + l, inN + 1];
+          else [outSum, outN] = [outSum + l, outN + 1];
+        }
+      return { door: inSum / inN, around: outSum / outN };
+    },
+    [png, { x: pad.x, y: pad.y, w: door.x1 - door.x0, h: door.y1 - door.y0 }] as const,
+  );
+  console.log('doorway glow', JSON.stringify(r));
+  expect(r.door - r.around).toBeGreaterThanOrEqual(20);
+});
 

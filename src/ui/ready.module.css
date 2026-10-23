@@ -1,0 +1,103 @@
+/* Ready to choose your seat: the question and the promise on the left while the plane turns to face the camera and
+   its door comes ajar; the promise lights up word by word with the scroll. Transform and opacity only. */
+
+.ready {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  text-shadow: 0 1px 18px rgba(7, 8, 11, 0.85);
+  transition:
+    opacity 0.45s ease,
+    visibility 0s linear 0.45s;
+}
+
+.ready[data-shown='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.45s ease,
+    visibility 0s;
+}
+
+.words {
+  position: absolute;
+  top: calc(var(--header-h) + clamp(1rem, 5vh, 3rem));
+  left: clamp(1.25rem, 3vw, 2.75rem);
+  width: min(36rem, 46vw);
+  transform: translateY(0.75rem);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.ready[data-shown='true'] .words {
+  transform: none;
+}
+
+.title {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+.promise {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: clamp(1.4rem, 2.4vw, 2.1rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+/* each word: its faint outline always there, its ink coming up over its own slice of --lit */
+.word {
+  position: relative;
+  display: inline-block;
+}
+
+.outline {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(242, 239, 232, 0.32);
+  text-shadow: none;
+}
+
+.ink {
+  opacity: clamp(0, calc((var(--lit) - var(--from)) / var(--span)), 1);
+}
+
+.cue {
+  --cue-delay: 0.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .words {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* narrow: the words across the top, over the turning plane */
+@media (max-aspect-ratio: 6 / 5) {
+  .words {
+    left: clamp(1.25rem, 5vw, 2.75rem);
+    right: clamp(1.25rem, 5vw, 2.75rem);
+    width: auto;
+  }
+
+  .title {
+    font-size: clamp(2rem, 9vw, 3rem);
+  }
+
+  .promise {
+    font-size: clamp(1.25rem, 5.4vw, 1.6rem);
+  }
+}

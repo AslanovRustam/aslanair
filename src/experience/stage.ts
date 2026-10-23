@@ -25,10 +25,10 @@ export const ON_GLOBE_SCALE = 0.0957;
 
 /**
  * The transfer chapter: the plane flies in from behind (off to the right of the frame), nose first, slowing to a stop
- * where it waits beside the choices, and over the chapter turns slowly to the course it holds into the ready chapter.
- * Metres back along its nose and up, and the turn it starts from.
+ * where it waits beside the choices, turning slowly away over the chapter (from `turn` to `away`); in the ready
+ * chapter it turns back to face the camera, at rest for the door flight. Metres back along its nose and up.
  */
-const WAITING = { back: 80, up: 6, turn: degToRad(25), settle: 0.4 };
+const WAITING = { back: 80, up: 6, turn: degToRad(25), away: degToRad(-20), settle: 0.4, faces: 0.8 };
 
 /** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
 export interface OnGlobe {
@@ -75,8 +75,12 @@ function departure(t: number): Stage {
   };
 }
 
+function turnedTo(yaw: number): Stage {
+  return { position: new Vector3(), rotation: new Euler(0, yaw, 0, 'YZX'), scale: 1 };
+}
+
 function waiting(t: number): Stage {
-  const yaw = WAITING.turn * (1 - smoothstep(t, 0, 1));
+  const yaw = WAITING.turn + (WAITING.away - WAITING.turn) * smoothstep(t, 0, 1);
   const nose = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   const away = (1 - smoothstep(t, 0, WAITING.settle)) ** 2;
   return {
@@ -106,6 +110,8 @@ export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe)
   // after, it holds the departure's end, out of frame
   if (id === 'destinations') return onGlobe ? overTheGlobe(onGlobe) : departure(1);
   if (id === 'transfer') return waiting(t);
+  // `|| 0` keeps −0 out of the rest pose
+  if (id === 'ready') return turnedTo(WAITING.away * (1 - smoothstep(t, 0, WAITING.faces)) || 0);
   return rest();
 }
 

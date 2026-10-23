@@ -1,19 +1,51 @@
 import { readFileSync } from 'node:fs';
 import { Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
-import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
+import { DOOR_AJAR, doorGlow, doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
 import { DOOR_1L, stationToX } from '@/experience/geometry';
 
 describe('door 1L opening', () => {
-  test('closed in the sky and in flight, open from mid-approach on', () => {
+  test('closed through the journey and in flight, ajar as the ready chapter ends, open from mid-approach on', () => {
     expect(doorOpenAmount('browse', trackProgress('pre', 'sky', 0.9))).toBe(0);
-    expect(doorOpenAmount('browse', trackProgress('pre', 'door', 0.2))).toBe(0);
+    expect(doorOpenAmount('browse', trackProgress('pre', 'transfer', 0.9))).toBe(0);
+    expect(doorOpenAmount('browse', trackProgress('pre', 'ready', 0.2))).toBe(0);
+    expect(doorOpenAmount('browse', trackProgress('pre', 'ready', 0.95))).toBeCloseTo(DOOR_AJAR, 9);
+    expect(doorOpenAmount('browse', trackProgress('pre', 'door', 0.2))).toBeCloseTo(DOOR_AJAR, 9);
     expect(doorOpenAmount('browse', trackProgress('pre', 'door', 0.6))).toBe(1);
     expect(doorOpenAmount('browse', trackProgress('pre', 'aisle', 0.5))).toBe(1);
     expect(doorOpenAmount('seated', 0.9)).toBe(1);
     expect(doorOpenAmount('confirmed', 0.5)).toBe(0);
+  });
+
+  test('ajar is the plug door out from the skin, not yet forward', () => {
+    const [forward, , out] = doorOffset(DOOR_AJAR);
+    expect(forward).toBe(0);
+    expect(Math.abs(out)).toBeGreaterThan(0.05);
+  });
+
+  test('the door opens without a jump from the ready chapter into the door flight', () => {
+    const eps = 1e-9;
+    const seam = trackProgress('pre', 'door', 0);
+    expect(Math.abs(doorOpenAmount('browse', seam - eps) - doorOpenAmount('browse', seam))).toBeLessThan(1e-6);
+    let last = 0;
+    for (let i = 0; i <= 200; i++) {
+      const p = trackProgress('pre', 'ready', 0) + (i / 200) * (trackProgress('pre', 'aisle', 0) - trackProgress('pre', 'ready', 0));
+      const now = doorOpenAmount('browse', p);
+      expect(now, `step ${i}`).toBeGreaterThanOrEqual(last - 1e-12);
+      last = now;
+    }
+  });
+
+  test('the doorway glows warm as the door comes ajar and is gone before the camera reaches it', () => {
+    expect(doorGlow('browse', trackProgress('pre', 'transfer', 0.9))).toBe(0);
+    expect(doorGlow('browse', trackProgress('pre', 'ready', 0.95))).toBeGreaterThan(0.9);
+    const seam = trackProgress('pre', 'door', 0);
+    expect(Math.abs(doorGlow('browse', seam - 1e-9) - doorGlow('browse', seam))).toBeLessThan(1e-6);
+    expect(doorGlow('browse', trackProgress('pre', 'door', 0.5))).toBe(0);
+    expect(doorGlow('browse', trackProgress('pre', 'aisle', 0.5))).toBe(0);
+    expect(doorGlow('seated', trackProgress('pre', 'aisle', 0.5))).toBe(0);
   });
 
   test('slides out first, then forward', () => {

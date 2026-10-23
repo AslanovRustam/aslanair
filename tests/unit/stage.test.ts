@@ -43,13 +43,16 @@ function worstStep(steps: number[], aspect: number): number {
   for (let i = 1; i < steps.length; i++) {
     // a chapter's end and the next one's start are the same point
     if (steps[i] === steps[i - 1] || (!showing(steps[i - 1], aspect) && !showing(steps[i], aspect))) continue;
-    const [a, b] = [boxAt(steps[i - 1], aspect), boxAt(steps[i], aspect)];
+    // what the visitor sees of it: the box cut to the frame
+    const [a, b] = [boxAt(steps[i - 1], aspect), boxAt(steps[i], aspect)].map(seen);
     const moved = Math.max(Math.abs(a.x0 - b.x0), Math.abs(a.x1 - b.x1), Math.abs(a.y0 - b.y0), Math.abs(a.y1 - b.y1));
     worst = Math.max(worst, moved / ((steps[i] - steps[i - 1]) * TRACK_VH));
   }
   return worst;
 }
 const PER_VH = 0.03 / 1.1;
+const cut = (v: number) => Math.min(1, Math.max(0, v));
+const seen = (b: ScreenBox): ScreenBox => ({ x0: cut(b.x0), y0: cut(b.y0), x1: cut(b.x1), y1: cut(b.y1) });
 const across = (id: 'sky' | 'destinations' | 'transfer' | 'ready', from = 0, to = 1) =>
   Array.from({ length: Math.round((to - from) * 100) + 1 }, (_, i) => trackProgress('pre', id, from + i / 100));
 
@@ -116,22 +119,31 @@ describe('the aircraft stage', () => {
       expect(showing(trackProgress('pre', 'destinations', 0.93), aspect), 'gone round the globe before it fades').toBe(false);
       expect(showing(trackProgress('pre', 'transfer', 0), aspect), 'out of view as the transfer begins').toBe(false);
       expect(showing(trackProgress('pre', 'transfer', 0.5), aspect), 'waiting in view').toBe(true);
-      const steps = [...across('destinations', 0.5), ...across('transfer'), ...across('ready', 0, 0.3)];
+      const steps = [...across('destinations', 0.5), ...across('transfer'), ...across('ready')];
       expect(worstStep(steps, aspect)).toBeLessThanOrEqual(PER_VH);
     });
   }
 
-  test('waiting, it turns slowly to the course it holds into the ready chapter, level and at rest by its end', () => {
-    const yaw = (t: number) => aircraftStage('browse', trackProgress('pre', 'transfer', t)).rotation.y;
+  test('waiting, it turns slowly away; ready, it turns back to face the camera and stands at rest for the door flight', () => {
+    const yaw = (id: 'transfer' | 'ready', t: number) => aircraftStage('browse', trackProgress('pre', id, t)).rotation.y;
     let last = Infinity;
     for (let i = 40; i <= 100; i += 5) {
-      expect(yaw(i / 100), `t ${i / 100}`).toBeLessThanOrEqual(last + 1e-12);
-      last = yaw(i / 100);
+      expect(yaw('transfer', i / 100), `transfer ${i / 100}`).toBeLessThanOrEqual(last + 1e-12);
+      last = yaw('transfer', i / 100);
     }
-    const end = aircraftStage('browse', trackProgress('pre', 'transfer', 0.9999));
-    expect(end.position.length()).toBeLessThan(1e-3);
-    expect(Math.abs(end.rotation.x) + Math.abs(end.rotation.y) + Math.abs(end.rotation.z)).toBeLessThan(1e-3);
-    expect(end.scale).toBe(1);
+    expect(last).toBeLessThan(-0.2);
+    for (let i = 0; i <= 100; i += 5) {
+      expect(yaw('ready', i / 100), `ready ${i / 100}`).toBeGreaterThanOrEqual(last - 1e-12);
+      last = yaw('ready', i / 100);
+    }
+    const seam = trackProgress('pre', 'ready', 0);
+    expect(Math.abs(aircraftStage('browse', seam - 1e-9).rotation.y - aircraftStage('browse', seam).rotation.y)).toBeLessThan(1e-6);
+    for (const p of [trackProgress('pre', 'ready', 0.9999), trackProgress('pre', 'door', 0)]) {
+      const s = aircraftStage('browse', p);
+      expect(s.position.length()).toBeLessThan(1e-3);
+      expect(Math.abs(s.rotation.x) + Math.abs(s.rotation.y) + Math.abs(s.rotation.z)).toBeLessThan(1e-3);
+      expect(s.scale).toBe(1);
+    }
   });
 });
 

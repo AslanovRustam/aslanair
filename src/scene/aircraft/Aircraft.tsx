@@ -4,7 +4,10 @@ import { useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
+  AddEquation,
   BufferAttribute,
+  Color,
+  CustomBlending,
   DoubleSide,
   Matrix4,
   Vector3,
@@ -13,15 +16,18 @@ import {
   type Mesh,
   type MeshStandardMaterial,
   type Object3D,
+  type ShaderMaterial,
   type Texture,
+  OneFactor,
+  ZeroFactor,
 } from 'three';
-import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
+import { doorGlow, doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { destination } from '@/experience/destinations';
-import { DOOR_1L } from '@/experience/geometry';
+import { DOOR_1L, stationToX } from '@/experience/geometry';
 import { planeOverGlobe } from '@/experience/globe';
 import { aircraftStage } from '@/experience/stage';
 import { experienceStore, trackOf } from '@/experience/store';
@@ -36,6 +42,35 @@ const FIN_FLOODLIGHT = 0.35;
 const WINDOW_GLOW = { color: '#ffcf8a', intensity: 0.6 };
 /** Waiting for the transfer it sways on its own, this far either way over this long (s): slow, still at the ends. */
 const SWAY = { angle: (3 * Math.PI) / 180, period: 12 };
+/**
+ * The warm light of the cabin through door 1L as it comes ajar: a quad just outside the door, the door's own shape
+ * filled softly and its seams and surround glowing, added to whatever is behind (the canvas's alpha left alone).
+ */
+const DOOR_GLOW = {
+  color: '#ffb46e',
+  size: [2.6, 3.4] as [number, number],
+  position: [stationToX(DOOR_1L.station), DOOR_1L.y, DOOR_1L.hinge[2] - 0.16] as [number, number, number],
+};
+const DOOR_GLOW_VERTEX = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const DOOR_GLOW_FRAGMENT = /* glsl */ `
+uniform vec3 uColor;
+uniform float uGlow;
+uniform vec2 uSize;
+uniform vec2 uDoor;
+varying vec2 vUv;
+void main() {
+  // signed distance (m) from the door's outline: negative inside it
+  vec2 q = abs((vUv - 0.5) * uSize) - uDoor * 0.5;
+  float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+  float light = d < 0.0 ? 0.45 + 0.55 * exp(d * 14.0) : exp(-d * 5.0) * 0.9;
+  gl_FragColor = vec4(uColor * light * uGlow, 1.0);
+}`;
+
 /** GLB floor materials and the pattern each one wears. */
 const FLOOR_MAPS: Record<string, 'carpet' | 'runner'> = { Carpet: 'carpet', AisleCarpet: 'runner' };
 
@@ -70,6 +105,28 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
   const camera = useThree((s) => s.camera);
   const root = useThree((s) => s.scene);
   const group = useRef<Group>(null);
+  const glow = useRef<Mesh>(null);
+  const glowMaterial = useMemo(
+    () => ({
+      uniforms: {
+        uColor: { value: new Color(DOOR_GLOW.color) },
+        uGlow: { value: 0 },
+        uSize: { value: DOOR_GLOW.size },
+        uDoor: { value: [DOOR_1L.width, DOOR_1L.height] },
+      },
+      vertexShader: DOOR_GLOW_VERTEX,
+      fragmentShader: DOOR_GLOW_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+      blending: CustomBlending,
+      blendEquation: AddEquation,
+      blendSrc: OneFactor,
+      blendDst: OneFactor,
+      blendSrcAlpha: ZeroFactor,
+      blendDstAlpha: OneFactor,
+    }),
+    [],
+  );
   const windowGlass = useRef<MeshStandardMaterial | null>(null);
   const eyeLocal = useRef(new Vector3());
   const compiled = useRef(false);
@@ -171,6 +228,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     g.rotation.x += fly.bank;
     g.scale.setScalar(stage.scale);
     const open = doorOpenAmount(s.phase, s.progress);
+    if (glow.current) (glow.current.material as ShaderMaterial).uniforms.uGlow.value = doorGlow(s.phase, s.progress);
     if (door) {
       const [dx, dy, dz] = doorOffset(open);
       door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
@@ -186,6 +244,11 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
   return (
     <group ref={group} name="Aircraft">
       <primitive object={scene} />
+      {/* faces outward (−z): turned half round from the plane's +z */}
+      <mesh ref={glow} name="DoorGlow" position={DOOR_GLOW.position} rotation={[0, Math.PI, 0]} renderOrder={10}>
+        <planeGeometry args={DOOR_GLOW.size} />
+        <shaderMaterial args={[glowMaterial]} />
+      </mesh>
       <NightLights />
       {children}
     </group>

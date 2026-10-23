@@ -87,6 +87,12 @@ export const copy = {
     pickup: (time: string) => `Pick-up ${time}`,
     noPickup: 'No pick-up',
   },
+  ready: {
+    title: 'Ready to choose your seat?',
+    promise:
+      'Tonight’s cabin has 180 seats, three by three. Walk the aisle, sit wherever you like and look out of its window before you decide.',
+    scroll: 'Scroll to board',
+  },
   takeOff: {
     title: 'Ready for take-off.',
     cue: 'Scroll to fly out',
