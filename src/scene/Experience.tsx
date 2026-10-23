@@ -3,6 +3,7 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
+import { captureMode } from '@/experience/capture';
 import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import SmoothScroll from '@/scroll/SmoothScroll';
@@ -20,6 +21,7 @@ import SeatCard from './cabin/SeatCard';
 import TailZone from './cabin/TailZone';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
+import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
 import SkyAndClouds from './sky/SkyAndClouds';
 
@@ -36,14 +38,30 @@ function hasWebGL2(): boolean {
   return !!document.createElement('canvas').getContext('webgl2');
 }
 
+/** Everything inside the cabin; compiled off the main thread before it shows. */
+function CabinFurnishing() {
+  return (
+    <CompileAsync>
+      <Seats />
+      <FloorDetails />
+      <Bins />
+      <ReadingLights />
+      <EntryZone />
+      <TailZone />
+    </CompileAsync>
+  );
+}
+
 export default function Experience() {
   const [supported] = useState(hasWebGL2);
+  const [capture] = useState(captureMode);
 
   useEffect(() => installTestHooks(), []);
 
   if (!supported) {
     return <p className="fallback">{copy.fallback.noWebgl}</p>;
   }
+  if (capture) return <CaptureMode cabin={<CabinFurnishing />} />;
 
   return (
     <>
@@ -58,14 +76,7 @@ export default function Experience() {
           <SkyAndClouds />
           <Suspense fallback={null}>
             <Aircraft>
-              <CompileAsync>
-                <Seats />
-                <FloorDetails />
-                <Bins />
-                <ReadingLights />
-                <EntryZone />
-                <TailZone />
-              </CompileAsync>
+              <CabinFurnishing />
               <SeatCard />
             </Aircraft>
           </Suspense>

@@ -11,7 +11,8 @@
     "e2e": "playwright test",
     "test:blender": "python -m unittest discover -s tools/blender/tests -v",
     "build:aircraft": "node tools/build-aircraft.mjs",
-    "build:kit": "node tools/build-kit.mjs"
+    "build:kit": "node tools/build-kit.mjs",
+    "capture:plane": "node tools/capture-plane.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

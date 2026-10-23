@@ -69,7 +69,8 @@ function createPipeline() {
   return { raw, tmp, out, uniforms, cloudScene, blur, blurScene: fullscreen(blur), quadCamera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
 }
 
-export default function SkyAndClouds() {
+/** `background={false}`: no sky behind the scene at all — the capture tool photographs the plane on transparency. */
+export default function SkyAndClouds({ background = true }: { background?: boolean }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
@@ -122,8 +123,8 @@ export default function SkyAndClouds() {
       fill.current.intensity = look.fill;
     }
     // showcase: the plain dark of the site and no cloud pass at all
-    if (showcase) {
-      scene.background = SHOWCASE_BACKGROUND;
+    if (showcase || !background) {
+      scene.background = background ? SHOWCASE_BACKGROUND : null;
       return;
     }
     scene.background = pipe.out.texture;

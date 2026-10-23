@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferAttribute,
   DoubleSide,
-  MathUtils,
   Matrix4,
   Vector3,
   type Group,
@@ -19,7 +18,6 @@ import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
-import { chapterAt } from '@/experience/chapters';
 import { DOOR_1L } from '@/experience/geometry';
 import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideCabin } from '@/experience/worldState';
@@ -53,17 +51,8 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
   mesh.geometry.setAttribute('uv', new BufferAttribute(uv, 2));
 }
 
-/** How much idle bob to apply: full in the sky shot, none once the camera is inside. */
-function bobWeight(): number {
-  const s = experienceStore.getState();
-  if (trackOf(s.phase) === 'post' || s.phase === 'seated') return 0;
-  const { id, t } = chapterAt('pre', s.progress);
-  if (id === 'sky') return 1;
-  if (id === 'door') return 1 - MathUtils.smoothstep(t, 0, 0.5);
-  return 0;
-}
-
-/** The airliner; children (the cabin) ride along with its idle motion and fly-away. */
+/** The airliner; children (the cabin) ride along with its fly-away. It holds still before that: the hero shows a
+ * picture of it captured at rest, and the live model has to take over without a jump. */
 export default function Aircraft({ children }: { children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL);
   const group = useRef<Group>(null);
@@ -120,7 +109,7 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
     });
   }, [scene]);
 
-  useFrame(({ clock, camera }) => {
+  useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
     // the windows glow seen from outside; from inside, the glass must not tint the night view
@@ -129,11 +118,9 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
       windowGlass.current.emissiveIntensity = pointInsideCabin(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
     }
     const s = experienceStore.getState();
-    const t = clock.elapsedTime;
-    const w = bobWeight();
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
-    g.position.set(fly.offsetX, w * 0.4 * Math.sin(0.37 * t) + fly.climb, 0);
-    g.rotation.set(w * 0.025 * Math.sin(0.5 * t) + fly.bank, 0, 0);
+    g.position.set(fly.offsetX, fly.climb, 0);
+    g.rotation.set(fly.bank, 0, 0);
     if (door) {
       const [dx, dy, dz] = doorOffset(doorOpenAmount(s.phase, s.progress));
       door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
