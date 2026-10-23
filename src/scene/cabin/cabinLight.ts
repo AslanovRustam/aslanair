@@ -19,13 +19,17 @@ export const INTERIOR_ENV = { value: 0.5 };
 // geometryPosition/geometryNormal are in view space; world position comes from the view rotation's transpose
 // (no matrix inverse per fragment). Brighter high up and darker towards the floor; the cove strips wash the
 // ceiling and bin faces that look down; a soft pool every row pitch gives the cabin its rhythm. Parts that
-// receive no sun shadow also drop the direct sun: inside the closed fuselage it could only reach them falsely.
+// receive no sun shadow also drop the direct sun: inside the closed fuselage it could only reach them falsely. The
+// scene's ambient light never reaches the cabin.
 const SHADED = `
   reflectedLight.directDiffuse = vec3( 0.0 );
   reflectedLight.directSpecular = vec3( 0.0 );
 `;
 
 const glsl = (sun: boolean) => `
+  // the scene's ambient light is the showcase's studio fill for the outside: the cabin keeps its own light, so it
+  // looks the same seen through the door and from inside
+  irradiance -= getAmbientLightIrradiance( ambientLightColor );
   vec3 cabinWorld = transpose(mat3(viewMatrix)) * (geometryPosition - viewMatrix[3].xyz);
   float cabinHeight = clamp((cabinWorld.y + 0.45) / 2.2, 0.0, 1.0);
   float cabinDown = max(-dot(geometryNormal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), 0.0);

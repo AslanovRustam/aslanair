@@ -166,3 +166,58 @@ test('boarding into the night compiles nothing new and never stalls a frame', as
   expect(r.after, 'nothing compiled or uploaded as the night sky comes in').toEqual(r.before);
   expect(r.worst, `worst frame ${r.worst.toFixed(0)} ms`).toBeLessThan(250);
 });
+
+test('the cabin looks the same whatever the outside light does, so boarding never shifts its colour', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(2000);
+  const box = { x: 300, y: 240, width: 840, height: 420 };
+  /** Pins the moon and the ambient fill at the given intensities (the sky sets them every frame otherwise). */
+  const pin = (moon: number | null, fill: number | null) =>
+    page.evaluate(
+      ([moon, fill]) => {
+        type Light = { isDirectionalLight?: boolean; isAmbientLight?: boolean; intensity: number };
+        const scene = (window as unknown as { __aslan: { scene: { children: Light[] } } }).__aslan.scene;
+        for (const light of scene.children) {
+          const value = light.isDirectionalLight ? moon : light.isAmbientLight ? fill : undefined;
+          if (value === undefined) continue;
+          if (value === null) delete (light as Partial<Light>).intensity;
+          else Object.defineProperty(light, 'intensity', { configurable: true, get: () => value, set: () => {} });
+        }
+      },
+      [moon, fill] as const,
+    );
+  await pin(1.2, 0); // aboard
+  await page.waitForTimeout(400);
+  const aboard = await boxStats(page, box);
+  await pin(2.6, 0.55); // the showcase's studio light, as seen through the door before boarding
+  await page.waitForTimeout(400);
+  const studio = await boxStats(page, box);
+  for (const c of ['r', 'g', 'b'] as const) expect(Math.abs(aboard[c] - studio[c]), c).toBeLessThan(1.5);
+});
+
+test('aboard, the fuselage beacons never glow into the cabin; the wing lights still show through the windows', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(1500);
+  // over more than a full blink cycle
+  const seen = await page.evaluate(
+    () =>
+      new Promise<Record<string, boolean>>((done) => {
+        type Node = { children: { isSprite?: boolean; visible: boolean }[] };
+        const scene = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): Node } } }).__aslan.scene;
+        const halo = (name: string) => scene.getObjectByName(name).children.find((c) => c.isSprite)!;
+        const seen: Record<string, boolean> = { beaconTop: false, beaconBottom: false, navPort: false };
+        const start = performance.now();
+        const tick = () => {
+          for (const name of Object.keys(seen)) seen[name] ||= halo(name).visible;
+          if (performance.now() - start < 1500) requestAnimationFrame(tick);
+          else done(seen);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  expect(seen).toEqual({ beaconTop: false, beaconBottom: false, navPort: true });
+});

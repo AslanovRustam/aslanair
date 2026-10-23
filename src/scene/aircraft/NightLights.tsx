@@ -2,11 +2,16 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import { AdditiveBlending, CanvasTexture, Color, type Mesh, type MeshBasicMaterial, type Sprite } from 'three';
+import { AdditiveBlending, CanvasTexture, Color, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Sprite } from 'three';
 import { beacon, strobe } from '@/experience/blink';
 import { NIGHT_LIGHTS } from '@/experience/geometry';
+import { pointInsideCabin } from '@/experience/worldState';
 
 type LightName = keyof typeof NIGHT_LIGHTS;
+
+/** Lights on the fuselage itself: a halo always faces the camera, so seen from inside the cabin its square would
+ * hang down through the ceiling. They go dark while the camera is aboard (the wing and tail lights stay). */
+const ON_FUSELAGE = new Set<LightName>(['beaconTop', 'beaconBottom']);
 
 /** Each light: what colour it reads as, its tint, the size of its glow (m) and how it blinks, if it does. */
 const LOOK: Record<LightName, { color: 'red' | 'green' | 'white'; hex: string; glow: number; blink?: (t: number) => number }> = {
@@ -40,14 +45,18 @@ export default function NightLights() {
   const glow = useMemo(() => glowTexture(), []);
   const lamps = useRef<Partial<Record<LightName, { lamp: Mesh; halo: Sprite }>>>({});
   const tint = useRef(new Color());
+  const root = useRef<Group>(null);
+  const eye = useRef(new Vector3());
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     const t = clock.elapsedTime;
+    const e = root.current ? root.current.worldToLocal(eye.current.copy(camera.position)) : null;
+    const aboard = !!e && pointInsideCabin(e.x, e.y, e.z);
     for (const name of Object.keys(LOOK) as LightName[]) {
       const look = LOOK[name];
       const parts = lamps.current[name];
       if (!look.blink || !parts) continue;
-      const level = look.blink(t);
+      const level = aboard && ON_FUSELAGE.has(name) ? 0 : look.blink(t);
       parts.halo.visible = level > 0;
       (parts.halo.material as unknown as { opacity: number }).opacity = level;
       (parts.lamp.material as MeshBasicMaterial).color.copy(tint.current.set(look.hex)).multiplyScalar(0.25 + 0.75 * level);
@@ -55,7 +64,7 @@ export default function NightLights() {
   });
 
   return (
-    <group name="NightLights">
+    <group ref={root} name="NightLights">
       {(Object.keys(NIGHT_LIGHTS) as LightName[]).map((name) => {
         const look = LOOK[name];
         return (
