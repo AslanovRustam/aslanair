@@ -35,7 +35,7 @@
 
 Found while executing and reviewing Plan 4 and deliberately left for this plan; fold each into the task that owns it, with a test.
 
-- Phones (Task 6): in portrait the 3D frame at fov 30 shows only ~37 % of the plane's width after the intro swap. A portrait fov for the outside shots must scale `IntroPlane`'s picture height by the same zoom (`tan(15°) / tan(fov/2)`), or the swap stops lining up.
+- ~~Phones (Task 6): portrait framing after the intro swap~~ — resolved by Plan 4b: IntroPlane is gone, the live camera frames the hero with an aspect-aware lens (`heroScale(aspect)`), every journey chapter has a narrow layout.
 - Seat view: the window outline is faceted at the seated eye (`CORNER_SEGMENTS = 5` in tools/blender/aslanair/openings.py; 12 is smooth but costs +25.7k triangles and the airliner sits at 119.5k of its 120k budget — trade triangles elsewhere), and the wall reads bright and warm rather than night.
 - The moon is a front key with an ambient fill; spec r2 §9 pictures a rim light — a fresnel rim in the hull material is nearly free (needs the user's sign-off on the look).
 - Six react-hooks lint errors in SkyAndClouds.tsx and BoardingPass3D.tsx (from Plan 1).
@@ -44,6 +44,16 @@ Found while executing and reviewing Plan 4 and deliberately left for this plan; 
 - On DPR-2 screens the 1600×900 hero picture is upscaled at the swap: consider a 2× WebP capture within 500 KB.
 - `planeBoxVars` in Hero.tsx uses the fixed `heroScale`, not the aspect-aware one (only below aspect 0.59 above 720 px wide).
 - Perf measurement: the user's own browser on the dev server shares the GPU; judge the gate on a quiet GPU and choose levers with WebGL timer queries (`__aslan.gl`).
+
+## Carried over from Plan 4b
+
+Minor findings of Plan 4b's final review, left for this plan; fold each into the task that owns it, with a test.
+
+- Reduced motion (accessibility task): the journey's time-driven motion ignores it — the globe's turn (up to ~180° in 2.5 s), the flights over the globe and the transfer sway; snap or cross-fade under `prefers-reduced-motion`.
+- Per-frame work: Ready and Hero re-render React every frame of their chapters (write `--lit` / `--scatter` through a ref); GlobeLabels work every frame of the destinations chapter (only while its controls show, t 0.28–0.6) and project with last frame's camera rotation while it still turns (`camera.updateMatrixWorld()` first); the shadow map redraws every frame during a globe flight though the plane is far outside its frustum (skip when the stage's scale < 1).
+- After Start again with a non-Lisbon choice, the new Lisbon arc (~30 KB) uploads during the first-screen scroll — build it at restart, or keep one arc per destination built under the loader.
+- Production hygiene: the pass's `fillText` recorder (a test hook) ships in production — gate it on `NODE_ENV`; `INTRO.swapAt` / `INTRO.crossfade` are unused, their comments out of date; tests/e2e/cabin.spec.ts imports `settledProgress` unused (lint warning).
+- Copy and shell: "RMO → 14 destinations" is hard-coded in the ribbons' copy (derive from `DESTINATIONS.length`); no header item is marked current in the ready chapter (the rail marks Boarding).
 
 ---
 
