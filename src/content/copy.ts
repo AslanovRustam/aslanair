@@ -93,6 +93,10 @@ export const copy = {
       'Tonight’s cabin has 180 seats, three by three. Walk the aisle, sit wherever you like and look out of its window before you decide.',
     scroll: 'Scroll to board',
   },
+  ribbons: {
+    phrases: ['Night flight', 'RMO → 14 destinations', 'Boarding tonight'],
+    route: (code: string) => `RMO → ${code}`,
+  },
   takeOff: {
     title: 'Ready for take-off.',
     cue: 'Scroll to fly out',

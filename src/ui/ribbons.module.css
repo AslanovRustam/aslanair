@@ -1,0 +1,96 @@
+/* Two ribbons crossing at ±4° at the seams of the journey. --slide (−1 … 1, from Ribbons.tsx) carries each lane over
+   the screen with the scroll — one down from above, the other up from below, full width, so their ends never show;
+   inside, the phrases run on the compositor. Transform only. */
+
+.ribbons {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lane {
+  position: absolute;
+  top: 50%;
+  left: -20vw;
+  width: 140vw;
+  transform: translateY(calc(var(--slide) * 70vh));
+}
+
+.ribbon {
+  display: flex;
+  align-items: center;
+  height: clamp(2.6rem, 6vh, 3.4rem);
+  margin-top: calc(clamp(2.6rem, 6vh, 3.4rem) / -2);
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: clamp(1rem, 2.2vh, 1.35rem);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.ribbon[data-shown='true'] {
+  visibility: visible;
+}
+
+.ribbon[data-side='1'] {
+  background: var(--accent);
+  transform: rotate(-4deg);
+}
+
+.ribbon[data-side='-1'] {
+  background: var(--navy);
+  transform: rotate(4deg);
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: run 28s linear infinite;
+}
+
+.ribbon[data-side='-1'] .track {
+  animation-direction: reverse;
+}
+
+.ribbon:not([data-shown='true']) .track {
+  animation-play-state: paused;
+}
+
+@keyframes run {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.phrases {
+  display: flex;
+}
+
+/* a small round stop after each phrase */
+.phrase {
+  display: inline-flex;
+  align-items: center;
+}
+
+.phrase::after {
+  content: '';
+  width: 0.35em;
+  height: 0.35em;
+  margin: 0 1.1em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}
