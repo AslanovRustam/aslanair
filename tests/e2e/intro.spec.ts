@@ -114,7 +114,7 @@ for (const viewport of [
     await isReady(page);
     await page.waitForTimeout(1200); // the loader's fade
     // compare the plane alone: the hero's words sit behind it once the loader has gone
-    await page.addStyleTag({ content: '[data-testid="hero"] { visibility: hidden !important; }' });
+    await page.addStyleTag({ content: '[data-testid="hero"], [data-testid="hero"] * { visibility: hidden !important; }' });
     await page.waitForTimeout(100);
     const live = await page.screenshot({ clip: box });
     const r = await compare(page, picture, live);

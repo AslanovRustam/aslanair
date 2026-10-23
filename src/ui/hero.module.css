@@ -1,6 +1,7 @@
-/* The showcase hero: one orchestrated entrance, then it hands over to the flight. Two layers share its opacity:
-   the title behind the canvas (z −1; the canvas is see-through in the showcase, so the live plane flies in front of
-   it) and the facts, lead and cue in front (z 1). The section itself is only their wrapper. */
+/* The showcase hero: one orchestrated entrance, then it hands over to the flight. Two layers: the title behind the
+   canvas (z −1; the canvas is see-through in the showcase, so the live plane flies in front of it), which flies apart
+   letter by letter on scroll, and the facts, lead and cue in front (z 1), which take the section's opacity. The
+   section itself is only their wrapper. */
 
 .hero {
   display: contents;
@@ -12,8 +13,6 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: inherit;
-  visibility: inherit;
 }
 
 .back {
@@ -23,6 +22,8 @@
 .front {
   z-index: 1;
   container-type: size;
+  opacity: inherit;
+  visibility: inherit;
 }
 
 /* the entrance plays once the loader has handed over */
@@ -45,13 +46,42 @@
   letter-spacing: -0.03em;
   text-align: center;
   text-transform: uppercase;
-  animation: titleIn 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-@keyframes titleIn {
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* a word never breaks; the title wraps between its words */
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* --scatter (0 … 1, from Hero.tsx) carries each letter out along its own --dx/--dy/--turn, gathering speed as it
+   goes; it fades over the second half of the way */
+.letter {
+  display: inline-block;
+  --away: calc(var(--scatter) * var(--scatter));
+  transform: translate(calc(var(--dx) * var(--away)), calc(var(--dy) * var(--away))) rotate(calc(var(--turn) * var(--away)));
+  opacity: clamp(0, calc((1 - var(--scatter)) * 1.6), 1);
+}
+
+/* the entrance: the letters close in from a little apart as they fade in */
+.glyph {
+  display: inline-block;
+  animation: glyphIn 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i) * 20ms) both;
+}
+
+@keyframes glyphIn {
   from {
     opacity: 0;
-    letter-spacing: 0.02em;
+    transform: translateX(calc(var(--spread) * 0.25em));
   }
 }
 
@@ -131,15 +161,15 @@
   }
 }
 
-.route {
+.home {
   animation-delay: 0.35s;
 }
 
-.cabin {
+.network {
   animation-delay: 0.5s;
 }
 
-.price {
+.fares {
   animation-delay: 0.65s;
 }
 
@@ -169,11 +199,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .title,
+  .glyph,
   .note,
   .leaders line,
   .lead {
     animation: none;
+  }
+
+  /* the title still gives way on scroll, without flying */
+  .letter {
+    transform: none;
   }
 }
 

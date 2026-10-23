@@ -15,13 +15,13 @@ export const copy = {
   hero: {
     title: 'Night flight',
     notes: {
-      route: { label: 'Tonight', value: 'IST → LIS · 22:40' },
-      cabin: { label: 'Cabin', value: '180 seats · 3+3' },
-      price: { label: 'Seats from', value: (usd: number) => `$${usd}` },
+      home: { label: 'Flying from', value: 'Chișinău · RMO' },
+      network: { label: 'Across 5 continents', value: (count: number) => `${count} destinations` },
+      fares: { label: 'Fares from', value: (usd: number) => `$${usd}` },
     },
     lead: {
       title: 'Board a fictional night flight.',
-      body: 'Walk the aisle in real-time 3D, pick the seat you like and see your own window view.',
+      body: 'AslanAir flies from Chișinău every night. Choose where to, then walk the aisle in real-time 3D and pick your seat.',
     },
     scroll: 'Scroll to board',
   },

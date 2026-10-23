@@ -20,6 +20,7 @@ import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
+import { aircraftStage } from '@/experience/stage';
 import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideFuselage } from '@/experience/worldState';
 import NightLights from './NightLights';
@@ -53,11 +54,10 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
 }
 
 /**
- * The airliner; children (the cabin) ride along with its fly-away. It holds still before that: the hero shows a
- * picture of it captured at rest, and the live model takes over at the intro's swap — hidden until then unless
- * `intro` is off (the capture mode photographs it). Under the loader it is drawn from the moment its shaders have
- * compiled (`onCompiled`) until the scene is ready: those frames upload its geometry and textures and compile the
- * shadow pass, so the swap finds nothing left to do.
+ * The airliner; children (the cabin) ride along wherever it stands — its stage through the journey (stage.ts), its
+ * fly-away after the seat is confirmed. Under the loader it is drawn from the moment its shaders have compiled
+ * (`onCompiled`) until the scene is ready: those frames upload its geometry and textures and compile the shadow pass,
+ * so the hand-over finds nothing left to do.
  */
 export default function Aircraft({ children, onCompiled }: { children?: ReactNode; onCompiled?: () => void }) {
   const { scene } = useGLTF(MODEL_URL);
@@ -122,7 +122,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
   }, [scene]);
 
   useEffect(() => {
-    // hidden until the swap: compile its shaders in parallel now
+    // compile its shaders in parallel while the loader is up
     const g = group.current!;
     let alive = true;
     const done = () => {
@@ -151,15 +151,19 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
       const eye = g.worldToLocal(eyeLocal.current.copy(camera.position));
       windowGlass.current.emissiveIntensity = pointInsideFuselage(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
     }
+    // the stage stands it through the journey and the fly-away moves it in flight; one of the two is always at rest
+    const stage = aircraftStage(s.phase, s.progress);
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
-    g.position.set(fly.offsetX, fly.climb, 0);
-    g.rotation.set(fly.bank, 0, 0);
+    g.position.set(stage.position.x + fly.offsetX, stage.position.y + fly.climb, stage.position.z);
+    g.rotation.copy(stage.rotation);
+    g.rotation.x += fly.bank;
+    g.scale.setScalar(stage.scale);
     const open = doorOpenAmount(s.phase, s.progress);
     if (door) {
       const [dx, dy, dz] = doorOffset(open);
       door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
     }
-    const pose = `${+g.visible} ${fly.offsetX} ${fly.climb} ${fly.bank} ${open}`;
+    const pose = `${+g.visible} ${g.position.toArray()} ${g.rotation.toArray()} ${g.scale.x} ${open}`;
     renderer.shadowMap.autoUpdate = false;
     if (pose !== shadowFor.current) {
       shadowFor.current = pose;

@@ -21,29 +21,31 @@ describe('pre-track camera', () => {
     expect(top.position.toArray()).toEqual([42, 6.5, -36]);
     expect(top.fov).toBeCloseTo((2 * Math.atan(Math.tan(Math.PI / 12) / INTRO.heroScale) * 180) / Math.PI, 9);
     expect(top.lift).toBeCloseTo(INTRO.heroLift, 9);
-    // by the swap point the lens is the capture camera's again
-    const open = poseOnPreTrack(trackProgress('pre', 'sky', INTRO.swapAt));
-    expect(open.fov).toBeCloseTo(30, 9);
-    expect(open.lift ?? 0).toBeCloseTo(0, 9);
   });
 
-  test('the camera holds the capture pose until the swap', () => {
-    expect(poseOnPreTrack(trackProgress('pre', 'sky', 0.3)).position.equals(INTRO.swapPose.position)).toBe(true);
-  });
-
-  test('the camera stays on the capture pose until the picture has faded, then eases off it', () => {
-    const hold = INTRO.swapAt + INTRO.crossfade;
-    for (const t of [0, INTRO.swapAt, hold]) {
+  test('through the first screen the camera stays where the picture was taken, with the hero lens', () => {
+    const top = poseOnPreTrack(0);
+    for (const t of [0.3, 0.7, 1]) {
       const pose = poseOnPreTrack(trackProgress('pre', 'sky', t));
       expect(pose.position.distanceTo(INTRO.swapPose.position), `t=${t}`).toBeLessThan(1e-9);
-      expect(pose.target.distanceTo(INTRO.swapPose.target), `t=${t}`).toBeLessThan(1e-9);
-      if (t >= INTRO.swapAt) expect(pose.fov).toBeCloseTo(INTRO.swapPose.fov, 9);
+      expect(pose.fov, `t=${t}`).toBeCloseTo(top.fov, 9);
+      expect(pose.lift, `t=${t}`).toBeCloseTo(INTRO.heroLift, 9);
     }
-    // it sets off from rest: the first step past the hold is far shorter than an even share of the way
-    const step = 0.01;
-    const moved = poseOnPreTrack(trackProgress('pre', 'sky', hold + step)).position.distanceTo(INTRO.swapPose.position);
-    const total = poseOnPreTrack(trackProgress('pre', 'sky', 1)).position.distanceTo(INTRO.swapPose.position);
-    expect(moved).toBeLessThan((total * step) / (1 - hold) / 4);
+  });
+
+  test('its gaze turns from rest, 28° down and 10° to the left, as the plane climbs away', () => {
+    const gaze = (t: number) => {
+      const p = poseOnPreTrack(trackProgress('pre', 'sky', t));
+      return p.target.clone().sub(p.position).normalize();
+    };
+    const [from, to] = [gaze(0), gaze(1)];
+    const pitch = (d: Vector3) => (Math.asin(d.y) * 180) / Math.PI;
+    const yaw = (d: Vector3) => (Math.atan2(d.z, d.x) * 180) / Math.PI;
+    expect(pitch(from) - pitch(to)).toBeCloseTo(28, 1);
+    // the camera looks along −x+z: turning left (towards +x+z) lowers atan2(z, x)
+    expect(yaw(from) - yaw(to)).toBeCloseTo(10, 0);
+    // from rest: the first 5 % of the chapter turns it far less than an even share
+    expect(gaze(0.05).angleTo(from)).toBeLessThan((to.angleTo(from) * 0.05) / 4);
   });
 
   test('the door flight ends at the aisle start and threads the door', () => {

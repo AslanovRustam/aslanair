@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { DESTINATIONS } from '@/experience/destinations';
 import { INTRO } from '@/experience/introState';
-import { heroPictureBox, settledProgress, waitForStore } from './helpers';
+import { heroPictureBox, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -94,15 +95,57 @@ test('on a phone the navigation folds into a menu and nothing overflows', async 
 const heroOpacity = (page: Page) =>
   page.getByTestId('hero').evaluate((el) => Number(getComputedStyle(el).opacity));
 
-test('the hero shows the title, three notes and the scroll hint, then gives way on scroll', async ({ page }) => {
+test('the hero shows the title, three facts about AslanAir and the scroll hint, then gives way on scroll', async ({ page }) => {
   await open(page);
   const hero = page.getByTestId('hero');
-  await expect(hero.getByRole('heading', { name: 'Night flight' })).toBeVisible();
-  for (const note of ['IST → LIS', '180 seats', '$15']) await expect(hero).toContainText(note);
+  await expect(hero.getByRole('heading', { name: 'Night flight', exact: true })).toBeVisible();
+  const lowest = Math.min(...DESTINATIONS.map((d) => d.fareUsd));
+  for (const note of ['Chișinău · RMO', '14 destinations', '5 continents', `$${lowest}`]) await expect(hero).toContainText(note);
   await expect(hero.getByText('Scroll to board')).toBeVisible();
   expect(await heroOpacity(page)).toBeGreaterThan(0.95);
   await page.mouse.wheel(0, 600);
   await expect.poll(() => heroOpacity(page), { timeout: 5000 }).toBeLessThan(0.2);
+});
+
+test('the title flies apart letter by letter on scroll and gathers again on the way back', async ({ page }) => {
+  await openHero(page);
+  const title = page.getByTestId('hero').getByRole('heading', { name: 'Night flight', exact: true });
+  const letters = title.locator('[data-part="letter"]');
+  await expect(letters).toHaveCount('NIGHTFLIGHT'.length);
+  const read = () =>
+    letters.evaluateAll((els) =>
+      els.map((e) => {
+        const el = e as HTMLElement;
+        const style = getComputedStyle(el);
+        return { transform: style.transform, opacity: Number(style.opacity), box: [el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight].join(',') };
+      }),
+    );
+  const identity = (t: string) => t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)';
+  const top = await read();
+  for (const [i, l] of top.entries()) expect(identity(l.transform) && l.opacity === 1, `letter ${i} in place: ${l.transform}`).toBe(true);
+  // the entrance and the scatter move the letters with transform and opacity only
+  const animated = await letters.evaluateAll((els) =>
+    els.flatMap((el) =>
+      el.getAnimations({ subtree: true }).flatMap((a) =>
+        (a.effect as KeyframeEffect).getKeyframes().flatMap((k) => Object.keys(k).filter((x) => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))),
+      ),
+    ),
+  );
+  expect(animated.every((p) => p === 'transform' || p === 'opacity'), animated.join(',')).toBe(true);
+
+  await wheelTo(page, pre('sky', 0.45));
+  const apart = await read();
+  for (const [i, l] of apart.entries()) {
+    expect(identity(l.transform), `letter ${i} has moved`).toBe(false);
+    expect(l.box, `letter ${i} keeps its layout box`).toBe(top[i].box);
+  }
+
+  await page.mouse.wheel(0, -20000);
+  await expect.poll(() => progress(page), { timeout: 10_000 }).toBeLessThan(1e-3);
+  await settledProgress(page);
+  const back = await read();
+  for (const [i, l] of back.entries()) expect(identity(l.transform) && l.opacity === 1, `letter ${i} back in place: ${l.transform}`).toBe(true);
+  await expect(title).toBeVisible();
 });
 
 type Box = { x: number; y: number; width: number; height: number };

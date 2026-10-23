@@ -40,20 +40,23 @@ type SeatRef = { row: number; letter: SeatLetter };
 
 const { lerp, smoothstep, clamp } = MathUtils;
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
+const UP = v(0, 1, 0);
 
-// --- sky: holds the pose the hero picture was captured at until the picture has handed over, then sets off
+// --- sky: the hero frame (the capture pose, zoomed and lens-shifted) held in place; the gaze turns down and left
+// while the plane climbs away up the frame (stage.ts), so the plane leaves at any aspect
 const SKY = {
-  from: INTRO.swapPose.position,
-  to: v(34, 4.5, -30),
-  targetFrom: INTRO.swapPose.target,
-  targetTo: v(8, 0.5, -1),
+  position: INTRO.swapPose.position,
+  target: INTRO.swapPose.target,
   fov: INTRO.swapPose.fov,
-  hold: INTRO.swapAt + INTRO.crossfade,
+  gazeDown: MathUtils.degToRad(28),
+  gazeLeft: MathUtils.degToRad(10),
 };
+/** Where the door flight sets off: the camera's position and the point it looks at. */
+const DOOR_START = { position: v(34, 4.5, -30), target: v(8, 0.5, -1) };
 
 // --- door: one curve from the sky shot, through door 1L, to the aisle start
 const DOOR_CURVE = new CatmullRomCurve3(
-  [v(34, 4.5, -30), v(24, 2.2, -16), v(17, 1.0, -7.5), v(13.9, 0.95, -4.2), v(13.9, 1.1, -2.4), v(13.9, 1.2, -0.9), v(13.1, 1.2, -0.15), v(12.6, 1.2, 0)],
+  [DOOR_START.position, v(24, 2.2, -16), v(17, 1.0, -7.5), v(13.9, 0.95, -4.2), v(13.9, 1.1, -2.4), v(13.9, 1.2, -0.9), v(13.1, 1.2, -0.15), v(12.6, 1.2, 0)],
   false,
   'centripetal',
 );
@@ -69,35 +72,49 @@ const AISLE = { startX: 12.6, endX: rowX(26) + 0.6, lookAhead: v(-6, -0.15, 0), 
 /** Where the door flight hands over to the aisle walk. */
 const CABIN_LOOK = v(AISLE.startX, EYE_STANDING, 0).add(AISLE.lookAhead);
 
-const span = (id: 'sky' | 'door') => trackProgress('pre', id, 1) - trackProgress('pre', id, 0);
+const span = (id: 'ready' | 'door') => trackProgress('pre', id, 1) - trackProgress('pre', id, 0);
+
+/** The hero lens for this aspect: the capture camera's field of view opened to the hero picture's size. */
+function heroFov(aspect: number): number {
+  return (2 * Math.atan(Math.tan(MathUtils.degToRad(SKY.fov / 2)) / heroScale(aspect)) * 180) / Math.PI;
+}
+
 /**
- * The camera's speed leaving the sky shot, in lengths of the sky move per unit of it, so that it meets the door
+ * The first screen. The camera is the capture camera zoomed out to the hero's picture size and lens-shifted up (the
+ * loader's picture to the pixel); it stays put while its gaze turns down and to the left, from rest to rest.
+ */
+function skyPose(t: number, aspect: number): CameraPose {
+  const k = smoothstep(t, 0.05, 1);
+  const gaze = SKY.target.clone().sub(SKY.position).applyAxisAngle(UP, SKY.gazeLeft * k);
+  gaze.applyAxisAngle(gaze.clone().cross(UP).normalize(), -SKY.gazeDown * k);
+  return { position: SKY.position.clone(), target: SKY.position.clone().add(gaze), fov: heroFov(aspect), lift: HERO_PICTURE.lift };
+}
+
+/**
+ * The camera's speed leaving the ready chapter, in lengths of its move per unit of it, so that it meets the door
  * curve at the curve's own starting speed.
  */
-const SKY_EXIT_SPEED = (() => {
+const READY_EXIT_SPEED = (() => {
   const h = 1e-4;
   const doorSpeed = DOOR_CURVE.getPoint(h).distanceTo(DOOR_CURVE.getPoint(0)) / h / span('door');
-  return (doorSpeed * span('sky') * (1 - SKY.hold)) / SKY.from.distanceTo(SKY.to);
+  return (doorSpeed * span('ready')) / SKY.position.distanceTo(DOOR_START.position);
 })();
 
 /**
- * The first screen. At the top the camera is the capture camera zoomed out to the hero's picture size and
- * lens-shifted up (the loader's picture to the pixel); by INTRO.swapAt it has opened to the full frame, then sets off.
+ * Until the journey's chapters get poses of their own: from the first screen's last frame to the door flight's start,
+ * the lens opening to the capture camera's and the gaze coming round to the door.
  */
-function skyPose(t: number, aspect: number): CameraPose {
-  const open = 1 - (1 - clamp(t / INTRO.swapAt, 0, 1)) ** 3;
-  const scale = lerp(heroScale(aspect), 1, open);
-  const fov = (2 * Math.atan(Math.tan(MathUtils.degToRad(SKY.fov / 2)) / scale) * 180) / Math.PI;
+function readyPose(t: number, aspect: number): CameraPose {
+  const from = skyPose(1, aspect);
+  // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = READY_EXIT_SPEED
+  const k = READY_EXIT_SPEED;
+  const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
+  const open = smoothstep(t, 0, 1);
   const lift = HERO_PICTURE.lift * (1 - open);
-  const u = clamp((t - SKY.hold) / (1 - SKY.hold), 0, 1);
-  // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = SKY_EXIT_SPEED
-  const k = SKY_EXIT_SPEED;
-  const f = (k - 2) * u ** 3 + (3 - k) * u ** 2;
   return {
-    position: SKY.from.clone().lerp(SKY.to, f),
-    // the door flight's gaze starts at rest, so this one comes to rest
-    target: SKY.targetFrom.clone().lerp(SKY.targetTo, smoothstep(u, 0, 1)),
-    fov,
+    position: from.position.clone().lerp(DOOR_START.position, f),
+    target: from.target.clone().lerp(DOOR_START.target, open),
+    fov: lerp(from.fov, SKY.fov, open),
     ...(lift ? { lift } : {}),
   };
 }
@@ -124,8 +141,8 @@ function turnGaze(eye: Vector3, a: Vector3, b: Vector3, k: number, starboard = f
 
 function doorPose(t: number): CameraPose {
   const position = DOOR_CURVE.getPoint(t);
-  // the approach: from the sky shot's target to the doorway, then on across the cabin
-  const approach = SKY.targetTo.clone().lerp(DOOR_CENTRE, smoothstep(t, 0, 0.35)).lerp(DOOR_ACROSS, smoothstep(t, 0.35, 0.55));
+  // the approach: from the first look at the plane to the doorway, then on across the cabin
+  const approach = DOOR_START.target.clone().lerp(DOOR_CENTRE, smoothstep(t, 0, 0.35)).lerp(DOOR_ACROSS, smoothstep(t, 0.35, 0.55));
   // inside: a look at the flight-deck door, held, then a turn across the galley down the aisle
   const nose = turnGaze(position, approach, COCKPIT_LOOK, smoothstep(t, 0.62, 0.76));
   return {
@@ -145,7 +162,8 @@ export function poseOnPreTrack(progress: number, aspect = 16 / 9): CameraPose {
   if (id === 'sky') return skyPose(t, aspect);
   if (id === 'door') return doorPose(t);
   if (id === 'aisle') return aislePose(t);
-  // the journey's chapters (destinations, transfer, ready) hold the sky shot's end until they get poses of their own
+  if (id === 'ready') return readyPose(t, aspect);
+  // destinations and transfer hold the first screen's last frame until they get poses of their own
   return skyPose(1, aspect);
 }
 
