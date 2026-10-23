@@ -1,5 +1,6 @@
-/* A scroll cue at the foot of the screen: the words rise in, a line draws down under them and a soft light runs
-   down the line — the way on is down. `--cue-delay` holds the whole entrance back. */
+/* A scroll cue at the foot of the screen (ScrollCue.tsx): the words rise in, a line draws down under them and a soft
+   light runs down the line — the way on is down. Transforms and opacity only, so the compositor keeps them smooth.
+   `--cue-delay` holds the whole entrance back. */
 
 .cue {
   position: absolute;
@@ -15,19 +16,27 @@
   animation: cueIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) var(--cue-delay, 0s) both;
 }
 
-.cue::after {
-  content: '';
+.line {
+  position: relative;
   display: block;
   width: 1px;
   height: 2.25rem;
   margin: 0.7rem auto 0;
-  background:
-    linear-gradient(transparent 0%, var(--ink) 45%, transparent 90%) 0 0 / 100% 220% no-repeat,
-    linear-gradient(var(--faint), transparent);
+  overflow: hidden;
+  background: linear-gradient(var(--faint), transparent);
   transform-origin: 50% 0;
-  animation:
-    cueLine 0.6s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--cue-delay, 0s) + 0.55s) both,
-    cueRun 2.4s ease-in-out calc(var(--cue-delay, 0s) + 1.4s) infinite;
+  animation: cueLine 0.6s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--cue-delay, 0s) + 0.55s) both;
+}
+
+/* the light: starts above the line, glides past its foot, fading in and out so the loop has no seam */
+.glint {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 60%;
+  background: linear-gradient(transparent, var(--ink), transparent);
+  opacity: 0;
+  transform: translateY(-100%);
+  animation: cueGlint 2.4s cubic-bezier(0.45, 0, 0.55, 1) calc(var(--cue-delay, 0s) + 1.3s) infinite;
 }
 
 @keyframes cueIn {
@@ -43,22 +52,30 @@
   }
 }
 
-@keyframes cueRun {
-  from {
-    background-position:
-      0 100%,
-      0 0;
+@keyframes cueGlint {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
   }
-  to {
-    background-position:
-      0 -120%,
-      0 0;
+  20% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(170%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cue,
-  .cue::after {
+  .line {
     animation: none;
+  }
+
+  .glint {
+    display: none;
   }
 }

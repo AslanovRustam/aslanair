@@ -1,4 +1,4 @@
-/* The first paint: dark, the emblem drawn in two beats, the plane picture at its hero place.
+/* The first paint: dark, the emblem revealed from its horizon up, the plane picture at its hero place.
    Over everything until the scene is ready, then it fades and lets the hero play its entrance. */
 
 .loader {
@@ -42,27 +42,31 @@
   translate: -50% 0;
 }
 
-.emblem {
+/* bottom-to-top wipe: the window slides up from below while its content slides down by as much, so the emblem
+   holds still and shows from its foot up — transforms only (compositor), never stalled by the main thread */
+.reveal {
+  display: block;
   width: 2.75rem;
   height: 2.75rem;
-  overflow: visible;
+  overflow: hidden;
+  animation: wipeWindow 1.2s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both;
 }
 
-.ring {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.2;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  transform: rotate(-90deg);
-  transform-origin: 12px 12px;
-  animation: draw 1.1s cubic-bezier(0.6, 0, 0.3, 1) forwards;
+.revealInner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: wipeContent 1.2s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both;
 }
 
-/* the second beat, once the ring is whole: the sun rises inside it, from its horizon up */
+.emblem {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .disc {
   fill: var(--accent);
-  animation: sunrise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) 1.15s both;
 }
 
 .label {
@@ -72,18 +76,15 @@
   letter-spacing: 0.01em;
 }
 
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
+@keyframes wipeWindow {
+  from {
+    transform: translateY(100%);
   }
 }
 
-@keyframes sunrise {
+@keyframes wipeContent {
   from {
-    clip-path: inset(100% 0 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
+    transform: translateY(-100%);
   }
 }
 
@@ -95,12 +96,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .picture,
-  .ring,
-  .disc {
+  .reveal,
+  .revealInner {
     animation: none;
-  }
-
-  .ring {
-    stroke-dashoffset: 0;
   }
 }

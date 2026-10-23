@@ -14,9 +14,9 @@ const PICTURE_BOX = {
 } as CSSProperties;
 
 /**
- * Server-rendered, so it paints before any script: the emblem drawn in two beats (the ring as a line, then the sun
- * rising inside it) and the plane picture fading in exactly where the hero shows it — the hero takes it over
- * without a jump. The real loading progress is announced to assistive tech, not drawn.
+ * Server-rendered, so it paints before any script: the emblem revealed from its horizon up and the plane picture
+ * fading in exactly where the hero shows it — the hero takes it over without a jump. The real loading progress is
+ * announced to assistive tech, not drawn.
  */
 export default function Loader() {
   const progress = useExperience((s) => Math.round(s.loadProgress));
@@ -46,17 +46,22 @@ export default function Loader() {
         fetchPriority="high"
       />
       <div className={styles.status}>
-        <svg className={styles.emblem} viewBox="0 0 24 24" aria-hidden="true">
-          <defs>
-            <mask id="loader-emblem-bands">
-              <rect width="24" height="24" fill="#fff" />
-              <rect x="0" y="13.2" width="24" height="1.8" fill="#000" />
-              <rect x="0" y="16.8" width="24" height="1.8" fill="#000" />
-            </mask>
-          </defs>
-          <circle className={styles.disc} data-part="sun" cx="12" cy="12" r="10" mask="url(#loader-emblem-bands)" />
-          <circle className={styles.ring} data-part="ring" cx="12" cy="12" r="10" pathLength={1} />
-        </svg>
+        {/* a window rising over the emblem while the emblem holds still: transforms only, so the compositor plays it
+            even while the page's scripts keep the main thread busy */}
+        <span className={styles.reveal} data-part="reveal" aria-hidden="true">
+          <span className={styles.revealInner}>
+            <svg className={styles.emblem} viewBox="0 0 24 24">
+              <defs>
+                <mask id="loader-emblem-bands">
+                  <rect width="24" height="24" fill="#fff" />
+                  <rect x="0" y="13.2" width="24" height="1.8" fill="#000" />
+                  <rect x="0" y="16.8" width="24" height="1.8" fill="#000" />
+                </mask>
+              </defs>
+              <circle className={styles.disc} cx="12" cy="12" r="10" mask="url(#loader-emblem-bands)" />
+            </svg>
+          </span>
+        </span>
         <p className={styles.label}>{copy.loader.label}</p>
       </div>
     </div>

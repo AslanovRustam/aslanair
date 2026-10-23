@@ -6,6 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { INTRO } from '@/experience/introState';
 import { useExperience } from '@/experience/store';
 import styles from './hero.module.css';
+import ScrollCue from './ScrollCue';
 
 /** The hero is gone by this fraction of the sky chapter: the first scroll starts the flight to the door. */
 const FADE = 0.3;
@@ -99,7 +100,7 @@ export default function Hero() {
         <strong>{t.lead.title}</strong>
         {t.lead.body}
       </p>
-      <p className={styles.scroll}>{t.scroll}</p>
+      <ScrollCue label={t.scroll} className={styles.scroll} />
     </section>
   );
 }

@@ -11,8 +11,7 @@
 }
 
 /* the entrance plays once the loader has handed over */
-.hero:not([data-ready='true']) *,
-.hero:not([data-ready='true']) *::after {
+.hero:not([data-ready='true']) * {
   animation-play-state: paused;
 }
 
@@ -149,9 +148,8 @@
   font-weight: 600;
 }
 
-/* the scroll cue (cue.module.css), held back until the facts are in */
+/* the scroll cue (ScrollCue), held back until the facts are in */
 .scroll {
-  composes: cue from './cue.module.css';
   --cue-delay: 1s;
 }
 

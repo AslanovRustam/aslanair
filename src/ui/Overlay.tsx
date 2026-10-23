@@ -6,7 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { seatLabel } from '@/experience/seats';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
-import cue from './cue.module.css';
+import ScrollCue from './ScrollCue';
 import styles from './ui.module.css';
 
 /** How close to the window stop (post-track progress) the take-off call shows. */
@@ -72,7 +72,7 @@ export default function Overlay() {
           <div className={styles.caption} key="take-off">
             <h1>{copy.takeOff.title}</h1>
           </div>
-          <p className={cue.cue}>{copy.takeOff.cue}</p>
+          <ScrollCue label={copy.takeOff.cue} />
         </>
       )}
     </div>

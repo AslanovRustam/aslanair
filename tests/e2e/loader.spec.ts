@@ -43,7 +43,7 @@ test('the loader and the plane picture preload come with the server response, be
   expect(tag || /<\/images\/plane-hero\.png>;\s*rel=preload;\s*as="image"/.test(header)).toBe(true);
 });
 
-test('the loader draws the emblem in two beats — the full ring, then the sun rising inside it — and shows no bar', async ({ page }) => {
+test('the loader reveals the emblem bottom to top on the compositor, with no outline and no bar', async ({ page }) => {
   await page.route('**/models/*.glb', async (r) => {
     await new Promise((f) => setTimeout(f, 3000));
     await r.continue();
@@ -51,15 +51,20 @@ test('the loader draws the emblem in two beats — the full ring, then the sun r
   await page.goto('/');
   const loader = page.locator('#loader');
   await expect(loader).toBeVisible();
-  const timing = await loader.evaluate((el) => {
-    const of = (part: string) => {
-      const target = el.querySelector(`[data-part="${part}"]`)!;
-      const a = target.getAnimations()[0];
-      const t = a.effect!.getComputedTiming();
-      return { start: Number(t.delay ?? 0), end: Number(t.endTime) };
-    };
-    return { ring: of('ring'), sun: of('sun') };
-  });
-  expect(timing.sun.start).toBeGreaterThanOrEqual(timing.ring.end);
+  await expect(loader.locator('[data-part="ring"]')).toHaveCount(0);
   await expect(loader.locator('[data-part="bar"]')).toHaveCount(0);
+  const reveal = await loader.locator('[data-part="reveal"]').evaluate((el) => {
+    const animations = el.getAnimations({ subtree: true });
+    const properties = new Set<string>();
+    for (const a of animations)
+      for (const k of (a.effect as KeyframeEffect).getKeyframes())
+        for (const key of Object.keys(k)) if (!['offset', 'easing', 'composite', 'computedOffset'].includes(key)) properties.add(key);
+    const own = el.getAnimations()[0];
+    return { count: animations.length, properties: [...properties], from: String((own.effect as KeyframeEffect).getKeyframes()[0].transform) };
+  });
+  // transform and opacity only: the compositor runs them even while the page's scripts keep the main thread busy
+  expect(reveal.count).toBeGreaterThan(0);
+  expect(reveal.properties.every((p) => p === 'transform' || p === 'opacity'), reveal.properties.join(',')).toBe(true);
+  // the window over the emblem starts below it and rises
+  expect(reveal.from).toMatch(/translateY\(100%\)|matrix\(1, 0, 0, 1, 0, [1-9]/);
 });
