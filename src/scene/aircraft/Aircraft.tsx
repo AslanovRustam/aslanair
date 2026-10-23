@@ -22,7 +22,7 @@ import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
 import { introState } from '@/experience/introState';
 import { experienceStore, trackOf } from '@/experience/store';
-import { pointInsideCabin } from '@/experience/worldState';
+import { pointInsideFuselage } from '@/experience/worldState';
 import NightLights from './NightLights';
 
 const MODEL_URL = '/models/airliner.glb';
@@ -148,10 +148,11 @@ export default function Aircraft({ children, intro = true, onCompiled }: { child
     const s = experienceStore.getState();
     const warming = compiled.current && !s.ready; // under the loader
     g.visible = warming || !intro || s.phase !== 'browse' || introState(s.progress).aircraftVisible;
-    // the windows glow seen from outside; from inside, the glass must not tint the night view
+    // the windows glow seen from outside; from inside — and from within the wall, passing through a window on the
+    // way out — the glass must not tint the night view
     if (windowGlass.current) {
       const eye = g.worldToLocal(eyeLocal.current.copy(camera.position));
-      windowGlass.current.emissiveIntensity = pointInsideCabin(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
+      windowGlass.current.emissiveIntensity = pointInsideFuselage(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
     }
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
     g.position.set(fly.offsetX, fly.climb, 0);

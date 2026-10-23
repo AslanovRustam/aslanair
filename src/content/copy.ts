@@ -62,7 +62,11 @@ export const copy = {
     title: 'Your boarding pass.',
     flipHint: 'Click the pass to turn it over.',
     change: 'Change seat', // pinned
-    scrollHint: 'Scroll to take off',
+    takeOff: 'Take off',
+  },
+  takeOff: {
+    title: 'Ready for take-off.',
+    cue: 'Scroll to fly out',
   },
   boardingPass: {
     heading: 'Boarding pass',

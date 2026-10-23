@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { scrollToEnd, state, waitForStore } from './helpers';
+import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
+import { scrollToEnd, settledProgress, state, waitForStore } from './helpers';
 
 test('pick, reconsider, confirm', async ({ page }) => {
   await page.goto('/');
@@ -117,4 +118,32 @@ test('take off, fill the form, start again', async ({ page }) => {
   await page.getByRole('button', { name: /start again/i }).click();
   await expect.poll(async () => (await state(page)).phase).toBe('browse');
   await expect.poll(async () => (await state(page)).progress).toBe(0);
+});
+
+test('on the pass, Take off flies to the window and asks to scroll on', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as JourneyWindow).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+  });
+  await page.getByRole('button', { name: 'Take off' }).click();
+  expect(Math.abs((await settledProgress(page)) - WINDOW_ON_EXIT)).toBeLessThan(0.01);
+  await expect(page.getByText('Scroll to fly out')).toBeVisible();
+  // at the window the camera is in the wall: the glass must not glow over the view as it does from outside
+  const glow = await page.evaluate(() => {
+    let value = -1;
+    (window as unknown as { __aslan: { scene: { traverse(cb: (o: { material?: { name?: string; emissiveIntensity?: number } }) => void): void } } }).__aslan.scene.traverse((o) => {
+      if (o.material?.name === 'WindowGlass') value = o.material.emissiveIntensity!;
+    });
+    return value;
+  });
+  expect(glow).toBe(0);
+  // scrolling on leaves the window behind, and the call with it
+  await page.mouse.wheel(0, 900);
+  await expect.poll(async () => (await state(page)).progress).toBeGreaterThan(WINDOW_ON_EXIT + 0.08);
+  await expect(page.getByText('Scroll to fly out')).toBeHidden();
 });

@@ -20,6 +20,14 @@ export function pointInsideCabin(x: number, y: number, z: number): boolean {
   return x > CABIN_AFT_X && x < CABIN_FRONT_X && y > FLOOR_Y && y < CEILING_Y && Math.abs(z) < CABIN_WALL_Z;
 }
 
+/** How far the hull skin stands outside the cabin liner (the GLB meta's linerInset). */
+export const LINER_INSET = 0.1;
+
+/** Like pointInsideCabin, but counting the wall out to just past the skin: the eye passing through a window is in it. */
+export function pointInsideFuselage(x: number, y: number, z: number): boolean {
+  return x > CABIN_AFT_X && x < CABIN_FRONT_X && y > FLOOR_Y && y < CEILING_Y && Math.abs(z) < CABIN_WALL_Z + LINER_INSET + 0.05;
+}
+
 export type WorldMode = 'showcase' | 'night';
 
 /**

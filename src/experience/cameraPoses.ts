@@ -156,6 +156,9 @@ export function exitControlPoints(seat: SeatRef): Vector3[] {
   ];
 }
 
+/** Post-track progress where the way out reaches the window: the exit curve's second of four points, at t = 1/3. */
+export const WINDOW_ON_EXIT = trackProgress('post', 'exit', 1 / 3);
+
 export function aircraftFlyAway(postProgress: number): { offsetX: number; climb: number; bank: number } {
   const u = clamp((postProgress - 0.6) / 0.4, 0, 1);
   // `|| 0` keeps −0 out of the results

@@ -8,6 +8,7 @@ import {
   poseOnPostTrack,
   poseOnPreTrack,
   seatedPose,
+  WINDOW_ON_EXIT,
 } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
 import { INTRO } from '@/experience/introState';
@@ -151,6 +152,17 @@ describe('continuity at chapter boundaries', () => {
   for (const b of [0.15, 0.7]) {
     test(`post track is continuous at ${b}`, () => close(poseOnPostTrack(b - eps, seat), poseOnPostTrack(b, seat)));
   }
+});
+
+describe('take-off', () => {
+  test('the take-off stop puts the camera at the window, on the way out', () => {
+    for (const seat of [{ row: 14, letter: 'A' as const }, { row: 3, letter: 'F' as const }]) {
+      const at = poseOnPostTrack(WINDOW_ON_EXIT, seat).position;
+      expect(at.distanceTo(exitControlPoints(seat)[1])).toBeLessThan(1e-6);
+    }
+    expect(WINDOW_ON_EXIT).toBeGreaterThan(trackProgress('post', 'exit', 0));
+    expect(WINDOW_ON_EXIT).toBeLessThan(trackProgress('post', 'exit', 1));
+  });
 });
 
 describe('aircraft fly-away', () => {

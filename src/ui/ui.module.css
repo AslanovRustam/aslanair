@@ -144,6 +144,12 @@
   white-space: nowrap;
 }
 
+/* a bar of buttons only: even padding all round */
+.barButtons {
+  gap: 0.5rem;
+  padding: 0.45rem;
+}
+
 /* the seat the visitor sits in, in the display face */
 .barSeat {
   color: var(--ink);
