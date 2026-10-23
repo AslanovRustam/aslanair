@@ -231,6 +231,21 @@ def cushion_section(u):
 # Overhead bin, one row long; three.js y / |z|. The outer side follows the constant-section liner
 # (in the tail taper it slips behind the liner but stays inside the hull).
 BIN = {'length': 0.76, 'bottom_y': 1.10, 'top_y': 1.72, 'aisle_z': 0.98, 'wall_gap': 0.02, 'door_bulge': 0.03}
+# One latch per bin door, centred on the door's aisle face just above its bottom lip, like the A320's grey grips.
+BIN_LATCH = {'width': 0.16, 'height': 0.032, 'above_bottom': 0.042, 'depth': 0.008}
+
+
+def bin_door_z(y):
+    """|z| of the bin door's aisle face at height y (it bulges towards the aisle between its lips)."""
+    b = BIN
+    k = (y - b['bottom_y']) / (b['top_y'] - b['bottom_y']) * 6
+    return b['aisle_z'] - b['door_bulge'] * math.sin(math.pi * k / 6)
+
+
+def bin_latch():
+    """Centre (y, |z|) of the latch: on the door face, standing a few millimetres proud of it."""
+    y = BIN['bottom_y'] + BIN_LATCH['above_bottom']
+    return y, bin_door_z(y) - 0.002
 
 
 def bin_profile():

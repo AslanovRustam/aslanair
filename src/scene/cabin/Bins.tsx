@@ -74,12 +74,19 @@ function labelAtlas(): CanvasTexture {
   return tex;
 }
 
-/** Overhead bins (one section per row and side), warm ceiling light strips, row labels with lit signs. */
+/**
+ * Overhead bins (one section, one door, per row and side) with a grey latch and seam on each door, warm ceiling light strips,
+ * row labels with lit signs.
+ */
 export default function Bins() {
   const kit = useKitGeometry();
   const port = useRef<InstancedMesh>(null);
   const starboard = useRef<InstancedMesh>(null);
+  const trimPort = useRef<InstancedMesh>(null);
+  const trimStarboard = useRef<InstancedMesh>(null);
   const plastic = useMemo(() => withCabinLight(new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6 }), { sun: false }), []);
+  // latches and door seams: a light grey a shade under the bins' plastic
+  const trim = useMemo(() => withCabinLight(new MeshStandardMaterial({ color: '#b3b8bf', roughness: 0.5 }), { sun: false }), []);
   // cove strips: the navy mood light mixed with warm white
   const strip = useMemo(() => new MeshBasicMaterial({ color: '#adb0c8' }), []);
   const labels = useMemo(() => {
@@ -93,7 +100,7 @@ export default function Bins() {
 
   useLayoutEffect(() => {
     const matrices = binMatrices();
-    for (const mesh of [port.current!, starboard.current!]) {
+    for (const mesh of [port.current!, starboard.current!, trimPort.current!, trimStarboard.current!]) {
       matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
@@ -104,6 +111,8 @@ export default function Bins() {
     <group>
       <instancedMesh ref={port} name="BinPort" args={[kit('BinPort'), plastic, ROWS]} raycast={() => null} />
       <instancedMesh ref={starboard} name="BinStarboard" args={[kit('BinStarboard'), plastic, ROWS]} raycast={() => null} />
+      <instancedMesh ref={trimPort} name="BinTrimPort" args={[kit('BinTrimPort'), trim, ROWS]} raycast={() => null} />
+      <instancedMesh ref={trimStarboard} name="BinTrimStarboard" args={[kit('BinTrimStarboard'), trim, ROWS]} raycast={() => null} />
       {CEILING_STRIPS.map((s) => (
         <mesh
           key={s.side}

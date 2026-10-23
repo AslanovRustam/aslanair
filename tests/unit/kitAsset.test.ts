@@ -40,6 +40,23 @@ describe('cabin kit', () => {
     expect(kit.triangles.BinPort).toBeLessThanOrEqual(600);
   });
 
+  test('every bin door has a latch handle on its face, just above the bottom lip, and a seam at its edge', () => {
+    expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['BinTrimPort', 'BinTrimStarboard']));
+    expect(kit.triangles.BinTrimPort).toBeLessThanOrEqual(120);
+    const { width, height, y, z } = kit.binLatch;
+    expect(width).toBeGreaterThan(0.1);
+    expect(width).toBeLessThan(BIN.length / 2);
+    expect(y - height / 2).toBeGreaterThan(BIN.bottomY);
+    expect(y + height / 2).toBeLessThan(BIN.bottomY + 0.1);
+    // the door face at the latch's height, from the bin profile's door points (|z| falls as y rises)
+    const door = (kit.bin.profile as [number, number][]).slice(0, 7);
+    const k = door.findIndex(([, py]) => py >= y);
+    const [z0, y0] = door[k - 1];
+    const [z1, y1] = door[k];
+    const face = z0 + ((z1 - z0) * (y - y0)) / (y1 - y0);
+    expect(Math.abs(z - face), 'sits on the door').toBeLessThan(0.008);
+  });
+
   test('entry zone parts match cabinLayout', () => {
     expect(kit.galley).toEqual({ ...GALLEY });
     expect(kit.curtain).toEqual({ ...CURTAIN });

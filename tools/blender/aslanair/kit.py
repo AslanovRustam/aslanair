@@ -10,9 +10,9 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
+from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, BIN_LATCH, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
                        GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, X, lavatory_door, lavatory_outline,
-                       backrest_depth, backrest_section, bin_profile, cushion_section, liner_half_width_at)
+                       backrest_depth, backrest_section, bin_door_z, bin_latch, bin_profile, cushion_section, liner_half_width_at)
 
 RECLINE = math.radians(-11.0)          # rotation about Y: the backrest top leans aft
 BACK_FOOT = Vector((-0.1775, 0.0, SEAT_KIT['pan_top']))
@@ -255,6 +255,30 @@ def build_bins():
                 e.smooth = False
 
     return [_part('BinPort', lambda bm: body(bm, 1)), _part('BinStarboard', lambda bm: body(bm, -1))]
+
+
+def build_bin_trim():
+    """BinTrimPort / BinTrimStarboard, in the bin section's frame (origin at its centre) so they instance with the bins:
+    the door's latch — a rounded plate with a grip bar across its top — and the seam line where this door meets the
+    next one (a thin ribbon just proud of the door face along its curve)."""
+    w, h, d = BIN_LATCH['width'], BIN_LATCH['height'], BIN_LATCH['depth']
+    y, z = bin_latch()
+    seam_x, seam_w = BIN['length'] / 2, 0.008
+
+    def trim(bm, side):
+        _add_box(bm, (w, d, h), Vector((0.0, side * z, y)), 0.004, 1)                                  # plate
+        _add_box(bm, (w * 0.72, d * 0.8, h * 0.28), Vector((0.0, side * (z - d * 0.45), y + h * 0.22)), 0.0, 0)  # grip
+        door = [(bin_door_z(BIN['bottom_y'] + (BIN['top_y'] - BIN['bottom_y']) * k / 6) - 0.0015,
+                 BIN['bottom_y'] + (BIN['top_y'] - BIN['bottom_y']) * k / 6) for k in range(7)]
+        rows = [[bm.verts.new((seam_x + dx, side * dz, dy)) for dx in (-seam_w / 2, seam_w / 2)] for dz, dy in door]
+        for a, b in zip(rows, rows[1:]):
+            f = bm.faces.new((a[0], a[1], b[1], b[0]))
+            f.normal_update()
+            if f.normal.y * side > 0:                 # face the aisle
+                f.normal_flip()
+        _sharpen(bm)
+
+    return [_part('BinTrimPort', lambda bm: trim(bm, 1)), _part('BinTrimStarboard', lambda bm: trim(bm, -1))]
 
 
 def _sharpen(bm, degrees=40):

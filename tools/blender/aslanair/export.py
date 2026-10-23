@@ -5,8 +5,8 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (AFT_GALLEY, BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
-                       L, X, bin_profile, door_hinge, door_rect, hull_half_width_at, hull_top, lavatory_door, lavatory_outline, liner_grid,
+from .geometry import (AFT_GALLEY, BIN, BIN_LATCH, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+                       L, X, bin_latch, bin_profile, door_hinge, door_rect, hull_half_width_at, hull_top, lavatory_door, lavatory_outline, liner_grid,
                        section)
 
 
@@ -85,6 +85,7 @@ def kit_meta(parts):
         'seat': {'depth': SEAT_KIT['depth'], 'width': SEAT_KIT['width'], 'panTop': SEAT_KIT['pan_top'], 'armTop': SEAT_KIT['arm_top'],
                  'height': SEAT_KIT['height'], 'backFrontTopX': SEAT_KIT['back_front_top_x']},
         'bin': {'length': BIN['length'], 'bottomY': BIN['bottom_y'], 'aisleZ': BIN['aisle_z'], 'profile': bin_profile()},
+        'binLatch': {'width': BIN_LATCH['width'], 'height': BIN_LATCH['height'], 'y': round(bin_latch()[0], 4), 'z': round(bin_latch()[1], 4)},
         'galley': {'s0': GALLEY['s0'], 's1': GALLEY['s1'], 'innerZ': GALLEY['inner_z'], 'topY': GALLEY['top_y'], 'worktopY': GALLEY['worktop_y']},
         'curtain': {'station': CURTAIN['station'], 'innerZ': CURTAIN['inner_z'], 'outerZ': CURTAIN['outer_z'], 'bottomY': CURTAIN['bottom_y']},
         'exitSign': {'w': EXIT_SIGN['w'], 'h': EXIT_SIGN['h'], 'd': EXIT_SIGN['d'], 'y': EXIT_SIGN['y'], 'placements': EXIT_SIGN['placements']},

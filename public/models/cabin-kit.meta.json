@@ -68,6 +68,12 @@
       ]
     ]
   },
+  "binLatch": {
+    "height": 0.032,
+    "width": 0.16,
+    "y": 1.142,
+    "z": 0.9717
+  },
   "cockpitDoor": {
     "height": 1.9,
     "station": 4.0,
@@ -305,6 +311,8 @@
     "AftGalleyWorktop": 276,
     "BinPort": 196,
     "BinStarboard": 196,
+    "BinTrimPort": 68,
+    "BinTrimStarboard": 68,
     "CockpitDoor": 264,
     "CockpitDoorHardware": 220,
     "Curtain": 768,
