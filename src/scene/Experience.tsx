@@ -8,6 +8,7 @@ import { poseOnPreTrack } from '@/experience/cameraPoses';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Overlay from '@/ui/Overlay';
+import Shell from '@/ui/Shell';
 import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
 import Bins from './cabin/Bins';
@@ -72,6 +73,7 @@ export default function Experience() {
       </div>
       <SmoothScroll />
       <Overlay />
+      <Shell />
       <Outro />
     </>
   );

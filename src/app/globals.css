@@ -4,13 +4,35 @@
   box-sizing: border-box;
 }
 
+/* AslanAir night tokens: the site's near-black, warm white type, terracotta from the fin's sun, the fleet navy. */
+:root {
+  --bg: #07080b;
+  --surface: #0e1117;
+  --ink: #f2efe8;
+  --dim: rgba(242, 239, 232, 0.55);
+  --faint: rgba(242, 239, 232, 0.3);
+  --line: rgba(242, 239, 232, 0.14);
+  --accent: #d4683a;
+  --navy: #1b2541;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+  --font-ui: var(--font-inter), system-ui, sans-serif;
+  --header-h: 4.25rem;
+  --footer-h: 2.75rem;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  background: #000;
-  color: #f1f0ec;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* The 3D stage stays fixed; the page scrolls a transparent track behind it. */

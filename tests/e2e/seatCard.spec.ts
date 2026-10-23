@@ -132,7 +132,7 @@ test('touch: a tap on empty space lets go of the focused seat', async ({ browser
   const tap = await touchTapper(page);
   await focusByTap(page, tap);
   await expect(page.getByTestId('seat-card')).toBeVisible();
-  await tap(720, 60); // the ceiling
+  await tap(720, 160); // the ceiling, below the header
   await expect.poll(async () => (await touchState(page)).focused).toBeNull();
   await expect(page.getByTestId('seat-card')).toBeHidden();
   await context.close();
