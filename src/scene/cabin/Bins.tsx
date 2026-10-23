@@ -80,7 +80,8 @@ export default function Bins() {
   const port = useRef<InstancedMesh>(null);
   const starboard = useRef<InstancedMesh>(null);
   const plastic = useMemo(() => withCabinLight(new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.6 }), { sun: false }), []);
-  const strip = useMemo(() => new MeshBasicMaterial({ color: '#fff1dc' }), []);
+  // cove strips: the navy mood light mixed with warm white
+  const strip = useMemo(() => new MeshBasicMaterial({ color: '#adb0c8' }), []);
   const labels = useMemo(() => {
     const q = rowLabelQuads();
     const g = new BufferGeometry();

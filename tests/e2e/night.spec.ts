@@ -28,15 +28,16 @@ async function boxStats(page: Page, box: { x: number; y: number; width: number; 
     const ctx = c.getContext('2d')!;
     ctx.drawImage(img, 0, 0);
     const d = ctx.getImageData(0, 0, c.width, c.height).data;
-    let r = 0, g = 0, b = 0, sum = 0, sq = 0, max = 0, bright = 0;
+    let r = 0, g = 0, b = 0, sum = 0, sq = 0, max = 0, bright = 0, teal = 0;
     const n = d.length / 4;
     for (let i = 0; i < d.length; i += 4) {
       const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
       r += d[i]; g += d[i + 1]; b += d[i + 2];
       sum += l; sq += l * l; max = Math.max(max, l);
       if (l > 120) bright++;
+      if (d[i + 1] - d[i] > 30 && d[i + 2] - d[i] > 30) teal++;
     }
-    return { r: r / n, g: g / n, b: b / n, mean: sum / n, variance: sq / n - (sum / n) ** 2, max, bright };
+    return { r: r / n, g: g / n, b: b / n, mean: sum / n, variance: sq / n - (sum / n) ** 2, max, bright, teal, pixels: n };
   }, png);
 }
 
@@ -103,4 +104,25 @@ test('the aircraft carries its navigation lights, and the light count never chan
   await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
   await page.waitForTimeout(1500);
   expect(await visibleLights(page)).toBe(showcase);
+});
+
+test('the night cabin stays readable: lit seats and their colours down the aisle', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(2500);
+  const seats = await boxStats(page, { x: 120, y: 470, width: 1200, height: 220 });
+  console.log('aisle seats', JSON.stringify(seats));
+  expect(seats.mean).toBeGreaterThanOrEqual(45);
+  expect(seats.teal / seats.pixels, 'free-seat covers read as teal').toBeGreaterThanOrEqual(0.02);
+});
+
+test('reading lights burn over a quarter of the occupied seats', async ({ page }) => {
+  await ready(page);
+  const state = await page.evaluate(() => {
+    const w = window as unknown as StoreWindow;
+    const lamps = w.__aslan.scene!.getObjectByName('ReadingLightLamps') as unknown as { count: number } | undefined;
+    const occupied = w.__aslan.store.getState().seats.filter((s) => s.status === 'occupied').length;
+    return { lamps: lamps?.count ?? 0, occupied };
+  });
+  expect(state.lamps).toBe(Math.round(state.occupied / 4));
 });

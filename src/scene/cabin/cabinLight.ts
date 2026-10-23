@@ -3,8 +3,12 @@
 // onto the wing outside; this term is one multiply-add and cannot reach anything that is not cabin.
 import { Color, type Material } from 'three';
 
-/** Shared uniform: one warm colour for the whole cabin (scaled for Lambert's 1/π). */
-export const CABIN_LIGHT = { value: new Color('#fff1dc').multiplyScalar(1.6) };
+/** Shared uniform: one warm colour for the whole cabin (scaled for Lambert's 1/π) — a night flight, so dimmed and
+ * a softer warm white than the day's. */
+export const CABIN_LIGHT = { value: new Color('#ffe2c0').multiplyScalar(1.05) };
+
+/** Navy mood light from the coves, strongest towards the ceiling. */
+export const MOOD_LIGHT = { value: new Color('#5b6fb5').multiplyScalar(0.6) };
 
 /**
  * Share of the sky environment interior surfaces take. three replaces a material's envMapIntensity with
@@ -27,6 +31,7 @@ const glsl = (sun: boolean) => `
   float cabinDown = max(-dot(geometryNormal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), 0.0);
   float cabinPool = 0.9 + 0.1 * cos(6.2832 * cabinWorld.x / 0.76);
   irradiance += uCabinLight * (0.4 + 0.6 * cabinHeight) * (1.0 + 0.8 * cabinDown * cabinHeight * cabinHeight * cabinHeight) * cabinPool;
+  irradiance += uMoodLight * cabinHeight * cabinHeight;
   #if defined( RE_IndirectDiffuse )
     iblIrradiance *= uInteriorEnv;
   #endif
@@ -39,8 +44,9 @@ export function withCabinLight<T extends Material>(material: T, { sun = true }: 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCabinLight = CABIN_LIGHT;
     shader.uniforms.uInteriorEnv = INTERIOR_ENV;
+    shader.uniforms.uMoodLight = MOOD_LIGHT;
     const lights = shader.fragmentShader.replace('#include <lights_fragment_end>', `${glsl(sun)}\n#include <lights_fragment_end>`);
-    shader.fragmentShader = `uniform vec3 uCabinLight;\nuniform float uInteriorEnv;\n${lights}`;
+    shader.fragmentShader = `uniform vec3 uCabinLight;\nuniform vec3 uMoodLight;\nuniform float uInteriorEnv;\n${lights}`;
   };
   material.customProgramCacheKey = () => (sun ? 'cabin-light' : 'cabin-light-shaded');
   return material;

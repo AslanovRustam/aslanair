@@ -13,6 +13,7 @@ import BoardingPass3D from './BoardingPass3D';
 import Bins from './cabin/Bins';
 import EntryZone from './cabin/EntryZone';
 import FloorDetails from './cabin/FloorDetails';
+import ReadingLights from './cabin/ReadingLights';
 import SeatCard from './cabin/SeatCard';
 import TailZone from './cabin/TailZone';
 import Seats from './cabin/Seats';
@@ -59,6 +60,7 @@ export default function Experience() {
                 <Seats />
                 <FloorDetails />
                 <Bins />
+                <ReadingLights />
                 <EntryZone />
                 <TailZone />
               </CompileAsync>

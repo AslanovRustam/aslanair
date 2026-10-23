@@ -78,7 +78,8 @@ export function cabinMaterials(): CabinMaterials {
       trackSlot: new MeshLambertMaterial({ color: '#23272e' }),
       curtain: new MeshStandardMaterial({ color: '#1b2541', roughness: 0.95, normalMap: weave, side: DoubleSide }),
       panels: new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.55 }),
-      steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.3, metalness: 0.85 }),
+      // satin steel: lit by the cabin light, not a mirror of the dark night sky outside
+      steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.45, metalness: 0.35 }),
       worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
       // lavatory doors: a warm grey laminate that separates them from the white walls and galley
       laminate: new MeshStandardMaterial({ color: '#bdb6a9', roughness: 0.6 }),
