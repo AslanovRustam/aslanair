@@ -142,6 +142,46 @@ test('the 3D plane takes over without compiling or uploading anything, and witho
   expect(r.worst, `worst frame ${r.worst.toFixed(0)} ms`).toBeLessThan(250);
 });
 
+test('at rest the shadow map is not redrawn every frame; the door moving redraws it', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await showAt(page, AFTER);
+  /** Over `frames` frames after optionally moving to `progress`: whether the map updates by itself, and how often
+   * something asked for a redraw (needsUpdate is raised in the frame callbacks and cleared by the render). */
+  const watch = (progress: number | null, frames: number) =>
+    page.evaluate(
+      ([progress, frames]) =>
+        new Promise<{ auto: boolean; asked: number }>((done) => {
+          type Map = { autoUpdate: boolean; needsUpdate: boolean };
+          const w = window as unknown as { __aslan: { gl: { shadowMap: Map }; store: { getState(): { setProgress(p: number): void } } } };
+          const map = w.__aslan.gl.shadowMap;
+          let value = map.needsUpdate;
+          let asked = 0;
+          Object.defineProperty(map, 'needsUpdate', {
+            configurable: true,
+            get: () => value,
+            set: (v: boolean) => {
+              if (v) asked++;
+              value = v;
+            },
+          });
+          if (progress !== null) w.__aslan.store.getState().setProgress(progress);
+          let n = 0;
+          const tick = () => {
+            if (++n < frames) return requestAnimationFrame(tick);
+            delete (map as Partial<Map>).needsUpdate; // back to a plain property
+            map.needsUpdate = value;
+            done({ auto: map.autoUpdate, asked });
+          };
+          requestAnimationFrame(tick);
+        }),
+      [progress, frames] as const,
+    );
+  expect(await watch(null, 30)).toEqual({ auto: false, asked: 0 });
+  // the door sliding open is a moving caster
+  expect((await watch(trackProgress('pre', 'door', 0.45), 20)).asked).toBeGreaterThan(0);
+});
+
 test('resizing at the swap point keeps the picture and the 3D plane aligned', async ({ page }) => {
   await ready(page);
   await showAt(page, BEFORE);

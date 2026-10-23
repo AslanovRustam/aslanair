@@ -69,6 +69,8 @@ export default function Aircraft({ children, intro = true, onCompiled }: { child
   const windowGlass = useRef<MeshStandardMaterial | null>(null);
   const eyeLocal = useRef(new Vector3());
   const compiled = useRef(false);
+  /** What the shadow map was last drawn for: the only caster is this aircraft, so it redraws only when that moves. */
+  const shadowFor = useRef('');
   const door = useMemo(() => {
     // closed is the hinge from geometry.ts — never read back from the shared, cached GLB scene
     const node = scene.getObjectByName('Door1L');
@@ -140,7 +142,7 @@ export default function Aircraft({ children, intro = true, onCompiled }: { child
     };
   }, [gl, camera, root, scene, onCompiled]);
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, gl: renderer }) => {
     const g = group.current;
     if (!g) return;
     const s = experienceStore.getState();
@@ -154,9 +156,16 @@ export default function Aircraft({ children, intro = true, onCompiled }: { child
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
     g.position.set(fly.offsetX, fly.climb, 0);
     g.rotation.set(fly.bank, 0, 0);
+    const open = doorOpenAmount(s.phase, s.progress);
     if (door) {
-      const [dx, dy, dz] = doorOffset(doorOpenAmount(s.phase, s.progress));
+      const [dx, dy, dz] = doorOffset(open);
       door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
+    }
+    const pose = `${+g.visible} ${fly.offsetX} ${fly.climb} ${fly.bank} ${open}`;
+    renderer.shadowMap.autoUpdate = false;
+    if (pose !== shadowFor.current) {
+      shadowFor.current = pose;
+      renderer.shadowMap.needsUpdate = true;
     }
   }, -3);
 

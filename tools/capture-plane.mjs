@@ -9,8 +9,9 @@ try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   await page.goto('http://localhost:3100/?capture=plane');
   await page.waitForFunction(() => window.__aslanCaptureReady === true, null, { timeout: 90_000 });
-  // the dev server's indicator floats over the canvas
-  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+  // page chrome over the canvas: the dev server's indicator, and the loader (it waits for a scene this mode never
+  // reports ready)
+  await page.addStyleTag({ content: 'nextjs-portal, #loader { display: none !important; }' });
   mkdirSync('public/images', { recursive: true });
   await page.locator('canvas').screenshot({ path: OUT, omitBackground: true });
   console.log(`${OUT}: ${(statSync(OUT).size / 1e3).toFixed(0)} KB`);
