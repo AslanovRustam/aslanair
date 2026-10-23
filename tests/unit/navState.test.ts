@@ -5,6 +5,24 @@ import { navItems, railItems } from '@/experience/navState';
 const item = <T extends { id: string }>(items: T[], id: string) => items.find((i) => i.id === id)!;
 
 describe('header navigation', () => {
+  test('the journey in order: Flight, Destinations, Transfer, Cabin, Your seat, Boarding pass, How it is made', () => {
+    expect(navItems('browse', 'sky').map((i) => i.label)).toEqual(['Flight', 'Destinations', 'Transfer', 'Cabin', 'Your seat', 'Boarding pass', "How it's made"]);
+  });
+
+  test('before confirmation Destinations and Transfer go to their chapters, where their choices show', () => {
+    const items = navItems('browse', 'aisle');
+    expect(item(items, 'destinations')).toMatchObject({ enabled: true, target: { track: 'pre', progress: trackProgress('pre', 'destinations', 0.4) } });
+    expect(item(items, 'transfer')).toMatchObject({ enabled: true, target: { track: 'pre', progress: trackProgress('pre', 'transfer', 0.7) } });
+    expect(item(navItems('browse', 'destinations'), 'destinations').active).toBe(true);
+    expect(item(navItems('browse', 'transfer'), 'transfer').active).toBe(true);
+    expect(item(navItems('seated', 'aisle'), 'destinations')).toMatchObject({ enabled: true, active: false });
+  });
+
+  test('after confirmation the choices are fixed: Destinations and Transfer are out of reach', () => {
+    for (const phase of ['confirmed', 'thanks'] as const)
+      for (const id of ['destinations', 'transfer']) expect(item(navItems(phase, 'exit'), id)).toMatchObject({ enabled: false, target: null });
+  });
+
   test('before confirmation the pass is out of reach', () => {
     const items = navItems('browse', 'aisle');
     expect(item(items, 'pass')).toMatchObject({ enabled: false });
@@ -32,7 +50,8 @@ describe('header navigation', () => {
   });
 
   test('the current place is marked', () => {
-    expect(item(navItems('browse', 'door'), 'flight').active).toBe(true);
+    expect(item(navItems('browse', 'sky'), 'flight').active).toBe(true);
+    expect(item(navItems('browse', 'door'), 'cabin').active).toBe(true);
     expect(item(navItems('seated', 'aisle'), 'seat').active).toBe(true);
     expect(item(navItems('seated', 'aisle'), 'cabin').active).toBe(false);
     expect(item(navItems('confirmed', 'pass'), 'pass').active).toBe(true);
@@ -40,11 +59,14 @@ describe('header navigation', () => {
 });
 
 describe('chapter rail', () => {
-  test('five chapters in order, the current one marked', () => {
+  test('seven chapters in order, the current one marked', () => {
     const rail = railItems('browse', 'door');
-    expect(rail.map((r) => r.number)).toEqual(['01', '02', '03', '04', '05']);
-    expect(rail.map((r) => r.label)).toEqual(['Flight', 'Boarding', 'Cabin', 'Your seat', 'Take-off']);
+    expect(rail.map((r) => r.number)).toEqual(['01', '02', '03', '04', '05', '06', '07']);
+    expect(rail.map((r) => r.label)).toEqual(['Flight', 'Destinations', 'Transfer', 'Boarding', 'Cabin', 'Your seat', 'Take-off']);
     expect(rail.filter((r) => r.active).map((r) => r.id)).toEqual(['boarding']);
+    expect(railItems('browse', 'ready').filter((r) => r.active).map((r) => r.id)).toEqual(['boarding']);
+    expect(railItems('browse', 'transfer').filter((r) => r.active).map((r) => r.id)).toEqual(['transfer']);
+    expect(item(railItems('browse', 'sky'), 'boarding').target).toEqual({ track: 'pre', progress: trackProgress('pre', 'ready', 0.2) });
   });
 
   test('follows the same seat gate as the header', () => {
@@ -52,7 +74,7 @@ describe('chapter rail', () => {
     expect(item(before, 'takeoff')).toMatchObject({ enabled: false });
     expect(item(before, 'seat').target).toEqual({ track: 'pre', progress: trackProgress('pre', 'aisle', 0) });
     const after = railItems('confirmed', 'exit');
-    for (const id of ['flight', 'boarding', 'cabin']) expect(item(after, id)).toMatchObject({ enabled: false });
+    for (const id of ['flight', 'destinations', 'transfer', 'boarding', 'cabin']) expect(item(after, id)).toMatchObject({ enabled: false });
     expect(item(after, 'takeoff')).toMatchObject({ enabled: true, active: true, target: { track: 'post', progress: trackProgress('post', 'exit', 0) } });
   });
 });

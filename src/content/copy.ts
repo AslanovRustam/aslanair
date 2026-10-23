@@ -27,6 +27,8 @@ export const copy = {
   },
   nav: {
     flight: 'Flight',
+    destinations: 'Destinations',
+    transfer: 'Transfer',
     cabin: 'Cabin',
     seat: 'Your seat',
     pass: 'Boarding pass',
@@ -39,6 +41,8 @@ export const copy = {
   rail: {
     label: 'Chapters',
     flight: 'Flight',
+    destinations: 'Destinations',
+    transfer: 'Transfer',
     boarding: 'Boarding',
     cabin: 'Cabin',
     seat: 'Your seat',
@@ -107,6 +111,7 @@ export const copy = {
     flight: 'Flight',
     date: 'Date',
     seat: 'Seat',
+    transfer: 'Transfer',
     gate: 'Gate',
     zone: 'Zone',
     boarding: 'Boarding',

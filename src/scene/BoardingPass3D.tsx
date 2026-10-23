@@ -104,6 +104,7 @@ function drawFront(ctx: CanvasRenderingContext2D, d: BoardingPassData) {
   field(ctx, t.gate, d.gate, 760, 300, 32);
   field(ctx, t.zone, String(d.zone), 880, 300, 32);
   field(ctx, t.boarding, d.boarding, 760, 390, 32);
+  field(ctx, t.transfer, d.transfer.pickup ? `${d.transfer.label} · ${d.transfer.pickup}` : d.transfer.label, 40, 410, 32);
 }
 
 function drawBack(ctx: CanvasRenderingContext2D, d: BoardingPassData) {
@@ -126,12 +127,21 @@ function drawBack(ctx: CanvasRenderingContext2D, d: BoardingPassData) {
   ctx.textAlign = 'left';
 }
 
+/** Draws a side of the pass; the words it wrote go along in the texture's userData.lines (what the pass says). */
 function cardTexture(draw: (ctx: CanvasRenderingContext2D, d: BoardingPassData) => void, d: BoardingPassData) {
   const canvas = document.createElement('canvas');
   canvas.width = TEX.w;
   canvas.height = TEX.h;
-  draw(canvas.getContext('2d')!, d);
+  const ctx = canvas.getContext('2d')!;
+  const lines: string[] = [];
+  const write = ctx.fillText.bind(ctx);
+  ctx.fillText = (text, x, y, maxWidth) => {
+    lines.push(text);
+    write(text, x, y, maxWidth);
+  };
+  draw(ctx, d);
   const tex = new THREE.CanvasTexture(canvas);
+  tex.userData.lines = lines;
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   return tex;
@@ -182,7 +192,7 @@ export default function BoardingPass3D() {
   return (
     <group ref={holder} visible={false}>
       <group ref={flipper} onClick={(e) => { e.stopPropagation(); flip(); }}>
-        <mesh geometry={geometry} renderOrder={999}>
+        <mesh name="BoardingPassFront" geometry={geometry} renderOrder={999}>
           <meshBasicMaterial map={textures.front} depthTest={false} transparent toneMapped={false} />
         </mesh>
         <mesh geometry={geometry} rotation-y={Math.PI} renderOrder={999}>

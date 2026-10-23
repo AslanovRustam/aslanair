@@ -13,11 +13,15 @@ export interface NavItem<Id extends string = string> {
   target: NavTarget;
 }
 
-export type HeaderId = 'flight' | 'cabin' | 'seat' | 'pass' | 'made';
-export type RailId = 'flight' | 'boarding' | 'cabin' | 'seat' | 'takeoff';
+export type HeaderId = 'flight' | 'destinations' | 'transfer' | 'cabin' | 'seat' | 'pass' | 'made';
+export type RailId = 'flight' | 'destinations' | 'transfer' | 'boarding' | 'cabin' | 'seat' | 'takeoff';
 
 const AISLE = { track: 'pre' as const, progress: trackProgress('pre', 'aisle', 0) };
 const PASS = { track: 'post' as const, progress: 0 };
+/** Where the journey's links land: past each chapter's entrance, where its words and choices show. */
+const DESTINATIONS = { track: 'pre' as const, progress: trackProgress('pre', 'destinations', 0.4) };
+const TRANSFER = { track: 'pre' as const, progress: trackProgress('pre', 'transfer', 0.7) };
+const BOARDING = { track: 'pre' as const, progress: trackProgress('pre', 'ready', 0.2) };
 
 /** Once a seat is confirmed the flight is behind the visitor: only Change seat goes back into the cabin. */
 const confirmed = (phase: Phase) => phase === 'confirmed' || phase === 'thanks';
@@ -27,16 +31,18 @@ function item<Id extends string>(id: Id, label: string, target: NavTarget, activ
 }
 
 /**
- * The header's chapter links under the seat gate (spec r2 §4). Before confirmation Flight and Cabin go to their
- * chapters, Your seat goes to the aisle (or, while seated, keeps the visitor in the seat) and Boarding pass is out
- * of reach; after it Flight and Cabin are out of reach and Your seat and Boarding pass go to the pass. How it's made
- * is a panel, always there.
+ * The header's chapter links under the seat gate (spec r2 §4, r3 §8). Before confirmation Flight, Destinations,
+ * Transfer and Cabin go to their chapters, Your seat goes to the aisle (or, while seated, keeps the visitor in the
+ * seat) and Boarding pass is out of reach; after it the journey and the cabin are out of reach — the choices are
+ * fixed — and Your seat and Boarding pass go to the pass. How it's made is a panel, always there.
  */
 export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] {
   const t = copy.nav;
   if (confirmed(phase)) {
     return [
       item('flight', t.flight, null),
+      item('destinations', t.destinations, null),
+      item('transfer', t.transfer, null),
       item('cabin', t.cabin, null),
       item('seat', t.seat, PASS),
       item('pass', t.pass, PASS, chapter === 'pass'),
@@ -45,21 +51,25 @@ export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] 
   }
   const browsing = phase === 'browse';
   return [
-    item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && (chapter === 'sky' || chapter === 'door')),
-    item('cabin', t.cabin, AISLE, browsing && chapter === 'aisle'),
+    item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && chapter === 'sky'),
+    item('destinations', t.destinations, DESTINATIONS, browsing && chapter === 'destinations'),
+    item('transfer', t.transfer, TRANSFER, browsing && chapter === 'transfer'),
+    item('cabin', t.cabin, AISLE, browsing && (chapter === 'door' || chapter === 'aisle')),
     phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
     item('pass', t.pass, null),
     item('made', t.made, 'panel'),
   ];
 }
 
-/** The chapter rail: the journey's five stages, numbered because they are a sequence, under the same gate. */
+/** The chapter rail: the journey's seven stages, numbered because they are a sequence, under the same gate. */
 export function railItems(phase: Phase, chapter: ChapterId): (NavItem<RailId> & { number: string })[] {
   const t = copy.rail;
   const browsing = phase === 'browse';
   const items: NavItem<RailId>[] = confirmed(phase)
     ? [
         item('flight', t.flight, null),
+        item('destinations', t.destinations, null),
+        item('transfer', t.transfer, null),
         item('boarding', t.boarding, null),
         item('cabin', t.cabin, null),
         item('seat', t.seat, PASS, chapter === 'pass'),
@@ -67,7 +77,9 @@ export function railItems(phase: Phase, chapter: ChapterId): (NavItem<RailId> & 
       ]
     : [
         item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && chapter === 'sky'),
-        item('boarding', t.boarding, { track: 'pre', progress: trackProgress('pre', 'door', 0) }, browsing && chapter === 'door'),
+        item('destinations', t.destinations, DESTINATIONS, browsing && chapter === 'destinations'),
+        item('transfer', t.transfer, TRANSFER, browsing && chapter === 'transfer'),
+        item('boarding', t.boarding, BOARDING, browsing && (chapter === 'ready' || chapter === 'door')),
         item('cabin', t.cabin, AISLE, browsing && chapter === 'aisle'),
         phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
         item('takeoff', t.takeoff, null),
