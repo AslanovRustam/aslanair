@@ -56,9 +56,11 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
 /**
  * The airliner; children (the cabin) ride along with its fly-away. It holds still before that: the hero shows a
  * picture of it captured at rest, and the live model takes over at the intro's swap — hidden until then unless
- * `intro` is off (the capture mode photographs it).
+ * `intro` is off (the capture mode photographs it). Under the loader it is drawn from the moment its shaders have
+ * compiled (`onCompiled`) until the scene is ready: those frames upload its geometry and textures and compile the
+ * shadow pass, so the swap finds nothing left to do.
  */
-export default function Aircraft({ children, intro = true }: { children?: ReactNode; intro?: boolean }) {
+export default function Aircraft({ children, intro = true, onCompiled }: { children?: ReactNode; intro?: boolean; onCompiled?: () => void }) {
   const { scene } = useGLTF(MODEL_URL);
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
@@ -66,6 +68,7 @@ export default function Aircraft({ children, intro = true }: { children?: ReactN
   const group = useRef<Group>(null);
   const windowGlass = useRef<MeshStandardMaterial | null>(null);
   const eyeLocal = useRef(new Vector3());
+  const compiled = useRef(false);
   const door = useMemo(() => {
     // closed is the hinge from geometry.ts — never read back from the shared, cached GLB scene
     const node = scene.getObjectByName('Door1L');
@@ -118,21 +121,31 @@ export default function Aircraft({ children, intro = true }: { children?: ReactN
   }, [scene]);
 
   useEffect(() => {
-    // hidden until the swap: compile its shaders and upload its textures now, so the hand-over never stalls a frame
+    // hidden until the swap: compile its shaders in parallel now
     const g = group.current!;
-    gl.compileAsync(g, camera, root).catch(() => {});
+    let alive = true;
+    const done = () => {
+      if (!alive) return;
+      compiled.current = true;
+      onCompiled?.();
+    };
+    gl.compileAsync(g, camera, root).then(done, done);
     g.traverse((o) => {
       const material = (o as Mesh).material as Material | undefined;
       if (!material) return;
       for (const value of Object.values(material)) if ((value as Texture | null)?.isTexture) gl.initTexture(value as Texture);
     });
-  }, [gl, camera, root, scene]);
+    return () => {
+      alive = false;
+    };
+  }, [gl, camera, root, scene, onCompiled]);
 
   useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
     const s = experienceStore.getState();
-    g.visible = !intro || s.phase !== 'browse' || introState(s.progress).aircraftVisible;
+    const warming = compiled.current && !s.ready; // under the loader
+    g.visible = warming || !intro || s.phase !== 'browse' || introState(s.progress).aircraftVisible;
     // the windows glow seen from outside; from inside, the glass must not tint the night view
     if (windowGlass.current) {
       const eye = g.worldToLocal(eyeLocal.current.copy(camera.position));

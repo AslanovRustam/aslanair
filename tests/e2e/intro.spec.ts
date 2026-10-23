@@ -110,6 +110,38 @@ for (const viewport of [
   });
 }
 
+test('the 3D plane takes over without compiling or uploading anything, and without a stalled frame', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await showAt(page, BEFORE);
+  type Gl = { info: { programs: unknown[] | null; memory: { geometries: number; textures: number } } };
+  const r = await page.evaluate(async (after) => {
+    const w = window as unknown as { __aslan: { gl: Gl; store: { getState(): { setProgress(p: number): void } } } };
+    const gpu = () => ({
+      programs: w.__aslan.gl.info.programs!.length,
+      geometries: w.__aslan.gl.info.memory.geometries,
+      textures: w.__aslan.gl.info.memory.textures,
+    });
+    const before = gpu();
+    let worst = 0;
+    let last = performance.now();
+    await new Promise<void>((done) => {
+      let n = 0;
+      const tick = (t: number) => {
+        if (n > 0) worst = Math.max(worst, t - last);
+        last = t;
+        if (n++ === 0) w.__aslan.store.getState().setProgress(after);
+        if (n < 30) requestAnimationFrame(tick);
+        else done();
+      };
+      requestAnimationFrame(tick);
+    });
+    return { before, after: gpu(), worst };
+  }, AFTER);
+  expect(r.after, 'nothing new compiled or uploaded at the swap').toEqual(r.before);
+  expect(r.worst, `worst frame ${r.worst.toFixed(0)} ms`).toBeLessThan(250);
+});
+
 test('resizing at the swap point keeps the picture and the 3D plane aligned', async ({ page }) => {
   await ready(page);
   await showAt(page, BEFORE);

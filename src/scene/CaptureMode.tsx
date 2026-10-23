@@ -34,7 +34,9 @@ export default function CaptureMode({ cabin }: { cabin: ReactNode }) {
     <div style={{ width: INTRO.picture.width, height: INTRO.picture.height }}>
       <Canvas
         dpr={1}
-        shadows
+        // PCF, not R3F's default PCFSoft: three r18x swaps PCFSoft for PCF at the first shadow render, so programs
+        // precompiled before then would carry the wrong shadow type and all compile again on first sight
+        shadows="percentage"
         gl={{ alpha: true }}
         onCreated={({ gl, camera }) => {
           gl.setClearAlpha(0);

@@ -33,7 +33,8 @@ const start = poseOnPreTrack(0);
 /** Hands the scene to the test hooks once the canvas exists. */
 function SceneTestHook() {
   const scene = useThree((s) => s.scene);
-  useEffect(() => installTestHooks({ scene }), [scene]);
+  const gl = useThree((s) => s.gl);
+  useEffect(() => installTestHooks({ scene, gl }), [scene, gl]);
   return null;
 }
 
@@ -42,15 +43,16 @@ function hasWebGL2(): boolean {
 }
 
 /**
- * Feeds the loader: drei's loading progress, then `ready` once the cabin has compiled and shown and two more
- * frames have rendered — by then nothing is left to stall the hero.
+ * Feeds the loader: drei's loading progress, then `ready` once the cabin has compiled and shown, the aircraft has
+ * compiled, and two frames have drawn them both (under the loader) — by then nothing is left to stall the hero or
+ * the swap.
  */
-function LoadTracker({ cabinShown }: { cabinShown: RefObject<boolean> }) {
+function LoadTracker({ cabinShown, aircraftCompiled }: { cabinShown: RefObject<boolean>; aircraftCompiled: RefObject<boolean> }) {
   const { progress, active } = useProgress();
   const framesSinceShown = useRef(0);
   useEffect(() => experienceStore.getState().setLoad(progress), [progress]);
   useFrame(() => {
-    if (experienceStore.getState().ready || active || !cabinShown.current) return;
+    if (experienceStore.getState().ready || active || !cabinShown.current || !aircraftCompiled.current) return;
     framesSinceShown.current += 1;
     if (framesSinceShown.current >= 2) experienceStore.getState().setLoad(100, true);
   });
@@ -78,6 +80,10 @@ export default function Experience() {
   const onCabinShown = useCallback(() => {
     cabinShown.current = true;
   }, []);
+  const aircraftCompiled = useRef(false);
+  const onAircraftCompiled = useCallback(() => {
+    aircraftCompiled.current = true;
+  }, []);
 
   useEffect(() => installTestHooks(), []);
 
@@ -91,15 +97,17 @@ export default function Experience() {
       <div className="stage">
         <Canvas
           dpr={[1, 2]}
-          shadows
+          // PCF, not R3F's default PCFSoft: three r18x swaps PCFSoft for PCF at the first shadow render, so programs
+          // precompiled before then would carry the wrong shadow type and all compile again on first sight
+          shadows="percentage"
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
           <SceneTestHook />
-          <LoadTracker cabinShown={cabinShown} />
+          <LoadTracker cabinShown={cabinShown} aircraftCompiled={aircraftCompiled} />
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>
-            <Aircraft>
+            <Aircraft onCompiled={onAircraftCompiled}>
               <CabinFurnishing onShown={onCabinShown} />
               <SeatCard />
             </Aircraft>
