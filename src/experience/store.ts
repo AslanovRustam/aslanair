@@ -15,6 +15,11 @@ export interface ExperienceState {
   /** Aisle progress when the visitor sat down; standing up or changing seat returns here. */
   aisleReturn: number;
   soundOn: boolean;
+  /** 0..100: how much of the scene has loaded; it only moves forward. */
+  loadProgress: number;
+  /** The scene has loaded, compiled and rendered: the loader hands over to the hero. Never reverts. */
+  ready: boolean;
+  setLoad(progress: number, ready?: boolean): void;
   setProgress(p: number): void;
   hover(id: string | null): void;
   sit(id: string): boolean;
@@ -41,6 +46,10 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     progress: 0,
     aisleReturn: 0,
     soundOn: false,
+    loadProgress: 0,
+    ready: false,
+    setLoad: (progress, ready = false) =>
+      set({ loadProgress: Math.min(100, Math.max(get().loadProgress, progress)), ready: get().ready || ready }),
     setProgress: (p) => set({ progress: Math.min(1, Math.max(0, p)) }),
     hover: (id) => {
       if (get().phase === 'browse') set({ hoveredSeatId: id });

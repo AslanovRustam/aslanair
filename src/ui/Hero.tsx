@@ -53,7 +53,8 @@ function Note({ id, label, value }: { id: NoteId; label: string; value: string }
 
 /**
  * The showcase: a huge "Night flight" behind the plane picture, three facts pointing at it, a short lead and the
- * scroll hint. It hands over to the flight as soon as the visitor scrolls.
+ * scroll hint. Its entrance waits for the loader to hand over; it gives way to the flight as soon as the visitor
+ * scrolls.
  */
 export default function Hero() {
   const opacity = useExperience((s) => {
@@ -62,12 +63,14 @@ export default function Hero() {
     return id === 'sky' ? Math.round(Math.max(0, 1 - t / FADE) * 100) / 100 : 0;
   });
   const from = useExperience((s) => Math.min(...s.seats.map((seat) => seat.priceUsd)));
+  const ready = useExperience((s) => s.ready);
   const t = copy.hero;
 
   return (
     <section
       className={styles.hero}
       data-testid="hero"
+      data-ready={ready}
       aria-hidden={opacity === 0}
       style={{ opacity, visibility: opacity === 0 ? 'hidden' : 'visible', ...planeBoxVars() }}
     >

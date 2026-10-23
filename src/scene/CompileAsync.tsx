@@ -11,7 +11,7 @@ const HIDDEN_LAYER = 31;
  * and only then shows them, so new materials never stall a frame. Lights must stay outside: a hidden light
  * would change the light count every program is keyed on.
  */
-export default function CompileAsync({ children }: { children: ReactNode }) {
+export default function CompileAsync({ children, onShown }: { children: ReactNode; onShown?: () => void }) {
   const group = useRef<Group>(null);
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
@@ -22,13 +22,15 @@ export default function CompileAsync({ children }: { children: ReactNode }) {
     let alive = true;
     g.traverse((o) => o.layers.set(HIDDEN_LAYER));
     const show = () => {
-      if (alive) g.traverse((o) => o.layers.set(0));
+      if (!alive) return;
+      g.traverse((o) => o.layers.set(0));
+      onShown?.();
     };
     gl.compileAsync(g, camera, scene).then(show, show);
     return () => {
       alive = false;
     };
-  }, [gl, camera, scene]);
+  }, [gl, camera, scene, onShown]);
 
   return <group ref={group}>{children}</group>;
 }

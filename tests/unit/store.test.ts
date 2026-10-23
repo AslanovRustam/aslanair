@@ -59,6 +59,23 @@ describe('experience store', () => {
     expect(s().progress).toBe(0);
   });
 
+  test('loading only moves forward, and once ready the experience stays ready', () => {
+    experienceStore.setState({ loadProgress: 0, ready: false });
+    s().setLoad(40);
+    expect(s().loadProgress).toBe(40);
+    s().setLoad(25); // a late asset joining the queue must not pull the bar back
+    expect(s().loadProgress).toBe(40);
+    s().setLoad(140);
+    expect(s().loadProgress).toBe(100);
+    expect(s().ready).toBe(false);
+    s().setLoad(100, true);
+    expect(s().ready).toBe(true);
+    s().setLoad(60);
+    s().restart();
+    expect(s().ready).toBe(true);
+    expect(s().loadProgress).toBe(100);
+  });
+
   test('progress is clamped and hover is ignored while seated', () => {
     s().setProgress(2);
     expect(s().progress).toBe(1);

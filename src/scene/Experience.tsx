@@ -1,11 +1,13 @@
 'use client';
 
-import { Canvas, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useState } from 'react';
+import { useProgress } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { copy } from '@/content/copy';
 import { captureMode } from '@/experience/capture';
 import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
+import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Hero from '@/ui/Hero';
@@ -39,10 +41,26 @@ function hasWebGL2(): boolean {
   return !!document.createElement('canvas').getContext('webgl2');
 }
 
+/**
+ * Feeds the loader: drei's loading progress, then `ready` once the cabin has compiled and shown and two more
+ * frames have rendered — by then nothing is left to stall the hero.
+ */
+function LoadTracker({ cabinShown }: { cabinShown: RefObject<boolean> }) {
+  const { progress, active } = useProgress();
+  const framesSinceShown = useRef(0);
+  useEffect(() => experienceStore.getState().setLoad(progress), [progress]);
+  useFrame(() => {
+    if (experienceStore.getState().ready || active || !cabinShown.current) return;
+    framesSinceShown.current += 1;
+    if (framesSinceShown.current >= 2) experienceStore.getState().setLoad(100, true);
+  });
+  return null;
+}
+
 /** Everything inside the cabin; compiled off the main thread before it shows. */
-function CabinFurnishing() {
+function CabinFurnishing({ onShown }: { onShown?: () => void }) {
   return (
-    <CompileAsync>
+    <CompileAsync onShown={onShown}>
       <Seats />
       <FloorDetails />
       <Bins />
@@ -56,6 +74,10 @@ function CabinFurnishing() {
 export default function Experience() {
   const [supported] = useState(hasWebGL2);
   const [capture] = useState(captureMode);
+  const cabinShown = useRef(false);
+  const onCabinShown = useCallback(() => {
+    cabinShown.current = true;
+  }, []);
 
   useEffect(() => installTestHooks(), []);
 
@@ -73,11 +95,12 @@ export default function Experience() {
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
           <SceneTestHook />
+          <LoadTracker cabinShown={cabinShown} />
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>
             <Aircraft>
-              <CabinFurnishing />
+              <CabinFurnishing onShown={onCabinShown} />
               <SeatCard />
             </Aircraft>
           </Suspense>

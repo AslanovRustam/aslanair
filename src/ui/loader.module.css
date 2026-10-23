@@ -1,0 +1,112 @@
+/* The first paint: dark, the emblem drawn as a line, the loading line, the plane picture at its hero place.
+   Over everything until the scene is ready, then it fades and lets the hero play its entrance. */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+  container-type: size;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+
+.loader[data-ready='true'] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* the same box IntroPlane gives the picture at the top of the page: full frame height scaled to the hero size,
+   centred, lifted (vars from HERO_PICTURE) */
+.picture {
+  position: absolute;
+  left: 50%;
+  top: calc(50cqh - var(--picture-lift) * 100cqh);
+  width: auto;
+  height: min(calc(var(--picture-h) * 100cqh), calc(var(--picture-per-w) * 100cqw));
+  max-width: none;
+  translate: -50% -50%;
+  animation: fadeIn 0.9s ease-out 0.25s both;
+}
+
+.status {
+  position: absolute;
+  left: 50%;
+  top: 64%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  translate: -50% 0;
+}
+
+.emblem {
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: visible;
+}
+
+.ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transform: rotate(-90deg);
+  transform-origin: 12px 12px;
+  animation: draw 1.1s cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+.disc {
+  fill: var(--accent);
+  animation: fadeIn 0.5s ease-out 1s both;
+}
+
+.bar {
+  position: relative;
+  width: 9rem;
+  height: 1px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: 0 50%;
+  transition: transform 0.4s ease-out;
+}
+
+.label {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picture,
+  .ring,
+  .disc {
+    animation: none;
+  }
+
+  .ring {
+    stroke-dashoffset: 0;
+  }
+}

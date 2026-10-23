@@ -5,6 +5,9 @@ export const copy = {
   fallback: {
     noWebgl: 'This experience needs WebGL2. Please open it in a recent Chrome, Edge, Firefox or Safari.',
   },
+  loader: {
+    label: 'Preparing your night flight',
+  },
   chapters: {
     door: { title: 'Welcome aboard.', body: 'Step in — the cabin is yours to explore.' },
     aisle: { title: 'Find your seat.', body: 'Hover a seat to see it, click to sit down.' },

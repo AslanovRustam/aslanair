@@ -45,7 +45,6 @@ export default function IntroPlane() {
         height={INTRO.picture.height}
         alt=""
         unoptimized
-        preload
       />
     </div>
   );

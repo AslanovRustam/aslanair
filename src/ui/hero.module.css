@@ -10,6 +10,11 @@
   container-type: size;
 }
 
+/* the entrance plays once the loader has handed over */
+.hero:not([data-ready='true']) * {
+  animation-play-state: paused;
+}
+
 .title {
   position: absolute;
   top: calc(var(--header-h) + 5vh);

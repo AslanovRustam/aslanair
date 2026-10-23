@@ -34,10 +34,18 @@ const easeOutCubic = (u: number) => 1 - (1 - u) ** 3;
 /** Float noise in progress must not keep the picture a hair from landed, or from gone. */
 const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
 
-function heroScale(aspect: number): number {
+/**
+ * The hero picture's height in frame heights: `height`, or on a narrow screen `perWidth` × the frame's width over
+ * its height, whichever is smaller. The loader draws the picture from these too, so the hero picks it up in place.
+ */
+export const HERO_PICTURE = (() => {
   const { plane, width, height } = INTRO.picture;
   const planeWidth = (plane.right - plane.left) * (width / height); // in frame heights at scale 1
-  return Math.min(INTRO.heroScale, (HERO_FIT * aspect) / planeWidth);
+  return { height: INTRO.heroScale, perWidth: HERO_FIT / planeWidth, lift: INTRO.heroLift };
+})();
+
+function heroScale(aspect: number): number {
+  return Math.min(HERO_PICTURE.height, HERO_PICTURE.perWidth * aspect);
 }
 
 /** The picture's flight from the hero to the full frame and the hand-over to the 3D plane, for pre-track progress. */
