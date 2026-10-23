@@ -102,8 +102,7 @@ test('a new pick in mid-flight carries on from where the plane is, never jumping
   await board.getByRole('button', { name: /New York/ }).click();
   await page.waitForTimeout(400);
   await board.getByRole('button', { name: /Rome/ }).click();
-  // home to Chișinău first, then out to Rome (r3 §5: every flight leaves Chișinău)
-  await page.waitForTimeout(2900);
+  await page.waitForTimeout(2200);
   const path = await page.evaluate(() => (window as unknown as { __path: number[][] }).__path);
   let worst = 0;
   for (let i = 1; i < path.length; i++) worst = Math.max(worst, Math.hypot(...path[i].map((v, k) => v - path[i - 1][k])));
@@ -343,7 +342,7 @@ test('the pass carries the route, the flight and the transfer; once confirmed th
     .poll(() => page.evaluate(() => (window as unknown as PassWindow).__aslan.scene.getObjectByName('BoardingPassFront')?.material.map.userData.lines?.join(' | ') ?? ''))
     .toContain('HND');
   const lines = await page.evaluate(() => (window as unknown as PassWindow).__aslan.scene.getObjectByName('BoardingPassFront')!.material.map.userData.lines!);
-  expect(lines).toEqual(expect.arrayContaining(['RMO', 'HND', 'Chișinău', 'Tokyo', tokyo.flight, tokyo.departs, 'From home · 18:20']));
+  expect(lines).toEqual(expect.arrayContaining(['ODS', 'HND', 'Odesa', 'Tokyo', tokyo.flight, tokyo.departs, 'From home · 18:20']));
   // fixed now: the header cannot take the visitor back to change them
   await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Destinations' })).toBeDisabled();
   await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Transfer' })).toBeDisabled();
@@ -463,5 +462,76 @@ test.describe('on a phone', () => {
     expect(await chosen(page)).toBe('HND');
     await expect(page.getByTestId('flight-card')).toContainText('Tokyo');
   });
+});
+
+/** The globe's turn (its quaternion) and where its centre and rim fall on screen (CSS pixels). */
+const globeOnScreen = (page: Page) =>
+  page.evaluate((centre) => {
+    const { scene, camera } = (window as unknown as PageWindow).__aslan;
+    const g = scene.getObjectByName('Globe') as unknown as { quaternion: { x: number; y: number; z: number; w: number } };
+    const V = scene.position.constructor;
+    const c = new V(centre[0], centre[1], centre[2]).project(camera);
+    return { q: [g.quaternion.x, g.quaternion.y, g.quaternion.z, g.quaternion.w], x: ((c.x + 1) / 2) * innerWidth, y: ((1 - c.y) / 2) * innerHeight };
+  }, GLOBE.center.toArray());
+
+test('the globe spins under the mouse, carrying the plane and the labels with it; dragging off it does nothing', async ({ page }) => {
+  await toDestinations(page);
+  const before = await globeOnScreen(page);
+  // off the globe: the empty dark above it
+  await page.mouse.move(before.x, 90);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 200, 120, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  expect((await globeOnScreen(page)).q).toEqual(before.q);
+  // on it — held still a moment before letting go, so it does not coast on
+  await page.mouse.move(before.x - 60, before.y);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 140, before.y + 30, { steps: 12 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  const after = await globeOnScreen(page);
+  const turned = Math.acos(Math.min(1, Math.abs(after.q.reduce((sum, v, i) => sum + v * before.q[i], 0)))) * 2;
+  expect(turned, 'turned by the drag').toBeGreaterThan(0.3);
+  // the plane still waits over home (the first marker), and the facing labels still sit on their markers
+  expect(await planeToMarker(page, 0)).toBeLessThan(0.1 * GLOBE.radius);
+  const offsets = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as PageWindow).__aslan;
+    const markers = scene.getObjectByName('GlobeMarkers')!;
+    markers.updateWorldMatrix(true, false);
+    const p = markers.geometry!.attributes.position;
+    const V = scene.position.constructor;
+    return [...document.querySelectorAll<HTMLElement>('[data-testid="globe-label"][data-facing="true"]')].map((el) => {
+      const i = Number(el.dataset.marker);
+      const s = new V(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(markers.matrixWorld).project(camera);
+      const r = el.getBoundingClientRect();
+      return Math.hypot(r.left + r.width / 2 - ((s.x + 1) / 2) * innerWidth, r.top + r.height / 2 - ((1 - s.y) / 2) * innerHeight);
+    });
+  });
+  expect(offsets.length).toBeGreaterThan(3);
+  for (const off of offsets) expect(off).toBeLessThan(12);
+  // a pick turns it on from there to face the new flight
+  await page.getByTestId('departures').getByRole('button', { name: /Rome/ }).click();
+  await page.waitForTimeout(2000);
+  expect(await planeToMarker(page, markerIndex('FCO'))).toBeLessThan(0.1 * GLOBE.radius);
+});
+
+test('a fling of the globe coasts on, then comes to rest', async ({ page }) => {
+  await toDestinations(page);
+  const start = await globeOnScreen(page);
+  const angle = (a: number[], b: number[]) => Math.acos(Math.min(1, Math.abs(a.reduce((sum, v, i) => sum + v * b[i], 0)))) * 2;
+  await page.mouse.move(start.x - 80, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 80, start.y, { steps: 6 });
+  await page.mouse.up();
+  const released = (await globeOnScreen(page)).q;
+  await page.waitForTimeout(1500);
+  const later = (await globeOnScreen(page)).q;
+  await page.waitForTimeout(500);
+  const rest = (await globeOnScreen(page)).q;
+  expect(angle(released, later), 'coasted on after letting go').toBeGreaterThan(0.05);
+  expect(angle(released, later), 'not far: the fling is capped').toBeLessThan(Math.PI / 2);
+  expect(angle(later, rest), 'at rest').toBeLessThan(0.01);
 });
 

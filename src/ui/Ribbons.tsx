@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import { copy } from '@/content/copy';
 import { trackProgress, type ChapterId } from '@/experience/chapters';
+import { DESTINATIONS, HOME } from '@/experience/destinations';
 import { useExperience } from '@/experience/store';
 import styles from './ribbons.module.css';
 
@@ -32,7 +33,7 @@ export default function Ribbons() {
     return at === null ? null : Math.round(at * 1000) / 1000;
   });
   const code = useExperience((s) => s.destinationId);
-  const phrases = [copy.ribbons.route(code), ...copy.ribbons.phrases];
+  const phrases = [copy.ribbons.route(HOME.code, code), ...copy.ribbons.phrases(HOME.code, DESTINATIONS.length)];
   const shown = d !== null;
 
   return (

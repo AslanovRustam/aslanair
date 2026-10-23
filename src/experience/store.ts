@@ -1,3 +1,4 @@
+import { Quaternion } from 'three';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import type { Track } from './chapters';
@@ -17,16 +18,19 @@ export interface ExperienceState {
   /** Aisle progress when the visitor sat down; standing up or changing seat returns here. */
   aisleReturn: number;
   soundOn: boolean;
-  /** The chosen destination's code (Chișinău is always the origin). */
+  /** The chosen destination's code (home, Odesa, is always the origin). */
   destinationId: string;
   transferId: TransferId;
   /** Both choices stay open until the seat is confirmed; false (and no change) after that or for an unknown id. */
   chooseDestination(code: string): boolean;
   chooseTransfer(id: TransferId): boolean;
-  /** The plane's last flight over the globe (null: it waits over Chișinău). */
+  /** The plane's last flight over the globe (null: it waits over home). */
   flight: ArcFlight | null;
   /** Chooses `code` and flies the plane there from wherever it is at `now` (seconds); false if the choice is refused. */
   pickDestination(code: string, now: number): boolean;
+  /** The visitor's own turn of the globe (dragging it), on top of the flight's; a pick folds it in. */
+  globeSpin: Quaternion;
+  spinGlobe(spin: Quaternion): void;
   /** The destination under the pointer or keyboard focus, for the globe to highlight. */
   hoveredDestinationId: string | null;
   hoverDestination(code: string | null): void;
@@ -75,9 +79,12 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
       const chosen = destination(get().destinationId)!;
       const to = destination(code);
       if (!to || !get().chooseDestination(code)) return false;
-      set({ flight: nextFlight(get().flight, chosen, to, now) });
+      // the globe turns on from where the visitor left it
+      set({ flight: nextFlight(get().flight, chosen, to, now, get().globeSpin), globeSpin: new Quaternion() });
       return true;
     },
+    globeSpin: new Quaternion(),
+    spinGlobe: (spin) => set({ globeSpin: spin }),
     hoveredDestinationId: null,
     hoverDestination: (code) => set({ hoveredDestinationId: code }),
     chooseTransfer: (id) => {
@@ -125,6 +132,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
         transferId: DEFAULT_TRANSFER,
         flight: null,
         hoveredDestinationId: null,
+        globeSpin: new Quaternion(),
       }),
   };
 });

@@ -1,4 +1,5 @@
-// AslanAir's network: every flight leaves Chișinău at night; the visitor picks only where to (spec r3 §4).
+// AslanAir's network: every flight leaves Odesa at night; the visitor picks only where to (spec r3 §4, home moved
+// from Chișinău to Odesa at the user's word, 2026-10-23).
 
 export type Region = 'Europe' | 'Middle East' | 'Asia' | 'North America' | 'South America' | 'Africa';
 
@@ -15,12 +16,12 @@ export interface Destination extends Place {
   /** Lowest fare, USD; the seat's own price is separate (no total anywhere). */
   fareUsd: number;
   flight: string;
-  /** Local departure time from Chișinău, 'HH:MM', always at night. */
+  /** Local departure time from Odesa, 'HH:MM', always at night. */
   departs: string;
 }
 
-/** Chișinău Eugen Doga International — IATA RMO since 18 January 2024 (formerly KIV; ICAO LUKK). */
-export const HOME: Place = { code: 'RMO', city: 'Chișinău', country: 'Moldova', lat: 46.927, lon: 28.931 };
+/** Odesa International Airport — IATA ODS, ICAO UKOO. */
+export const HOME: Place = { code: 'ODS', city: 'Odesa', country: 'Ukraine', lat: 46.4268, lon: 30.6765 };
 
 export const DESTINATIONS: Destination[] = [
   { code: 'LIS', city: 'Lisbon', country: 'Portugal', region: 'Europe', lat: 38.774, lon: -9.134, fareUsd: 129, flight: 'AS 270', departs: '22:40' },

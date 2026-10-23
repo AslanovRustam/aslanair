@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { flightAt } from '@/experience/globe';
+import { Quaternion, Vector3 } from 'three';
+import { DESTINATIONS, HOME } from '@/experience/destinations';
+import { flightAt, globeTurnFor } from '@/experience/globe';
 import { pickRecommendedSeat } from '@/experience/seats';
 import { experienceStore, trackOf } from '@/experience/store';
 
@@ -112,6 +114,20 @@ describe('experience store', () => {
     s().restart();
     expect(s().flight).toBeNull();
     expect(s().hoveredDestinationId).toBeNull();
+  });
+
+  test('the visitor spins the globe; a pick carries on from that turn; Start again squares it', () => {
+    expect(s().globeSpin.angleTo(new Quaternion())).toBe(0);
+    const spin = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.8);
+    s().spinGlobe(spin);
+    expect(s().globeSpin.angleTo(spin)).toBeLessThan(1e-12);
+    expect(s().pickDestination('HND', 3)).toBe(true);
+    const lis = DESTINATIONS.find((d) => d.code === 'LIS')!;
+    expect(s().flight!.turnFrom.angleTo(spin.clone().multiply(globeTurnFor(HOME, lis)))).toBeLessThan(1e-6);
+    expect(s().globeSpin.angleTo(new Quaternion())).toBeLessThan(1e-12);
+    s().spinGlobe(spin);
+    s().restart();
+    expect(s().globeSpin.angleTo(new Quaternion())).toBeLessThan(1e-12);
   });
 
   test('progress is clamped and hover is ignored while seated', () => {

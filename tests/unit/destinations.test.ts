@@ -7,14 +7,14 @@ const minutes = (hhmm: string) => {
 };
 
 describe('destinations', () => {
-  test('home is Chișinău, RMO', () => {
-    expect(HOME).toMatchObject({ code: 'RMO', city: 'Chișinău', country: 'Moldova' });
+  test('home is Odesa, ODS', () => {
+    expect(HOME).toMatchObject({ code: 'ODS', city: 'Odesa', country: 'Ukraine' });
   });
 
   test('fourteen destinations on five continents, home not among them', () => {
     expect(DESTINATIONS).toHaveLength(14);
     expect(new Set(DESTINATIONS.map((d) => d.code)).size).toBe(14);
-    expect(DESTINATIONS.map((d) => d.code)).not.toContain('RMO');
+    expect(DESTINATIONS.map((d) => d.code)).not.toContain('ODS');
     expect(new Set(DESTINATIONS.map((d) => d.region))).toEqual(
       new Set(['Europe', 'Middle East', 'Asia', 'North America', 'South America', 'Africa']),
     );

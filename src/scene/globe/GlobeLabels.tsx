@@ -32,7 +32,7 @@ export default function GlobeLabels() {
     const s = experienceStore.getState();
     if (!globeLabels.size || s.phase !== 'browse' || chapterAt('pre', s.progress).id !== 'destinations') return;
     const chosen = destination(s.destinationId)!;
-    const turn = globeTurnAt(s.flight, chosen, performance.now() / 1000);
+    const turn = globeTurnAt(s.flight, chosen, performance.now() / 1000, s.globeSpin);
     const toEye = camera.position.clone().sub(GLOBE.center);
     const toScreen = (p: { x: number; y: number }) => ({ x: ((p.x + 1) / 2) * size.width, y: ((1 - p.y) / 2) * size.height });
     const middle = toScreen(GLOBE.center.clone().project(camera));

@@ -1,4 +1,4 @@
-import { PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { applyLens, poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
@@ -18,6 +18,8 @@ import {
   latLonToVector,
   nextFlight,
   planeOnGlobe,
+  planeOverGlobe,
+  spinBy,
   toWorld,
 } from '@/experience/globe';
 import { ON_GLOBE_SCALE } from '@/experience/stage';
@@ -70,11 +72,11 @@ describe('the globe', () => {
     expect(latLonToVector(10, 20, 5).length()).toBeCloseTo(5, 9);
   });
 
-  test('Chișinău to Lisbon is 3 198 km along the great circle', () => {
+  test('Odesa to Lisbon is 3 330 km along the great circle', () => {
     const lis = DESTINATIONS.find((d) => d.code === 'LIS')!;
     const angle = latLonToVector(HOME.lat, HOME.lon).angleTo(latLonToVector(lis.lat, lis.lon));
-    expect(angle * EARTH_KM).toBeGreaterThan(3198 * 0.99);
-    expect(angle * EARTH_KM).toBeLessThan(3198 * 1.01);
+    expect(angle * EARTH_KM).toBeGreaterThan(3330 * 0.99);
+    expect(angle * EARTH_KM).toBeLessThan(3330 * 1.01);
   });
 
   test('a great circle runs on the sphere from one city to the other', () => {
@@ -209,28 +211,27 @@ describe('the flight over the globe', () => {
     }
     expect(arcDrawn(null, 5)).toBe(1);
     expect(arcDrawn(f, 9)).toBe(1);
-    // flying home first, the new arc waits; on the way out its tip is with the plane again
+    // a flight from anywhere but home shows the route from home at once: the plane flies its own way to the city
     const second = nextFlight(f, city('GIG'), city('HND'), 3);
-    expect(arcDrawn(second, 3 + FLIGHT.back * 0.8)).toBe(0);
-    const out = home.angleTo(latLonToVector(city('HND').lat, city('HND').lon));
-    for (const t of [0.3, 0.8, 1.3]) {
-      const now = 3 + FLIGHT.back + t;
-      expect(arcDrawn(second, now), `out ${t} s`).toBeCloseTo(flightAt(second, now).position.normalize().angleTo(home) / out, 3);
-    }
+    for (const now of [3, 3.5, 4.2]) expect(arcDrawn(second, now), `${now} s`).toBe(1);
   });
 
-  test('a pick away from Chișinău flies home first, then out along the new arc, the plane and its nose never jumping', () => {
+  test('a pick mid-flight flies straight on from where the plane is — never back through home — the plane and its nose never jumping', () => {
     const first = homeFlight('JFK', 0);
     const mid = flightAt(first, 0.7);
     const second = nextFlight(first, city('JFK'), city('FCO'), 0.7);
     expect(flightAt(second, 0.7).position.distanceTo(mid.position)).toBeLessThan(1e-9);
     expect(flightAt(second, 0.7).heading.angleTo(mid.heading)).toBeLessThan(1e-6);
-    expect(flightAt(second, 0.7 + FLIGHT.back).position.distanceTo(above(HOME))).toBeLessThan(1e-6);
-    const end = flightAt(second, 0.7 + FLIGHT.back + FLIGHT.seconds);
+    const end = flightAt(second, 0.7 + FLIGHT.seconds);
     expect(end.done).toBe(true);
     expect(end.position.distanceTo(above(city('FCO')))).toBeLessThan(1e-6);
-    expect(flightAt(second, 0.7 + FLIGHT.back + FLIGHT.seconds - 0.05).done).toBe(false);
-    const { move, turn } = steps(second, 0.7, 0.7 + FLIGHT.back + FLIGHT.seconds);
+    expect(flightAt(second, 0.7 + FLIGHT.seconds - 0.05).done).toBe(false);
+    const home = latLonToVector(HOME.lat, HOME.lon);
+    for (let i = 0; i <= 40; i++) {
+      const p = flightAt(second, 0.7 + (FLIGHT.seconds * i) / 40).position.normalize();
+      expect((p.angleTo(home) * 180) / Math.PI, `step ${i}`).toBeGreaterThan(2);
+    }
+    const { move, turn } = steps(second, 0.7, 0.7 + FLIGHT.seconds);
     expect(move, 'largest step (m)').toBeLessThan(0.02 * GLOBE.radius);
     expect(turn, 'largest turn of the nose (°)').toBeLessThan(6);
   });
@@ -245,7 +246,7 @@ describe('the flight over the globe', () => {
     }
   });
 
-  test('before any pick the plane waits over Chișinău, nose towards the chosen city, and the globe faces that flight', () => {
+  test('before any pick the plane waits over home, nose towards the chosen city, and the globe faces that flight', () => {
     const lis = city('LIS');
     const rest = planeOnGlobe(null, lis, 123);
     expect(rest.position.distanceTo(above(HOME))).toBeLessThan(1e-9);
@@ -260,7 +261,7 @@ describe('the flight over the globe', () => {
     expect(globeTurnAt(f, f.to, 5).angleTo(f.turnFrom)).toBeLessThan(1e-9);
     expect(globeTurnAt(f, f.to, 5 + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('GIG')))).toBeLessThan(1e-6);
     const second = nextFlight(f, city('GIG'), city('BKK'), 9);
-    expect(globeTurnAt(second, second.to, 9 + FLIGHT.back + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('BKK')))).toBeLessThan(1e-6);
+    expect(globeTurnAt(second, second.to, 9 + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('BKK')))).toBeLessThan(1e-6);
   });
 
   test('a new flight sets off from the plane and the globe as they are at that moment', () => {
@@ -284,6 +285,51 @@ describe('the flight over the globe', () => {
 
   test('the plane over the globe is 6 % of the diameter of the globe long', () => {
     expect((ON_GLOBE_SCALE * FUSELAGE_LENGTH) / (2 * GLOBE.radius)).toBeCloseTo(0.06, 3);
+  });
+});
+
+describe('the visitor spins the globe', () => {
+  const city = (code: string) => DESTINATIONS.find((d) => d.code === code)!;
+  const pose = poseOnPreTrack(trackProgress('pre', 'destinations', 0.5));
+  const view = pose.target.clone().sub(pose.position).normalize();
+  const right = view.clone().cross(new Vector3(0, 1, 0)).normalize();
+  const up = right.clone().cross(view);
+  /** The point of the globe nearest the camera, after a spin. */
+  const near = (spin: Quaternion) => {
+    const local = GLOBE.facing.clone().applyQuaternion(spin.clone().invert());
+    return local.applyQuaternion(spin).multiplyScalar(GLOBE.radius);
+  };
+  /** Where a point of the globe's surface (its own frame, turned by `turn`) goes on screen when the globe is spun. */
+  const moved = (spin: Quaternion) => GLOBE.facing.clone().multiplyScalar(GLOBE.radius).applyQuaternion(spin).sub(near(new Quaternion()));
+
+  test('dragging right turns the near side right; dragging down turns it down; by half a turn across the screen height', () => {
+    const none = spinBy(new Quaternion(), 0, 0, right, up, 800);
+    expect(none.angleTo(new Quaternion())).toBeLessThan(1e-12);
+    expect(moved(spinBy(new Quaternion(), 40, 0, right, up, 800)).dot(right)).toBeGreaterThan(0);
+    expect(moved(spinBy(new Quaternion(), 0, 40, right, up, 800)).dot(up)).toBeLessThan(0);
+    expect(spinBy(new Quaternion(), 800, 0, right, up, 800).angleTo(new Quaternion())).toBeCloseTo(Math.PI, 9);
+    // spins add up
+    const twice = spinBy(spinBy(new Quaternion(), 100, 0, right, up, 800), 100, 0, right, up, 800);
+    expect(twice.angleTo(spinBy(new Quaternion(), 200, 0, right, up, 800))).toBeLessThan(1e-9);
+  });
+
+  test('spun, the globe carries the plane and its turn with it', () => {
+    const lis = city('LIS');
+    const spin = spinBy(new Quaternion(), 120, -60, right, up, 800);
+    expect(globeTurnAt(null, lis, 0, spin).angleTo(spin.clone().multiply(globeTurnFor(HOME, lis)))).toBeLessThan(1e-6);
+    const p = trackProgress('pre', 'destinations', 0.5);
+    const still = planeOverGlobe('browse', p, null, lis, 0)!;
+    const spun = planeOverGlobe('browse', p, null, lis, 0, spin)!;
+    const centre = GLOBE.center;
+    expect(spun.position.clone().sub(centre).distanceTo(still.position.clone().sub(centre).applyQuaternion(spin))).toBeLessThan(1e-6);
+    expect(spun.heading.distanceTo(still.heading.clone().applyQuaternion(spin))).toBeLessThan(1e-6);
+  });
+
+  test('a pick turns the globe on from where the visitor left it', () => {
+    const lis = city('LIS');
+    const spin = spinBy(new Quaternion(), -200, 30, right, up, 800);
+    const next = nextFlight(null, lis, city('HND'), 4, spin);
+    expect(next.turnFrom.angleTo(spin.clone().multiply(globeTurnFor(HOME, lis)))).toBeLessThan(1e-6);
   });
 });
 

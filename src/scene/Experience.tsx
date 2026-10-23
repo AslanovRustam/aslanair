@@ -31,6 +31,7 @@ import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
 import Globe from './globe/Globe';
 import GlobeLabels from './globe/GlobeLabels';
+import GlobeSpin from './globe/GlobeSpin';
 import SkyAndClouds from './sky/SkyAndClouds';
 
 const start = poseOnPreTrack(0);
@@ -130,6 +131,7 @@ export default function Experience() {
             <Globe />
           </CompileAsync>
           <GlobeLabels />
+          <GlobeSpin />
           <BoardingPass3D />
         </Canvas>
       </div>

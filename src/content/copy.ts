@@ -15,13 +15,13 @@ export const copy = {
   hero: {
     title: 'Night flight',
     notes: {
-      home: { label: 'Flying from', value: 'Chișinău · RMO' },
+      home: { label: 'Flying from', value: 'Odesa · ODS' },
       network: { label: 'Across 5 continents', value: (count: number) => `${count} destinations` },
       fares: { label: 'Fares from', value: (usd: number) => `$${usd}` },
     },
     lead: {
       title: 'Board a fictional night flight.',
-      body: 'AslanAir flies from Chișinău every night. Choose where to, then walk the aisle in real-time 3D and pick your seat.',
+      body: 'AslanAir flies from Odesa every night. Choose where to, then walk the aisle in real-time 3D and pick your seat.',
     },
     scroll: 'Scroll to board',
   },
@@ -70,11 +70,11 @@ export const copy = {
   },
   destinations: {
     title: 'Where to tonight?',
-    lead: 'Every AslanAir flight leaves Chișinău after dark.',
+    lead: 'Every AslanAir flight leaves Odesa after dark.',
     board: 'Departures',
     columns: { code: 'To', city: 'City', departs: 'Departs', fare: 'Fare' },
     card: 'Your flight',
-    departs: (time: string) => `Departs ${time} from Chișinău`,
+    departs: (time: string) => `Departs ${time} from Odesa`,
     from: (usd: number) => `from $${usd}`,
     oneWay: 'one way, before your seat',
   },
@@ -98,8 +98,8 @@ export const copy = {
     scroll: 'Scroll to board',
   },
   ribbons: {
-    phrases: ['Night flight', 'RMO → 14 destinations', 'Boarding tonight'],
-    route: (code: string) => `RMO → ${code}`,
+    phrases: (home: string, count: number) => ['Night flight', `${home} → ${count} destinations`, 'Boarding tonight'],
+    route: (home: string, code: string) => `${home} → ${code}`,
   },
   takeOff: {
     title: 'Ready for take-off.',

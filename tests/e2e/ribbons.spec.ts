@@ -51,7 +51,7 @@ test('the ribbons sweep across the seams of the journey and stay out of the chap
     }
   }
   // they carry the flight's phrases, the chosen route among them
-  await expect(page.getByTestId('ribbon').first()).toContainText('RMO → LIS');
+  await expect(page.getByTestId('ribbon').first()).toContainText('ODS → LIS');
   const props = await page.getByTestId('ribbon').evaluateAll((els) =>
     els.flatMap((el) =>
       el.getAnimations({ subtree: true }).flatMap((a) =>

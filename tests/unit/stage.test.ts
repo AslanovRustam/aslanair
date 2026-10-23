@@ -11,7 +11,7 @@ const sky = (t: number) => trackProgress('pre', 'sky', t);
 const inFrame = (b: ScreenBox) => b.x1 > 0 && b.x0 < 1 && b.y1 > 0 && b.y0 < 1;
 const LIS = DESTINATIONS.find((d) => d.code === 'LIS')!;
 const TURN = globeTurnFor(HOME, LIS);
-/** The plane waiting over Chișinău before any pick, in the world. */
+/** The plane waiting over home (Odesa) before any pick, in the world. */
 const waiting = toWorld(planeOnGlobe(null, LIS, 0), TURN);
 const stageAt = (progress: number) => aircraftStage('browse', progress, planeOverGlobe('browse', progress, null, LIS, 0));
 

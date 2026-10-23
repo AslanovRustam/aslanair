@@ -216,7 +216,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     // the stage stands it through the journey and the fly-away moves it in flight; one of the two is always at rest
     const now = performance.now() / 1000;
     const chosen = destination(s.destinationId);
-    const onGlobe = chosen && planeOverGlobe(s.phase, s.progress, s.flight, chosen, now);
+    const onGlobe = chosen && planeOverGlobe(s.phase, s.progress, s.flight, chosen, now, s.globeSpin);
     const stage = aircraftStage(s.phase, s.progress, onGlobe);
     const chapter = chapterAt('pre', s.progress);
     if (s.phase === 'browse' && chapter.id === 'transfer') {

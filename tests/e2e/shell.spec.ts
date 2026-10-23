@@ -100,7 +100,7 @@ test('the hero shows the title, three facts about AslanAir and the scroll hint, 
   const hero = page.getByTestId('hero');
   await expect(hero.getByRole('heading', { name: 'Night flight', exact: true })).toBeVisible();
   const lowest = Math.min(...DESTINATIONS.map((d) => d.fareUsd));
-  for (const note of ['Chișinău · RMO', '14 destinations', '5 continents', `$${lowest}`]) await expect(hero).toContainText(note);
+  for (const note of ['Odesa · ODS', '14 destinations', '5 continents', `$${lowest}`]) await expect(hero).toContainText(note);
   await expect(hero.getByText('Scroll to board')).toBeVisible();
   expect(await heroOpacity(page)).toBeGreaterThan(0.95);
   await page.mouse.wheel(0, 600);

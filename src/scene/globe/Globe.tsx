@@ -199,7 +199,7 @@ void main() {
 
 /**
  * The night Earth: a dark sphere with a lit limb and a halo, the land as fine dots, the cities as warm lights, home
- * (Chișinău) and the destinations marked. It stands in its own space below the aircraft (GLOBE), turned so the
+ * (Odesa) and the destinations marked. It stands in its own space below the aircraft (GLOBE), turned so the
  * chosen flight faces the camera, and fades in and out with globeFade. All of it is drawn under the loader once
  * (fade 0) so nothing compiles or uploads when it first comes into view.
  */
@@ -308,7 +308,7 @@ export default function Globe() {
     if (!g.visible) return;
     const now = performance.now() / 1000;
     const chosen = destination(s.destinationId) ?? DESTINATIONS[0];
-    g.quaternion.copy(globeTurnAt(s.flight, chosen, now));
+    g.quaternion.copy(globeTurnAt(s.flight, chosen, now, s.globeSpin));
     // pixels per metre at 1 m: the points keep their size in metres whatever the lens
     const fov = MathUtils.degToRad((camera as PerspectiveCamera).fov);
     const scale = gl.getDrawingBufferSize(buffer.current).y / (2 * Math.tan(fov / 2));

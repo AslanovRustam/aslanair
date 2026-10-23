@@ -22,9 +22,9 @@ describe('boarding pass', () => {
     expect(boardingPassFor({ ...base, id: '3F', row: 3, letter: 'F' }, lisbon, 'own').barcode).not.toEqual(a.barcode);
   });
 
-  test('the pass carries the route from Chișinău, the flight and the transfer', () => {
+  test('the pass carries the route from Odesa, the flight and the transfer', () => {
     const pass = boardingPassFor({ ...base, id: '14C', row: 14, letter: 'C' }, tokyo, 'home');
-    expect(pass.from).toEqual({ code: 'RMO', city: 'Chișinău' });
+    expect(pass.from).toEqual({ code: 'ODS', city: 'Odesa' });
     expect(pass.to).toEqual({ code: 'HND', city: 'Tokyo' });
     expect(pass.flight).toBe(tokyo.flight);
     expect(pass.departs).toBe(tokyo.departs);
