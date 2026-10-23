@@ -13,7 +13,7 @@ import {
   SEAT_Z,
   WINDOW,
 } from '@/experience/geometry';
-import { glbImageSizes, glbNodeNames, glbParentsOf } from './glb';
+import { glbImageSizes, glbNodeNames, glbParentsOf, glbPrimitiveSize } from './glb';
 import { linerHalfWidthAt } from './linerProfile';
 
 const GLB = 'public/models/airliner.glb';
@@ -70,6 +70,16 @@ describe('aircraft asset budget', () => {
   test('fits the triangle and size budget', () => {
     expect(meta.triangles).toBeLessThanOrEqual(120_000);
     expect(statSync(GLB).size).toBeLessThanOrEqual(1_500_000);
+  });
+
+  test('the closed door fills its doorway with no gap; a painted seam outlines it', () => {
+    const [w, h] = glbPrimitiveSize(GLB, 'Door1L', 'Livery');
+    expect(Math.abs(w - meta.door1L.width), 'width').toBeLessThan(0.002);
+    expect(Math.abs(h - meta.door1L.height), 'height').toBeLessThan(0.002);
+    const [sw, sh] = glbPrimitiveSize(GLB, 'Door1LSeam', 'DoorSeam');
+    expect(sw - meta.door1L.width).toBeGreaterThan(0.004);
+    expect(sw - meta.door1L.width).toBeLessThan(0.02);
+    expect(sh - meta.door1L.height).toBeGreaterThan(0.004);
   });
 
   test('keeps the nodes the site animates and swaps', () => {

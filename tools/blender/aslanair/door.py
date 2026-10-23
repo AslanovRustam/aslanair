@@ -3,6 +3,8 @@
 Both are exact polygon clips of the hull faces around the door (see clip.py), done in the
 XZ projection, which is single-valued on the port side of the hull.
 """
+import math
+
 import bpy
 from mathutils import Matrix, Vector
 
@@ -11,7 +13,9 @@ from .clip import close_t_junctions, intersect_convex, subtract_convex
 from .geometry import DOOR_1L, L, X, door_hinge, door_rect, hull_half_width_at
 from .mesh import face_records, material, merge_into, mesh_from_polys, object_from_polys, rounded_rect_xz, split_faces
 
-PANEL_GAP = 0.012     # visible seam between panel and frame
+# The closed panel fills the doorway exactly (a gap showed the panel's light rim and the dark inside); the seam is a
+# fine painted line on the skin around it instead.
+SEAM = 0.006
 PANEL_THICKNESS = 0.06
 # the door's window is geometry: painted into the 2048 px livery it pixelates right where the camera flies in
 DOOR_WINDOW = {'below_top': 0.45, 'w': 0.22, 'h': 0.30, 'r': 0.08, 'frame': 0.025, 'standoff': 0.003, 'cell': 0.03}
@@ -42,7 +46,22 @@ def _thicken(panel, inner_mat):
     old = panel.data
     panel.data = me
     bpy.data.meshes.remove(old)
-    panel.data.shade_smooth()
+    _smooth_by_angle(panel.data, math.radians(30))
+
+
+def _smooth_by_angle(me, angle):
+    """Smooth shading across gentle edges, sharp where faces meet at more than `angle`: averaged with the rim, the
+    skin's edge normals made the closed panel read as a pillow standing out of the hull."""
+    me.shade_smooth()
+    sharp = me.attributes.get('sharp_edge') or me.attributes.new('sharp_edge', 'BOOLEAN', 'EDGE')
+    faces_of = {}
+    for poly in me.polygons:
+        for key in poly.edge_keys:
+            faces_of.setdefault(key, []).append(poly.index)
+    limit = math.cos(angle)
+    for e in me.edges:
+        fs = faces_of.get(e.key, [])
+        sharp.data[e.index].value = len(fs) == 2 and me.polygons[fs[0]].normal.dot(me.polygons[fs[1]].normal) < limit
 
 
 def _on_skin(polys, origin):
@@ -77,6 +96,14 @@ def _door_window(panel, origin):
         ob['decal'] = True
 
 
+def _door_seam(faces):
+    """A dark ring just outside the doorway, a decal on the hull: reads as the door's seam, opened or closed."""
+    outer, hole = door_outline(-SEAM), door_outline()
+    ring = close_t_junctions([q for f in faces if (p := intersect_convex(f, outer)) for q in subtract_convex(p, hole)])
+    seam = object_from_polys('Door1LSeam', _on_skin(ring, Vector((0.0, 0.0, 0.0))), material('DoorSeam', '#1d2433', rough=0.6, double=True))
+    seam['decal'] = True
+
+
 def make_door_1l(fuselage):
     """Cuts the doorway out of `fuselage` and returns the Door1L panel (origin on the hinge)."""
     region = split_faces(fuselage, _door_region, 'DoorRegion')
@@ -84,12 +111,11 @@ def make_door_1l(fuselage):
 
     panel = bpy.data.objects.new('Door1L', region.data.copy())
     bpy.context.scene.collection.objects.link(panel)
-    small = door_outline(PANEL_GAP)
-    mesh_from_polys(panel.data, [p for f in faces if (p := intersect_convex(f, small))])
-
     full = door_outline()
+    mesh_from_polys(panel.data, [p for f in faces if (p := intersect_convex(f, full))])
     mesh_from_polys(region.data, [piece for f in faces for piece in subtract_convex(f, full)])
     merge_into(fuselage, region)
+    _door_seam(faces)
 
     _thicken(panel, material('DoorInner', '#d9d6cf', rough=0.7))
 

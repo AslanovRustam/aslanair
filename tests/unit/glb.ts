@@ -2,7 +2,10 @@
 import { readFileSync } from 'node:fs';
 
 interface GltfJson {
-  nodes?: { name?: string; children?: number[] }[];
+  nodes?: { name?: string; children?: number[]; mesh?: number; scale?: number[] }[];
+  meshes?: { primitives: { attributes: { POSITION: number }; material?: number }[] }[];
+  accessors?: { min?: number[]; max?: number[]; componentType: number; normalized?: boolean }[];
+  materials?: { name?: string }[];
   images?: { bufferView?: number; mimeType?: string }[];
   bufferViews?: { byteOffset?: number; byteLength: number }[];
 }
@@ -61,4 +64,28 @@ export function glbImageSizes(path: string): [number, number][] {
     const start = view.byteOffset ?? 0;
     return imageSize(bin.subarray(start, start + view.byteLength));
   });
+}
+
+const NORMALIZED_MAX: Record<number, number> = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535, 5126: 1 };
+
+/**
+ * Size (x, y, z in metres) of the primitive drawn with `material` in the node called `name` or in one of its
+ * direct children (quantized meshes sit in a scaled child), from the accessor bounds.
+ */
+export function glbPrimitiveSize(path: string, name: string, material: string): [number, number, number] {
+  const { json } = chunks(path);
+  const nodes = json.nodes ?? [];
+  const node = nodes.find((n) => n.name === name);
+  if (!node) throw new Error(`no node ${name}`);
+  for (const n of [node, ...(node.children ?? []).map((i) => nodes[i])]) {
+    if (n.mesh === undefined) continue;
+    for (const prim of json.meshes![n.mesh].primitives) {
+      if (json.materials?.[prim.material ?? -1]?.name !== material) continue;
+      const a = json.accessors![prim.attributes.POSITION];
+      const unit = a.normalized ? NORMALIZED_MAX[a.componentType] : 1;
+      const scale = n.scale ?? [1, 1, 1];
+      return [0, 1, 2].map((k) => ((a.max![k] - a.min![k]) / unit) * scale[k]) as [number, number, number];
+    }
+  }
+  throw new Error(`no ${material} primitive under ${name}`);
 }
