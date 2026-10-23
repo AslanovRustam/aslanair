@@ -5,9 +5,11 @@ import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { poseOnPostTrack, poseOnPreTrack, seatedPose, type CameraPose } from '@/experience/cameraPoses';
-import { experienceStore, trackOf } from '@/experience/store';
+import { experienceStore, trackOf, type Phase } from '@/experience/store';
 
 const SMOOTH_TIME = 0.4;
+/** Close enough to the pose to stop gliding and ride it (m; fov in degrees). */
+const SETTLED = { distance: 0.01, fov: 0.05 };
 
 function currentPose(): CameraPose {
   const s = experienceStore.getState();
@@ -17,15 +19,25 @@ function currentPose(): CameraPose {
   return poseOnPreTrack(s.progress);
 }
 
-/** Damps the camera towards the pose the store implies. Runs first so the cloud pass sees this frame's camera. */
+/**
+ * Puts the camera on the pose the store implies. The scroll is already smoothed (Lenis), so on a track the camera
+ * rides the pose exactly: the intro picture, the 3D plane and the night switch all follow the same scroll position,
+ * however fast it moves. A phase change (sitting down, standing up, confirming, starting again) jumps the pose; the
+ * camera glides there instead and rides it again once it has caught up. Runs first so the cloud pass sees this frame.
+ */
 export default function CameraRig() {
   const target = useMemo(() => new Vector3(), []);
   const ready = useRef(false);
+  const riding = useRef(true);
+  const phase = useRef<Phase | null>(null);
 
   useFrame((state, delta) => {
     const cam = state.camera as PerspectiveCamera;
     const pose = currentPose();
-    if (!ready.current) {
+    const now = experienceStore.getState().phase;
+    if (phase.current !== null && now !== phase.current) riding.current = false;
+    phase.current = now;
+    if (!ready.current || riding.current) {
       cam.position.copy(pose.position);
       target.copy(pose.target);
       cam.fov = pose.fov;
@@ -34,6 +46,10 @@ export default function CameraRig() {
       easing.damp3(cam.position, pose.position, SMOOTH_TIME, delta);
       easing.damp3(target, pose.target, SMOOTH_TIME, delta);
       easing.damp(cam, 'fov', pose.fov, SMOOTH_TIME, delta);
+      riding.current =
+        cam.position.distanceTo(pose.position) < SETTLED.distance &&
+        target.distanceTo(pose.target) < SETTLED.distance &&
+        Math.abs(cam.fov - pose.fov) < SETTLED.fov;
     }
     cam.lookAt(target);
     cam.updateProjectionMatrix();

@@ -34,7 +34,8 @@ const start = poseOnPreTrack(0);
 function SceneTestHook() {
   const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
-  useEffect(() => installTestHooks({ scene, gl }), [scene, gl]);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => installTestHooks({ scene, gl, camera }), [scene, gl, camera]);
   return null;
 }
 
