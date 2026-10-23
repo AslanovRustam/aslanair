@@ -13,6 +13,7 @@ import { withCabinLight } from './cabinLight';
 import { aisleRunnerTexels, carpetTexels } from './carpet';
 import { weaveNormals } from './fabric';
 import { fabricPrint } from './fabricPrint';
+import { withSeatGlow } from './seatGlowMaterial';
 
 export interface CabinMaterials {
   // seats fill half the aisle view: matte Lambert costs a fraction of PBR on integrated GPUs
@@ -84,6 +85,7 @@ export function cabinMaterials(): CabinMaterials {
     };
     // furnishing receives no sun shadow, so it takes no direct sun either
     for (const m of Object.values(shared)) withCabinLight(m, { sun: false });
+    for (const m of [shared.fabric, shared.shell, shared.cover]) withSeatGlow(m);
   }
   return shared;
 }

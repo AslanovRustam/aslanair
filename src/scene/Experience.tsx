@@ -15,7 +15,6 @@ import EntryZone from './cabin/EntryZone';
 import FloorDetails from './cabin/FloorDetails';
 import SeatCard from './cabin/SeatCard';
 import TailZone from './cabin/TailZone';
-import SeatHighlight from './cabin/SeatHighlight';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import CompileAsync from './CompileAsync';
@@ -59,7 +58,6 @@ export default function Experience() {
               <CompileAsync>
                 <Seats />
                 <FloorDetails />
-                <SeatHighlight />
                 <Bins />
                 <EntryZone />
                 <TailZone />

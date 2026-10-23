@@ -40,9 +40,9 @@ const INSIDE_SEAT = 0.7;
 const SEAT_CENTRE_Y = 0.55;
 
 /** Whether a camera at `p` sits inside seat `id` (e.g. '14F'): its own seat would fill the edge of the view. */
-export function isInsideSeat(p: Vector3, id: string, radius = INSIDE_SEAT): boolean {
+export function isInsideSeat(p: Vector3, id: string): boolean {
   const [x, y, z] = seatWorldPosition(Number(id.slice(0, -1)), id.at(-1) as SeatLetter);
-  return p.distanceTo(new Vector3(x, y + SEAT_CENTRE_Y, z)) < radius;
+  return p.distanceTo(new Vector3(x, y + SEAT_CENTRE_Y, z)) < INSIDE_SEAT;
 }
 
 export const BIN = { length: 0.76, bottomY: 1.1, aisleZ: 0.98, doorBulge: 0.03 } as const;

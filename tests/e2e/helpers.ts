@@ -67,22 +67,6 @@ export async function scanForHoveredSeat(page: Page): Promise<{ id: string; x: n
   throw new Error('no seat under the pointer grid');
 }
 
-/** The SeatHighlight object's visibility, world position and colour (#rrggbb). */
-export const highlightState = (page: Page) =>
-  page.evaluate(() => {
-    type Vec = { x: number; z: number };
-    type Hl = {
-      visible: boolean;
-      position: Vec & { constructor: new () => Vec };
-      getWorldPosition(v: Vec): Vec;
-      material: { color: { getHexString(): string } };
-    };
-    const o = (window as unknown as StoreWindow).__aslan.scene!.getObjectByName('SeatHighlight') as unknown as Hl | undefined;
-    if (!o) return { visible: false, x: NaN, z: NaN, color: '' };
-    const p = o.getWorldPosition(new o.position.constructor());
-    return { visible: o.visible, x: p.x, z: p.z, color: `#${o.material.color.getHexString()}` };
-  });
-
 /** Wheel until the current scroll track reaches its end. */
 export async function scrollToEnd(page: Page) {
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);

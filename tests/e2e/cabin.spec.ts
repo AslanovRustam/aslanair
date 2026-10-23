@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seatWorldPosition, type SeatLetter } from '@/experience/geometry';
-import { highlightState, scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
+import { scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
 
 type Node = { count?: number };
 type SceneWindow = Window & { __aslan: { scene?: { getObjectByName(n: string): Node | undefined } } };
@@ -73,19 +72,40 @@ test('instanced seat parts keep the kit seat size (dequantized, node transform b
   }
 });
 
-test('the highlight sits on the hovered seat, then marks the chosen one', async ({ page }) => {
+/** A seat's lift above the floor and glow (rgb) from its cover instance; whether any outline object exists. */
+const seatState = (page: import('@playwright/test').Page, id: string) =>
+  page.evaluate((seatId) => {
+    type Instanced = { instanceMatrix: { array: Float32Array }; geometry: { getAttribute(n: string): { array: Float32Array } | undefined } };
+    const w = window as unknown as { __aslan: { store: { getState(): { seats: { id: string }[] } }; scene: { getObjectByName(n: string): unknown } } };
+    const i = w.__aslan.store.getState().seats.findIndex((s) => s.id === seatId);
+    const cover = w.__aslan.scene.getObjectByName('SeatCover') as Instanced;
+    const glow = cover.geometry.getAttribute('seatGlow')?.array;
+    return {
+      lift: +(cover.instanceMatrix.array[i * 16 + 13] - -0.45).toFixed(3),
+      glow: glow ? [glow[i * 3], glow[i * 3 + 1], glow[i * 3 + 2]].map((v) => +v.toFixed(2)) : null,
+      outline: !!w.__aslan.scene.getObjectByName('SeatHighlight'),
+    };
+  }, id);
+
+test('the hovered seat rises and glows on its own; the chosen one glows terracotta', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
   for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
   await settledProgress(page);
   const hit = await scanForHoveredSeat(page);
-  const [x, , z] = seatWorldPosition(Number(hit.id.slice(0, -1)), hit.id.at(-1) as SeatLetter);
-  const hl = await highlightState(page);
-  expect(hl).toMatchObject({ visible: true, color: '#6fd3cc' });
-  expect(hl.x).toBeCloseTo(x, 2);
-  expect(hl.z).toBeCloseTo(z, 2);
+  await expect.poll(async () => (await seatState(page, hit.id)).lift).toBeGreaterThan(0.03);
+  const hovered = await seatState(page, hit.id);
+  expect(hovered.outline, 'no outline around the seat').toBe(false);
+  expect(hovered.glow![1], 'teal glow').toBeGreaterThan(hovered.glow![0] + 0.1);
+  const other = await page.evaluate((id) => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { seats: { id: string }[] } } } }).__aslan.store.getState();
+    return s.seats.find((x) => x.id !== id)!.id;
+  }, hit.id);
+  expect(await seatState(page, other)).toMatchObject({ lift: 0, glow: [0, 0, 0] });
   await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => highlightState(page)).toMatchObject({ visible: true, color: '#d4683a' });
+  await expect.poll(async () => (await seatState(page, hit.id)).glow![0], { message: 'terracotta glow' }).toBeGreaterThan(0.2);
+  const chosen = await seatState(page, hit.id);
+  expect(chosen.glow![0]).toBeGreaterThan(chosen.glow![2]);
 });
 
 test('hovering a seat keeps the pick targets in place', async ({ page }) => {
@@ -206,7 +226,7 @@ test('the cabin is lit by its materials, not by point lights', async ({ page }) 
   });
   expect(state.points).toBe(0);
   // the shell receives the sun through the windows; furnishing (no sun shadow) is shaded from it
-  expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light-shaded', BinPort: 'cabin-light-shaded', GalleyPanels: 'cabin-light-shaded' });
+  expect(state.keys).toEqual({ CabinShell: 'cabin-light', SeatFabric: 'cabin-light-shaded+seat-glow', BinPort: 'cabin-light-shaded', GalleyPanels: 'cabin-light-shaded' });
 });
 
 test('the seat under the pointer is the seat you see', async ({ page }) => {
@@ -266,20 +286,20 @@ test('the seat under the pointer is the seat you see', async ({ page }) => {
   expect(wrong / visible).toBeLessThanOrEqual(0.02);
 });
 
-/** Pixels that change when the SeatHighlight is put on a hidden layer: how many, how many near-white, how many of `hue`. */
-async function highlightPixels(page: import('@playwright/test').Page, hue: 'teal' | 'terracotta') {
-  const setLayer = (layer: number) =>
-    page.evaluate((l) => {
-      const o = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): { layers: { set(n: number): void } } } } }).__aslan.scene.getObjectByName('SeatHighlight');
-      o.layers.set(l);
-    }, layer);
+test('the hover glow is the seat itself lighting up in teal, never a white wash', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
+  await settledProgress(page);
+  await page.addStyleTag({ content: '[data-testid="seat-card"] { visibility: hidden !important; }' }); // compare the 3D only
+  await scanForHoveredSeat(page);
+  await page.waitForTimeout(500);
   const shown = (await page.screenshot()).toString('base64');
-  await setLayer(31);
-  await page.waitForTimeout(200);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(500);
   const hidden = (await page.screenshot()).toString('base64');
-  await setLayer(0);
-  return page.evaluate(
-    async ([a, b, h]) => {
+  const px = await page.evaluate(
+    async ([a, b]) => {
       const load = async (src: string) => {
         const img = new Image();
         img.src = `data:image/png;base64,${src}`;
@@ -294,48 +314,21 @@ async function highlightPixels(page: import('@playwright/test').Page, hue: 'teal
       const [p, q] = [await load(a), await load(b)];
       let changed = 0;
       let white = 0;
-      let tinted = 0;
+      let teal = 0;
       for (let i = 0; i < p.length; i += 4) {
         if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) < 24) continue;
         changed++;
         if (p[i] > 245 && p[i + 1] > 245 && p[i + 2] > 245) white++;
-        const isHue = h === 'teal' ? p[i + 1] > p[i] + 10 && p[i + 2] > p[i] + 10 : p[i] > p[i + 1] + 25 && p[i + 1] > p[i + 2];
-        if (isHue) tinted++;
+        if (p[i + 1] > p[i] + 10 && p[i + 2] > p[i] + 10) teal++;
       }
-      return { changed, white, tinted, frame: p.length / 4 };
+      return { changed, white, teal };
     },
-    [shown, hidden, hue] as const,
+    [shown, hidden] as const,
   );
-}
-
-test('the hover glow keeps its teal over the light cabin', async ({ page }) => {
-  await page.goto('/');
-  await waitForStore(page);
-  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
-  await settledProgress(page);
-  await scanForHoveredSeat(page);
-  await page.waitForTimeout(400);
-  const px = await highlightPixels(page, 'teal');
   console.log('hover glow pixels', JSON.stringify(px));
-  expect(px.changed).toBeGreaterThan(100); // a rim exists; most of it hides behind neighbouring seats
-  expect(px.white / px.changed).toBeLessThan(0.1);
-  expect(px.tinted / px.changed).toBeGreaterThan(0.5);
-});
-
-test('sitting down never fills the view with your own seat outline', async ({ page }) => {
-  await page.goto('/');
-  await waitForStore(page);
-  await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('SeatHighlight'));
-  await page.evaluate(() => {
-    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean } } } }).__aslan.store.getState();
-    s.setProgress(0.6);
-    s.seats.find((x) => x.id === '14F')!.status = 'free';
-    s.sit('14F');
-  });
-  await page.waitForTimeout(2500);
-  const px = await highlightPixels(page, 'terracotta');
-  console.log('seated outline pixels', JSON.stringify(px));
-  expect(px.changed / px.frame).toBeLessThan(0.005);
+  expect(px.changed).toBeGreaterThan(300);
+  expect(px.white / px.changed).toBeLessThan(0.05);
+  expect(px.teal / px.changed).toBeGreaterThan(0.5);
 });
 
 test('your own seat steps out of the seated view and comes back when you stand up', async ({ page }) => {

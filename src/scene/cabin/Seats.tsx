@@ -6,6 +6,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferAttribute,
   Color,
+  InstancedBufferAttribute,
   Matrix4,
   type BufferGeometry,
   type InstancedMesh,
@@ -17,6 +18,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { armMatrices, isInsideSeat, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
 import { tapAction } from '@/experience/seatCard';
+import { easeLevel, hoverLift, SEAT_GLOW } from '@/experience/seatGlow';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
 import { experienceStore, useExperience } from '@/experience/store';
 import { cabinMaterials } from './materials';
@@ -24,8 +26,12 @@ import { lastPointerKind } from './pointerKind';
 
 export const KIT_URL = '/models/cabin-kit.glb';
 const OCCUPIED_DIM = 0.75;
-/** Per-seat parts that leave the view while the camera sits in their seat (arms are shared between neighbours). */
+/** Per-seat parts: they rise with a hovered seat and leave the view while the camera sits in it (arms are shared
+ * between neighbours, so they stay). */
 const OWN_SEAT_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatLegs', 'SeatBelt', 'SeatBuckle'];
+/** Parts that light up: they carry the instanced `seatGlow` attribute (see withSeatGlow). */
+const GLOW_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover'];
+const GLOW_COLORS = { hover: new Color(SEAT_GLOW.hover.color), selected: new Color(SEAT_GLOW.selected.color) };
 const GONE = new Matrix4().makeScale(0, 0, 0);
 
 const interactive = () => {
@@ -79,14 +85,35 @@ export default function Seats() {
   const hit = useRef<InstancedMesh>(null);
   // picking runs on the seat's own visible shape (cushions, shell, cover): any box proxy either swallows the air
   // above the cushion or overhangs the row behind, and the pointer lands on a neighbour
-  const pickShape = useMemo(() => mergeGeometries(['SeatFabric', 'SeatShell', 'SeatCover'].map((n) => kit(n).clone()))!, [kit]);
+  const pickShape = useMemo(
+    () => mergeGeometries(['SeatFabric', 'SeatShell', 'SeatCover'].map((n) => kit(n).clone().deleteAttribute('seatGlow')))!,
+    [kit],
+  );
+  // one glow per seat, shared by the parts that light up; the pick shape never moves, so hovering stays steady
+  const glow = useRef<InstancedBufferAttribute | null>(null);
+  const levels = useRef(new Map<number, number>());
+  const chosenSeat = useRef(-1);
+  const scratch = useRef({ matrix: new Matrix4(), tint: new Color() });
   const lastProgress = useRef(-1);
   const perSeat = useRef<Matrix4[]>([]);
   const ownSeat = useRef(-1);
 
   // R3F only raycasts on pointer events. When the camera walks, re-check what is under the
   // still pointer; outside the aisle chapter nothing may stay hovered.
-  useFrame((state) => {
+  /** Puts seat `i` back in its place, `lift` metres up; the seat the camera sits in stays out of the view. */
+  const placeSeat = (i: number, lift: number) => {
+    if (i === ownSeat.current) return;
+    const at = scratch.current.matrix.copy(perSeat.current[i]);
+    at.elements[13] += lift;
+    for (const name of OWN_SEAT_PARTS) {
+      const mesh = parts.current[name];
+      if (!mesh) continue;
+      mesh.setMatrixAt(i, at);
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  };
+
+  useFrame((state, delta) => {
     const s = experienceStore.getState();
     // the seat the camera sits in would fill the edge of the view with its own headrest: take it out meanwhile
     const own = s.selectedSeatId && isInsideSeat(state.camera.position, s.selectedSeatId) ? s.seats.findIndex((x) => x.id === s.selectedSeatId) : -1;
@@ -109,11 +136,48 @@ export default function Seats() {
       state.events.update?.();
     }
     lastProgress.current = s.progress;
+
+    // the seat under the pointer rises and lights up; the one it leaves settles back down
+    const index = (id: string | null) => (id ? s.seats.findIndex((x) => x.id === id) : -1);
+    const hovered = index(s.hoveredSeatId);
+    if (hovered >= 0 && !levels.current.has(hovered)) levels.current.set(hovered, 0);
+    const attribute = glow.current;
+    if (!attribute) return;
+    const g = attribute.array as Float32Array;
+    const tint = scratch.current.tint;
+    const pulse = 1 + SEAT_GLOW.hover.pulse * Math.sin(2 * Math.PI * SEAT_GLOW.hover.hz * state.clock.elapsedTime);
+    for (const [i, level] of levels.current) {
+      const next = easeLevel(level, i === hovered ? 1 : 0, delta);
+      const settled = i !== hovered && next < 1e-3;
+      if (settled) levels.current.delete(i);
+      else levels.current.set(i, next);
+      placeSeat(i, settled ? 0 : hoverLift(next));
+      tint.copy(GLOW_COLORS.hover).multiplyScalar(settled ? 0 : next * SEAT_GLOW.hover.strength * pulse).toArray(g, i * 3);
+    }
+    // the chosen seat keeps a warm glow while it is yours
+    const chosen = s.phase !== 'browse' ? index(s.selectedSeatId) : -1;
+    if (chosen !== chosenSeat.current && chosenSeat.current >= 0 && !levels.current.has(chosenSeat.current)) {
+      g.fill(0, chosenSeat.current * 3, chosenSeat.current * 3 + 3);
+    }
+    chosenSeat.current = chosen;
+    if (chosen >= 0) tint.copy(GLOW_COLORS.selected).multiplyScalar(SEAT_GLOW.selected.strength).toArray(g, chosen * 3);
+    attribute.needsUpdate = true;
   });
+
+  useLayoutEffect(() => {
+    const attribute = new InstancedBufferAttribute(new Float32Array(seats.length * 3), 3);
+    for (const name of GLOW_PARTS) kit(name).setAttribute('seatGlow', attribute);
+    glow.current = attribute;
+  }, [kit, seats.length]);
 
   useLayoutEffect(() => {
     perSeat.current = seatMatrices(seats);
     ownSeat.current = -1;
+    levels.current.clear();
+    if (glow.current) {
+      (glow.current.array as Float32Array).fill(0);
+      glow.current.needsUpdate = true;
+    }
     const arms = armMatrices();
     for (const [name, mesh] of Object.entries({ ...parts.current, SeatHit: hit.current })) {
       if (!mesh) continue;
