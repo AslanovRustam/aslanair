@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { hoveredSeat, scanForHoveredSeat, settledProgress, waitForStore } from './helpers';
+import { pre, wheelTo, hoveredSeat, scanForHoveredSeat, settledProgress, waitForStore } from './helpers';
 
 test('the seat under the pointer is re-checked as the camera walks', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
-  await settledProgress(page);
+  await wheelTo(page, pre('aisle', 0.55));
 
   const first = (await scanForHoveredSeat(page)).id;
 

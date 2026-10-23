@@ -53,7 +53,7 @@ test('after confirming a seat the cabin is out of reach and the call to action i
   await open(page);
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
     s.confirm();
@@ -194,7 +194,7 @@ test('while seated, choosing Your seat keeps the seat', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
   });

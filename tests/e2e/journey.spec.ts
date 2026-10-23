@@ -57,7 +57,7 @@ test('the outro is a dark editorial page in the night style', async ({ page }) =
   await waitForStore(page);
   await page.evaluate(() => {
     const s = (window as unknown as JourneyWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
     s.confirm();
@@ -85,7 +85,7 @@ test('the outro is a dark editorial page in the night style', async ({ page }) =
 test('chapter captions use the display face', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  await page.evaluate(() => (window as unknown as JourneyWindow).__aslan.store.getState().setProgress(0.3));
+  await page.evaluate(() => (window as unknown as JourneyWindow).__aslan.store.getState().setProgress(__pre('door', 0.4)));
   const caption = page.getByRole('heading', { name: 'Welcome aboard.' });
   await expect(caption).toBeVisible();
   expect(await caption.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Archivo');
@@ -125,7 +125,7 @@ test('on the pass, Take off flies to the window and asks to scroll on', async ({
   await waitForStore(page);
   await page.evaluate(() => {
     const s = (window as unknown as JourneyWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
     s.confirm();

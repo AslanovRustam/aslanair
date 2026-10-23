@@ -1,5 +1,5 @@
 export type Track = 'pre' | 'post';
-export type ChapterId = 'sky' | 'door' | 'aisle' | 'pass' | 'exit' | 'outro';
+export type ChapterId = 'sky' | 'destinations' | 'transfer' | 'ready' | 'door' | 'aisle' | 'pass' | 'exit' | 'outro';
 
 export interface ChapterRange {
   id: ChapterId;
@@ -8,18 +8,35 @@ export interface ChapterRange {
   heightVh: number;
 }
 
-/** Scroll tracks: 'pre' before a seat is confirmed, 'post' after. Ranges are fractions of the track. */
+/** A track's chapters in order, their ranges the share of the scroll height each takes: they always add up to 1. */
+function track(chapters: { id: ChapterId; heightVh: number }[]): ChapterRange[] {
+  const total = chapters.reduce((sum, c) => sum + c.heightVh, 0);
+  let at = 0;
+  return chapters.map((c) => {
+    const start = at / total;
+    at += c.heightVh;
+    return { ...c, start, end: at / total };
+  });
+}
+
+/**
+ * Scroll tracks: 'pre' before a seat is confirmed, 'post' after. The pre track is the journey (first screen,
+ * destinations, transfer, ready), then the door and the aisle (spec r3 §3).
+ */
 export const TRACKS: Record<Track, ChapterRange[]> = {
-  pre: [
-    { id: 'sky', start: 0, end: 0.2, heightVh: 100 },
-    { id: 'door', start: 0.2, end: 0.45, heightVh: 125 },
-    { id: 'aisle', start: 0.45, end: 1, heightVh: 275 },
-  ],
-  post: [
-    { id: 'pass', start: 0, end: 0.15, heightVh: 60 },
-    { id: 'exit', start: 0.15, end: 0.7, heightVh: 220 },
-    { id: 'outro', start: 0.7, end: 1, heightVh: 120 },
-  ],
+  pre: track([
+    { id: 'sky', heightVh: 110 },
+    { id: 'destinations', heightVh: 170 },
+    { id: 'transfer', heightVh: 110 },
+    { id: 'ready', heightVh: 130 },
+    { id: 'door', heightVh: 125 },
+    { id: 'aisle', heightVh: 275 },
+  ]),
+  post: track([
+    { id: 'pass', heightVh: 60 },
+    { id: 'exit', heightVh: 220 },
+    { id: 'outro', heightVh: 120 },
+  ]),
 };
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));

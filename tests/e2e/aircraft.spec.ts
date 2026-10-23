@@ -26,7 +26,7 @@ test('door 1L opens as the camera arrives', async ({ page }) => {
   // into the door chapter (pre track 0.2–0.45), past the point where the door has slid forward
   await page.evaluate(() => {
     const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store;
-    s.getState().setProgress(0.36);
+    s.getState().setProgress(__pre('door', 0.64));
   });
   await page.waitForTimeout(800);
   expect(await doorTravel(page, closedX)).toBeGreaterThan(0.5);

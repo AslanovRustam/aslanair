@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { seatCardAnchor } from '@/experience/seatCard';
-import { scanForHoveredSeat, settledProgress, waitForStore } from './helpers';
+import { pre, scanForHoveredSeat, settledProgress, waitForStore } from './helpers';
 
 type Store = {
   getState(): { phase: string; hoveredSeatId: string | null; setProgress(p: number): void; seats: { id: string; priceUsd: number }[] };
@@ -9,7 +9,7 @@ type Store = {
 type R3FObject = { __r3f: { root: { getState(): { camera: { updateMatrixWorld(): void } } } } };
 type CardWindow = Window & { __aslan: { store: Store; scene: { getObjectByName(n: string): R3FObject } } };
 
-const AISLE = 0.6;
+const AISLE = pre('aisle', 0.27);
 
 async function walkIntoAisle(page: Page) {
   await page.goto('/');

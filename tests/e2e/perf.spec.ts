@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { trackProgress } from '@/experience/chapters';
 import { INTRO } from '@/experience/introState';
-import { waitForStore } from './helpers';
+import { pre, waitForStore } from './helpers';
 
 // Runs as its own Playwright project after the main suite, so no other browser shares the GPU.
 
@@ -64,15 +64,15 @@ test('the night flight holds 45 fps — showcase, swap, door, entry, aisle, aisl
     const b = await frameTimes(page);
     report[name] = a.mean <= b.mean ? a : b;
   };
-  await setProgress(page, 0.05);
+  await setProgress(page, pre('sky', 0.25));
   await measure('showcase');
   await setProgress(page, SWAP);
   await measure('swap');
-  await setProgress(page, 0.42);
+  await setProgress(page, pre('door', 0.88));
   await measure('door');
   await setProgress(page, ENTRY);
   await measure('entry');
-  await setProgress(page, 0.6);
+  await setProgress(page, pre('aisle', 0.27));
   await measure('aisle');
   await setProgress(page, 1);
   await measure('aisle-end');
@@ -159,7 +159,7 @@ test('review screenshot set — never a black screen', async ({ page }) => {
     page.evaluate((sid) => {
       const s = (window as unknown as StoreWindow).__aslan.store.getState();
       s.restart();
-      s.setProgress(0.6);
+      s.setProgress(__pre('aisle', 0.27));
       const seat = s.seats.find((x) => x.id === sid)!;
       seat.status = 'free';
       s.sit(sid);
@@ -178,7 +178,7 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await shoot('hero', { judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
   await setProgress(page, SWAP);
   await shoot('intro-swap', { judgeOn: planeOnScreen(1, 0) });
-  for (const [name, p] of [['door', 0.36], ['entry', ENTRY], ['aisle', 0.6], ['aisle-end', 1]] as const) {
+  for (const [name, p] of [['door', pre('door', 0.64)], ['entry', ENTRY], ['aisle', pre('aisle', 0.27)], ['aisle-end', 1]] as const) {
     await setProgress(page, p);
     await shoot(name);
   }

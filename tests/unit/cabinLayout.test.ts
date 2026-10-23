@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
+import { trackProgress } from '@/experience/chapters';
 import {
   armMatrices,
   binBoxes,
@@ -112,7 +113,7 @@ describe('entry zone and signs', () => {
     expect(isInsideSeat(eye, '14F')).toBe(true);
     expect(isInsideSeat(eye, '13F')).toBe(false);
     expect(isInsideSeat(eye, '14E')).toBe(false);
-    expect(isInsideSeat(poseOnPreTrack(0.6).position, '14F')).toBe(false);
+    expect(isInsideSeat(poseOnPreTrack(trackProgress('pre', 'aisle', 0.27)).position, '14F')).toBe(false);
   });
 
   test('seat tracks run under the seat legs, two per triple', () => {

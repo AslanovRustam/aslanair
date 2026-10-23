@@ -1,4 +1,13 @@
 import { expect, type Page } from '@playwright/test';
+import { trackProgress, type ChapterId } from '@/experience/chapters';
+
+declare global {
+  /** Installed in the page by the dev test hooks: pre-track progress of chapter `id` at local `t`. */
+  function __pre(id: ChapterId, t: number): number;
+}
+
+/** Pre-track progress of chapter `id` at local `t` (node side). */
+export const pre = (id: ChapterId, t: number) => trackProgress('pre', id, t);
 
 export interface StoreSnapshot {
   phase: 'browse' | 'seated' | 'confirmed' | 'thanks';
@@ -65,6 +74,22 @@ export async function scanForHoveredSeat(page: Page): Promise<{ id: string; x: n
     }
   }
   throw new Error('no seat under the pointer grid');
+}
+
+/** Real wheel scrolling (through Lenis) until the progress reaches `target`; returns where it settled. */
+export async function wheelTo(page: Page, target: number): Promise<number> {
+  let at = await progress(page);
+  for (let i = 0; i < 40 && at < target; i++) {
+    // a notch at a time, each left to settle, so the scroll stops just past `target` rather than overshooting
+    await page.mouse.wheel(0, 300);
+    let last = -1;
+    for (let k = 0; k < 20 && Math.abs(at - last) > 1e-4; k++) {
+      last = at;
+      await page.waitForTimeout(150);
+      at = await progress(page);
+    }
+  }
+  return at;
 }
 
 /** Wheel until the current scroll track reaches its end. */

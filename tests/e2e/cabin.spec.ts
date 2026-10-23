@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
+import { pre, wheelTo, scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
 
 type Node = { count?: number };
 type SceneWindow = Window & { __aslan: { scene?: { getObjectByName(n: string): Node | undefined } } };
@@ -90,8 +90,7 @@ const seatState = (page: import('@playwright/test').Page, id: string) =>
 test('the hovered seat rises and glows on its own; the chosen one glows terracotta', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
-  await settledProgress(page);
+  await wheelTo(page, pre('aisle', 0.55));
   const hit = await scanForHoveredSeat(page);
   await expect.poll(async () => (await seatState(page, hit.id)).lift).toBeGreaterThan(0.03);
   const hovered = await seatState(page, hit.id);
@@ -112,8 +111,7 @@ test('hovering a seat keeps the pick targets in place', async ({ page }) => {
   type Hit = { uuid: string; instanceMatrix: { array: Float32Array } };
   await page.goto('/');
   await waitForStore(page);
-  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
-  await settledProgress(page);
+  await wheelTo(page, pre('aisle', 0.55));
   const pickTargets = () =>
     page.evaluate(() => {
       const h = (window as unknown as SceneWindow).__aslan.scene!.getObjectByName('SeatHit') as unknown as Hit;
@@ -174,7 +172,7 @@ test('no sun streaks on the upper wall', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
   await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
-  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(2500);
   const clip = { x: 200, y: 180, width: 520, height: 280 };
   const energy = async (png: Buffer) =>
@@ -289,8 +287,7 @@ test('the seat under the pointer is the seat you see', async ({ page }) => {
 test('the hover glow is the seat itself lighting up in teal, never a white wash', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
-  await settledProgress(page);
+  await wheelTo(page, pre('aisle', 0.55));
   await page.addStyleTag({ content: '[data-testid="seat-card"] { visibility: hidden !important; }' }); // compare the 3D only
   const hit = await scanForHoveredSeat(page);
   // around the seat only: the clouds drift past the windows between the two shots
@@ -352,7 +349,7 @@ test('your own seat steps out of the seated view and comes back when you stand u
     });
   await page.evaluate(() => {
     const s = (window as unknown as { __aslan: { store: Store } }).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
   });
@@ -365,7 +362,7 @@ test('the closed fuselage keeps direct sun off the seats and bins', async ({ pag
   await page.goto('/');
   await waitForStore(page);
   await page.waitForFunction(() => !!(window as unknown as SceneWindow).__aslan.scene?.getObjectByName('GalleyPanels'));
-  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(2500);
   const regions = { seats: { x: 150, y: 560, width: 1140, height: 130 }, bins: { x: 0, y: 120, width: 1440, height: 280 } };
   const mean = async (clip: { x: number; y: number; width: number; height: number }) =>

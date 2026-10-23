@@ -3,14 +3,13 @@ import { chapterAt } from './chapters';
 import { DOOR_1L } from './geometry';
 import { trackOf, type Phase } from './store';
 
-/** 0 = closed, 1 = fully open. Opens during the door approach; closed again for the flight. */
+/** 0 = closed, 1 = fully open. Closed through the journey, opens during the door approach; closed again for the flight. */
 export function doorOpenAmount(phase: Phase, progress: number): number {
   if (trackOf(phase) === 'post') return 0;
   if (phase === 'seated') return 1;
   const { id, t } = chapterAt('pre', progress);
-  if (id === 'sky') return 0;
   if (id === 'door') return MathUtils.smoothstep(t, 0.3, 0.55);
-  return 1;
+  return id === 'aisle' ? 1 : 0;
 }
 
 /** Plug door: slides out from the skin over the first 40%, then forward along the hull. */

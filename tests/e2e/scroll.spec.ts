@@ -7,7 +7,8 @@ test('rotating a phone keeps the story position', async ({ page }) => {
   await waitForStore(page);
   for (let i = 0; i < 2; i++) await page.mouse.wheel(0, 600);
   const before = await settledProgress(page);
-  expect(before).toBeGreaterThan(0.2);
+  // somewhere in the journey, clear of both ends
+  expect(before).toBeGreaterThan(0.1);
   expect(before).toBeLessThan(0.6);
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(800);

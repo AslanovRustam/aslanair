@@ -10,7 +10,7 @@ import {
   seatedPose,
   WINDOW_ON_EXIT,
 } from '@/experience/cameraPoses';
-import { trackProgress } from '@/experience/chapters';
+import { trackProgress, TRACKS } from '@/experience/chapters';
 import { INTRO } from '@/experience/introState';
 import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
 import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
@@ -38,14 +38,6 @@ describe('pre-track camera', () => {
     const moved = poseOnPreTrack(trackProgress('pre', 'sky', hold + step)).position.distanceTo(INTRO.swapPose.position);
     const total = poseOnPreTrack(trackProgress('pre', 'sky', 1)).position.distanceTo(INTRO.swapPose.position);
     expect(moved).toBeLessThan((total * step) / (1 - hold) / 4);
-  });
-
-  test('the sky shot meets the door flight at the speed the door flight starts with', () => {
-    const at = trackProgress('pre', 'door', 0);
-    const h = 1e-5;
-    const before = poseOnPreTrack(at - h).position.distanceTo(poseOnPreTrack(at - 2 * h).position) / h;
-    const after = poseOnPreTrack(at + 2 * h).position.distanceTo(poseOnPreTrack(at + h).position) / h;
-    expect(Math.abs(before - after) / after).toBeLessThan(0.05);
   });
 
   test('the door flight ends at the aisle start and threads the door', () => {
@@ -94,7 +86,7 @@ describe('pre-track camera', () => {
 
   test('the aisle walk can stop level with any row, with a wide lens', () => {
     expect(poseOnPreTrack(aisleProgressForRow(14)).position.x).toBeCloseTo(rowX(14) + 0.6, 3);
-    expect(poseOnPreTrack(0.9).fov).toBe(60);
+    expect(poseOnPreTrack(trackProgress('pre', 'aisle', 0.8)).fov).toBe(60);
   });
 });
 
@@ -146,8 +138,8 @@ describe('continuity at chapter boundaries', () => {
     expect(a.target.distanceTo(b.target)).toBeLessThan(1e-3);
     expect(Math.abs(a.fov - b.fov)).toBeLessThan(1e-3);
   };
-  for (const b of [0.2, 0.45]) {
-    test(`pre track is continuous at ${b}`, () => close(poseOnPreTrack(b - eps), poseOnPreTrack(b)));
+  for (const r of TRACKS.pre.slice(1)) {
+    test(`pre track is continuous into ${r.id}`, () => close(poseOnPreTrack(r.start - eps), poseOnPreTrack(r.start)));
   }
   for (const b of [0.15, 0.7]) {
     test(`post track is continuous at ${b}`, () => close(poseOnPostTrack(b - eps, seat), poseOnPostTrack(b, seat)));

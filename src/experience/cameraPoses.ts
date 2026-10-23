@@ -123,7 +123,9 @@ export function poseOnPreTrack(progress: number): CameraPose {
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return skyPose(t);
   if (id === 'door') return doorPose(t);
-  return aislePose(t);
+  if (id === 'aisle') return aislePose(t);
+  // the journey's chapters (destinations, transfer, ready) hold the sky shot's end until they get poses of their own
+  return skyPose(1);
 }
 
 export function aisleProgressForRow(row: number): number {

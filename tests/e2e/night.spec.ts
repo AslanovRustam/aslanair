@@ -46,7 +46,7 @@ async function boxStats(page: Page, box: { x: number; y: number; width: number; 
 
 test('before boarding the background is the plain dark of the site', async ({ page }) => {
   await ready(page);
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.05));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('sky', 0.25)));
   await page.waitForTimeout(2500);
   for (const box of [{ x: 0, y: 0 }, { x: 1420, y: 0 }, { x: 0, y: 390 }, { x: 1420, y: 390 }]) {
     const s = await boxStats(page, { ...box, width: 20, height: 20 });
@@ -58,7 +58,7 @@ test('from a window seat the night sky is dark blue with moonlit clouds', async 
   await ready(page);
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
   });
@@ -74,7 +74,7 @@ test('out through the window the clouds below are lit by the moon', async ({ pag
   await ready(page);
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
     s.confirm();
@@ -89,7 +89,7 @@ test('out through the window the clouds below are lit by the moon', async ({ pag
 
 test('the aircraft carries its navigation lights, and the light count never changes', async ({ page }) => {
   await ready(page);
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.05));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('sky', 0.25)));
   await page.waitForTimeout(1500);
   const lights = await page.evaluate(() => {
     type L = { name: string; position: { x: number; y: number; z: number }; userData: { color?: string } };
@@ -104,14 +104,14 @@ test('the aircraft carries its navigation lights, and the light count never chan
   expect(lights.navStarboard.color).toBe('green');
   expect(lights.tail.color).toBe('white');
   const showcase = await visibleLights(page);
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(1500);
   expect(await visibleLights(page)).toBe(showcase);
 });
 
 test('the night cabin stays readable: lit seats and their colours down the aisle', async ({ page }) => {
   await ready(page);
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(2500);
   const seats = await boxStats(page, { x: 120, y: 470, width: 1200, height: 220 });
   console.log('aisle seats', JSON.stringify(seats));
@@ -171,7 +171,7 @@ test('boarding into the night compiles nothing new and never stalls a frame', as
 test('the cabin looks the same whatever the outside light does, so boarding never shifts its colour', async ({ page }) => {
   await ready(page);
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(2000);
   const box = { x: 300, y: 240, width: 840, height: 420 };
   /** Pins the moon and the ambient fill at the given intensities (the sky sets them every frame otherwise). */
@@ -201,7 +201,7 @@ test('the cabin looks the same whatever the outside light does, so boarding neve
 test('aboard, the fuselage beacons never glow into the cabin; the wing lights still show through the windows', async ({ page }) => {
   await ready(page);
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
-  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
   await page.waitForTimeout(1500);
   // over more than a full blink cycle
   const seen = await page.evaluate(
@@ -271,7 +271,7 @@ test('out of the window the stars are crisp points, not soft blobs', async ({ pa
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
   await page.evaluate((window_) => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
-    s.setProgress(0.6);
+    s.setProgress(__pre('aisle', 0.27));
     s.seats.find((x) => x.id === '14F')!.status = 'free';
     s.sit('14F');
     s.confirm();
