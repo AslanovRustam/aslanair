@@ -14,8 +14,9 @@ const PICTURE_BOX = {
 } as CSSProperties;
 
 /**
- * Server-rendered, so it paints before any script: the emblem drawn as a line, the real loading progress under it,
- * and the plane picture fading in exactly where the hero shows it — the hero takes it over without a jump.
+ * Server-rendered, so it paints before any script: the emblem drawn in two beats (the ring as a line, then the sun
+ * rising inside it) and the plane picture fading in exactly where the hero shows it — the hero takes it over
+ * without a jump. The real loading progress is announced to assistive tech, not drawn.
  */
 export default function Loader() {
   const progress = useExperience((s) => Math.round(s.loadProgress));
@@ -53,12 +54,9 @@ export default function Loader() {
               <rect x="0" y="16.8" width="24" height="1.8" fill="#000" />
             </mask>
           </defs>
-          <circle className={styles.disc} cx="12" cy="12" r="10" mask="url(#loader-emblem-bands)" />
-          <circle className={styles.ring} cx="12" cy="12" r="10" pathLength={1} />
+          <circle className={styles.disc} data-part="sun" cx="12" cy="12" r="10" mask="url(#loader-emblem-bands)" />
+          <circle className={styles.ring} data-part="ring" cx="12" cy="12" r="10" pathLength={1} />
         </svg>
-        <span className={styles.bar} aria-hidden="true">
-          <span className={styles.fill} style={{ transform: `scaleX(${progress / 100})` }} />
-        </span>
         <p className={styles.label}>{copy.loader.label}</p>
       </div>
     </div>

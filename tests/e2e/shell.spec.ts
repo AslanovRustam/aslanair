@@ -205,3 +205,29 @@ test('while seated, choosing Your seat keeps the seat', async ({ page }) => {
   expect(await state(page)).toMatchObject({ phase: 'seated' });
   expect(await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { selectedSeatId: string } } } }).__aslan.store.getState().selectedSeatId)).toBe('14F');
 });
+
+test('the scroll hint rises in from below and settles centred', async ({ page }) => {
+  await open(page);
+  const hint = page.getByTestId('hero').getByText('Scroll to board');
+  const frames = await hint.evaluate((el) => {
+    const a = el.getAnimations().find((x) => (x.effect as KeyframeEffect).getKeyframes().some((k) => 'transform' in k))!;
+    return (a.effect as KeyframeEffect).getKeyframes().map((k) => String(k.transform ?? ''));
+  });
+  // translateY in px or rem (16 px)
+  const m = /translateY\((-?[\d.]+)(px|rem)/.exec(frames[0]);
+  const rise = m ? Number(m[1]) * (m[2] === 'rem' ? 16 : 1) : 0;
+  expect(rise, frames[0]).toBeGreaterThanOrEqual(16);
+  // its line draws down after it
+  const line = await hint.evaluate((el) =>
+    document.getAnimations().some((a) => {
+      const e = a.effect as KeyframeEffect;
+      return e.target === el && e.pseudoElement === '::after';
+    }),
+  );
+  expect(line, 'the line under the hint draws in').toBe(true);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await page.waitForTimeout(2500);
+  const box = (await hint.boundingBox())!;
+  const { width } = page.viewportSize()!;
+  expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+});

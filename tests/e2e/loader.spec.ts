@@ -42,3 +42,24 @@ test('the loader and the plane picture preload come with the server response, be
   const tag = /<link[^>]*rel="preload"[^>]*plane-hero\.png|<link[^>]*plane-hero\.png[^>]*rel="preload"/.test(html);
   expect(tag || /<\/images\/plane-hero\.png>;\s*rel=preload;\s*as="image"/.test(header)).toBe(true);
 });
+
+test('the loader draws the emblem in two beats — the full ring, then the sun rising inside it — and shows no bar', async ({ page }) => {
+  await page.route('**/models/*.glb', async (r) => {
+    await new Promise((f) => setTimeout(f, 3000));
+    await r.continue();
+  });
+  await page.goto('/');
+  const loader = page.locator('#loader');
+  await expect(loader).toBeVisible();
+  const timing = await loader.evaluate((el) => {
+    const of = (part: string) => {
+      const target = el.querySelector(`[data-part="${part}"]`)!;
+      const a = target.getAnimations()[0];
+      const t = a.effect!.getComputedTiming();
+      return { start: Number(t.delay ?? 0), end: Number(t.endTime) };
+    };
+    return { ring: of('ring'), sun: of('sun') };
+  });
+  expect(timing.sun.start).toBeGreaterThanOrEqual(timing.ring.end);
+  await expect(loader.locator('[data-part="bar"]')).toHaveCount(0);
+});
