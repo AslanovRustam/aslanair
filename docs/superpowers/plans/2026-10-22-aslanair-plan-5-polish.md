@@ -31,6 +31,20 @@
 - Dragging the pass with a finger turns the card and does not scroll the page; a tap still flips it (Task 4).
 - The production server (test hooks off) renders with no console errors and caches the models (Task 8).
 
+## Carried over from Plan 4
+
+Found while executing and reviewing Plan 4 and deliberately left for this plan; fold each into the task that owns it, with a test.
+
+- Phones (Task 6): in portrait the 3D frame at fov 30 shows only ~37 % of the plane's width after the intro swap. A portrait fov for the outside shots must scale `IntroPlane`'s picture height by the same zoom (`tan(15°) / tan(fov/2)`), or the swap stops lining up.
+- Seat view: the window outline is faceted at the seated eye (`CORNER_SEGMENTS = 5` in tools/blender/aslanair/openings.py; 12 is smooth but costs +25.7k triangles and the airliner sits at 119.5k of its 120k budget — trade triangles elsewhere), and the wall reads bright and warm rather than night.
+- The moon is a front key with an ambient fill; spec r2 §9 pictures a rim light — a fresnel rim in the hull material is nearly free (needs the user's sign-off on the look).
+- Six react-hooks lint errors in SkyAndClouds.tsx and BoardingPass3D.tsx (from Plan 1).
+- Accessibility: the Menu sheet and the How it's made panel are `aria-modal` without a focus trap; the Menu button lacks `aria-expanded`; opening the panel from the phone menu returns focus to an unmounted button. The page has no `<main>` landmark (Task 6's test queries it).
+- `?capture=plane` should only work outside production; `sharp` (used by tests/unit/planeImage.test.ts) belongs in devDependencies; planeImage.test should compute the picture's alpha box and compare it with `INTRO.picture.plane`.
+- On DPR-2 screens the 1600×900 hero picture is upscaled at the swap: consider a 2× WebP capture within 500 KB.
+- `planeBoxVars` in Hero.tsx uses the fixed `heroScale`, not the aspect-aware one (only below aspect 0.59 above 720 px wide).
+- Perf measurement: the user's own browser on the dev server shares the GPU; judge the gate on a quiet GPU and choose levers with WebGL timer queries (`__aslan.gl`).
+
 ---
 
 ## File Structure
