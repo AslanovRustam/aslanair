@@ -41,7 +41,7 @@ export default function Overlay() {
       )}
       {phase === 'seated' && selected && (
         <div className={styles.bar}>
-          <span>{seatLabel(selected)}</span>
+          <span className={styles.barSeat}>{seatLabel(selected)}</span>
           <button type="button" className={styles.ghost} onClick={standUp}>
             {copy.seated.another}
           </button>

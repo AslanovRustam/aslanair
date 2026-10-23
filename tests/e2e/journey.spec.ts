@@ -45,6 +45,51 @@ test('the outro panels can be wheel-scrolled on a short window', async ({ page }
   await expect.poll(() => outro.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
+type JourneyWindow = Window & {
+  __aslan: {
+    store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void } };
+  };
+};
+
+test('the outro is a dark editorial page in the night style', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as JourneyWindow).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  const outro = page.locator('section', { has: page.getByRole('heading', { name: /have a nice flight/i }) });
+  await expect(outro).toBeVisible();
+  const look = await outro.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { color: s.backgroundColor, image: s.backgroundImage, title: getComputedStyle(el.querySelector('h2')!).fontFamily };
+  });
+  expect(/^rgba?\(7, 8, 11(, 0?\.\d+)?\)$/.test(look.color) || look.image.includes('rgba(7, 8, 11'), JSON.stringify(look)).toBe(true);
+  expect(look.title).toContain('Archivo');
+  // start again is there before the form is sent too
+  await expect(page.getByRole('button', { name: /start again/i })).toBeVisible();
+  // the short How it's made block opens the full panel, and closing it returns to the button
+  const more = page.getByRole('button', { name: /read how it's made/i });
+  await more.click();
+  await expect(page.getByRole('dialog', { name: "How it's made" })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(more).toBeFocused();
+});
+
+test('chapter captions use the display face', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => (window as unknown as JourneyWindow).__aslan.store.getState().setProgress(0.3));
+  const caption = page.getByRole('heading', { name: 'Welcome aboard.' });
+  await expect(caption).toBeVisible();
+  expect(await caption.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Archivo');
+});
+
 test('take off, fill the form, start again', async ({ page }) => {
   const posts: string[] = [];
   page.on('request', (r) => {

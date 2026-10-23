@@ -6,7 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { navItems, railItems, type NavTarget } from '@/experience/navState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
-import HowItsMade from './HowItsMade';
+import HowItsMade, { onOpenHowItsMade } from './HowItsMade';
 import styles from './shell.module.css';
 
 /** The fin's sun over the horizon: a disc cut by two bands. */
@@ -42,6 +42,8 @@ export default function Shell() {
     setOpener(null);
     requestAnimationFrame(() => opener?.focus()); // back to the button that opened it
   }, [opener]);
+
+  useEffect(() => onOpenHowItsMade(setOpener), []);
 
   useEffect(() => {
     if (!menu) return;

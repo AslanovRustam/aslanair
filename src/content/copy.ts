@@ -84,6 +84,10 @@ export const copy = {
     buy: 'Buy', // pinned
     thanks: 'Thank you! AslanAir is a concept, so nothing was sent — but that seat suits you.', // contains "concept" (pinned)
     restart: 'Start again', // pinned
+    made: {
+      lead: 'The airliner, the cabin and every seat are real-time 3D built from code; the clouds are raymarched live in your browser.',
+      open: "Read how it's made",
+    },
     howItsMade: {
       title: "How it's made",
       items: [
