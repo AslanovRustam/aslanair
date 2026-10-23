@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { waitForStore } from './helpers';
+import { NIGHT_LIGHTS } from '@/experience/geometry';
+import { visibleLights, waitForStore } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -80,4 +81,26 @@ test('out through the window the clouds below are lit by the moon', async ({ pag
   console.log('exit clouds', JSON.stringify(s));
   expect(s.variance).toBeGreaterThan(40);
   expect(s.mean, 'a night sky, not daylight').toBeLessThan(120);
+});
+
+test('the aircraft carries its navigation lights, and the light count never changes', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.05));
+  await page.waitForTimeout(1500);
+  const lights = await page.evaluate(() => {
+    type L = { name: string; position: { x: number; y: number; z: number }; userData: { color?: string } };
+    const group = (window as unknown as StoreWindow).__aslan.scene!.getObjectByName('NightLights') as unknown as { children: L[] };
+    return Object.fromEntries(group.children.map((c) => [c.name, { at: [c.position.x, c.position.y, c.position.z], color: c.userData.color }]));
+  });
+  for (const [name, at] of Object.entries(NIGHT_LIGHTS)) {
+    expect(lights[name], name).toBeDefined();
+    lights[name].at.forEach((v: number, k: number) => expect(v, `${name}[${k}]`).toBeCloseTo(at[k], 2));
+  }
+  expect(lights.navPort.color).toBe('red');
+  expect(lights.navStarboard.color).toBe('green');
+  expect(lights.tail.color).toBe('white');
+  const showcase = await visibleLights(page);
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(0.6));
+  await page.waitForTimeout(1500);
+  expect(await visibleLights(page)).toBe(showcase);
 });

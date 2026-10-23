@@ -5,6 +5,7 @@ import {
   CEILING_Y,
   DOOR_1L,
   FLOOR_Y,
+  NIGHT_LIGHTS,
   OVERWING_EXIT_STATIONS,
   ROWS,
   rowStation,
@@ -24,6 +25,16 @@ describe('aircraft asset ↔ site constants', () => {
     expect(meta.ceilingY).toBeCloseTo(CEILING_Y, 4);
     expect(meta.cabinWallZ).toBeCloseTo(CABIN_WALL_Z, 3);
     expect(meta.window).toMatchObject({ y: WINDOW.y, firstStation: WINDOW.firstStation, pitch: WINDOW.pitch, lastStation: WINDOW.lastStation });
+  });
+
+  test('night lights sit at the wing tips, the tail and on the fuselage, matching geometry.ts', () => {
+    expect(Object.keys(meta.lights).sort()).toEqual(Object.keys(NIGHT_LIGHTS).sort());
+    for (const [name, at] of Object.entries(NIGHT_LIGHTS)) {
+      at.forEach((v, k) => expect(meta.lights[name][k], `${name}[${k}]`).toBeCloseTo(v, 2));
+    }
+    expect(meta.lights.navPort[2]).toBeLessThan(0);
+    expect(meta.lights.navStarboard[2]).toBeGreaterThan(0);
+    expect(Math.min(Math.abs(meta.lights.navPort[2]), meta.lights.navStarboard[2])).toBeGreaterThanOrEqual(16);
   });
 
   test('over-wing exits match geometry.ts', () => {

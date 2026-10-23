@@ -22,10 +22,15 @@ import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { DOOR_1L } from '@/experience/geometry';
 import { experienceStore, trackOf } from '@/experience/store';
+import { pointInsideCabin } from '@/experience/worldState';
+import NightLights from './NightLights';
 
 const MODEL_URL = '/models/airliner.glb';
 /** The cabin shell, floor and skirting: inside the hull, so they never cast sun shadows. */
 const INTERIOR = /^Cabin/;
+/** Night look: the fin's livery lit by its floodlight, and the cabin's warm light seen through the windows. */
+const FIN_FLOODLIGHT = 0.35;
+const WINDOW_GLOW = { color: '#ffcf8a', intensity: 0.6 };
 /** GLB floor materials and the pattern each one wears. */
 const FLOOR_MAPS: Record<string, 'carpet' | 'runner'> = { Carpet: 'carpet', AisleCarpet: 'runner' };
 
@@ -62,6 +67,8 @@ function bobWeight(): number {
 export default function Aircraft({ children }: { children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL);
   const group = useRef<Group>(null);
+  const windowGlass = useRef<MeshStandardMaterial | null>(null);
+  const eyeLocal = useRef(new Vector3());
   const door = useMemo(() => {
     // closed is the hinge from geometry.ts — never read back from the shared, cached GLB scene
     const node = scene.getObjectByName('Door1L');
@@ -88,6 +95,19 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
           }
           material.needsUpdate = true;
         }
+        if (material.name === 'FinLivery') {
+          const fin = material as MeshStandardMaterial;
+          fin.emissiveMap = fin.map;
+          fin.emissive.set('#ffffff');
+          fin.emissiveIntensity = FIN_FLOODLIGHT;
+          fin.needsUpdate = true;
+        }
+        if (material.name === 'WindowGlass') {
+          const glass = material as MeshStandardMaterial;
+          glass.emissive.set(WINDOW_GLOW.color);
+          glass.emissiveIntensity = WINDOW_GLOW.intensity;
+          windowGlass.current = glass;
+        }
         o.receiveShadow = true;
         if (o.userData.decal) {
           // glazing, door window and lettering sit millimetres off the skin: bias them so they never z-fight at range
@@ -100,9 +120,14 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
     });
   }, [scene]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     const g = group.current;
     if (!g) return;
+    // the windows glow seen from outside; from inside, the glass must not tint the night view
+    if (windowGlass.current) {
+      const eye = g.worldToLocal(eyeLocal.current.copy(camera.position));
+      windowGlass.current.emissiveIntensity = pointInsideCabin(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
+    }
     const s = experienceStore.getState();
     const t = clock.elapsedTime;
     const w = bobWeight();
@@ -118,6 +143,7 @@ export default function Aircraft({ children }: { children?: ReactNode }) {
   return (
     <group ref={group}>
       <primitive object={scene} />
+      <NightLights />
       {children}
     </group>
   );

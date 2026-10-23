@@ -55,6 +55,18 @@ export function nearestWindowStation(s: number): number {
 /** Over-wing emergency exits (stations), from public/models/airliner.meta.json; rows 13 and 14 sit beside them. */
 export const OVERWING_EXIT_STATIONS = [16.05, 16.8] as const;
 
+/** Navigation lights, beacons and strobes (three.js), mirrored from the aircraft meta: red port and green starboard
+ * at the wing tips, white strobes behind them, white on the tail cone, red beacons on top and underneath. */
+export const NIGHT_LIGHTS = {
+  navPort: [-2.2429, 0.1123, -16.95],
+  navStarboard: [-2.2429, 0.1123, 16.95],
+  strobePort: [-3.7446, 0.1123, -16.95],
+  strobeStarboard: [-3.7446, 0.1123, 16.95],
+  tail: [-18.85, 0.9002, 0],
+  beaconTop: [3.8, 2.16, 0],
+  beaconBottom: [2.8, -2.1, 0],
+} as const satisfies Record<string, readonly [number, number, number]>;
+
 /** Door 1L, from public/models/airliner.meta.json: a plug door that slides out, then forward. */
 export const DOOR_1L = {
   station: 4.9,

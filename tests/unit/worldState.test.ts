@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { trackProgress } from '@/experience/chapters';
-import { cameraInsideCabin, worldMode } from '@/experience/worldState';
+import { cameraInsideCabin, pointInsideCabin, worldMode } from '@/experience/worldState';
 
 describe('world mode', () => {
   test('showcase until the camera is inside, night from then on', () => {
@@ -14,5 +14,14 @@ describe('world mode', () => {
   test('every phase past browsing counts as aboard', () => {
     for (const phase of ['seated', 'confirmed', 'thanks'] as const) expect(cameraInsideCabin(phase, 0)).toBe(true);
     expect(cameraInsideCabin('browse', 0)).toBe(false);
+  });
+});
+
+describe('inside the cabin shell', () => {
+  test('the aisle is inside; the hero camera and a wing tip are not', () => {
+    expect(pointInsideCabin(5, 1.2, 0)).toBe(true);
+    expect(pointInsideCabin(42, 6.5, -36)).toBe(false);
+    expect(pointInsideCabin(-2.2, 0.1, -16.9)).toBe(false);
+    expect(pointInsideCabin(5, 1.2, 1.9)).toBe(false);
   });
 });

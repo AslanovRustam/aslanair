@@ -6,7 +6,8 @@ import bpy
 
 from . import context as ctx
 from .geometry import (AFT_GALLEY, BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
-                       bin_profile, door_hinge, door_rect, hull_half_width_at, lavatory_door, lavatory_outline, liner_grid)
+                       L, X, bin_profile, door_hinge, door_rect, hull_half_width_at, hull_top, lavatory_door, lavatory_outline, liner_grid,
+                       section)
 
 
 def _three(v):
@@ -23,6 +24,23 @@ def panel_max_half_width():
     """Widest hull half-width over the door rectangle: how far out the closed panel reaches."""
     s0, s1, z0, z1 = door_rect()
     return round(max(hull_half_width_at(s0 + (s1 - s0) * i / 20, z0 + (z1 - z0) * j / 20) for i in range(21) for j in range(21)), 4)
+
+
+def night_lights():
+    """Navigation lights, beacons and strobes (three.js): red port and green starboard at the wing tips' leading
+    edge, the white strobes at their trailing edge, white on the tail cone, red beacons on top of and under the
+    fuselage over the wing."""
+    from .hull import le_s, te_s, zst
+    tip, z = 16.95, zst(16.9) + 0.05
+    _, tail_z, _ = section(L - 0.05)
+    _, belly_c, belly_h = section(16.0)
+    return {
+        'navPort': _three((X(le_s(16.9)), tip, z)), 'navStarboard': _three((X(le_s(16.9)), -tip, z)),
+        'strobePort': _three((X(te_s(16.9)), tip, z)), 'strobeStarboard': _three((X(te_s(16.9)), -tip, z)),
+        'tail': _three((X(L) - 0.05, 0.0, tail_z)),
+        'beaconTop': _three((X(15.0), 0.0, hull_top(15.0) + 0.06)),
+        'beaconBottom': _three((X(16.0), 0.0, belly_c - belly_h - 0.06)),
+    }
 
 
 def meta():
@@ -42,6 +60,7 @@ def meta():
                    'sillY': round(z0, 4), 'hinge': _three(door_hinge()), 'panelMaxHalfWidth': panel_max_half_width(),
                    'open': {'outward': DOOR_OPEN['outward'], 'forward': DOOR_OPEN['forward']}},
         'tail0': TAIL0,
+        'lights': night_lights(),
         'triangles': triangle_count(),
     }
 

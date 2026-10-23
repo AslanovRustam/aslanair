@@ -13,6 +13,15 @@ import { BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VER
 export const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(85));
 /** The site's own background: the plane is shown like a product on it until the camera is aboard. */
 export const SHOWCASE_BACKGROUND = new THREE.Color('#07080b');
+/** The moon by mode: in the showcase it is the key light of a product shot and an ambient fill lifts the shadow side
+ * (ambient adds no per-light shader work, unlike another directional light); aboard it is a plain night moon and the
+ * fill is off, so nothing lights the cabin through the hull. Same lights in both modes: no shader ever recompiles. */
+const MOONLIGHT = {
+  showcase: { intensity: 2.6, fill: 0.55 },
+  night: { intensity: 1.2, fill: 0 },
+  color: '#b9c7ff',
+  fillColor: '#8ea2cc',
+};
 
 /** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred. */
 const NOISE_SIZE = 64;
@@ -89,6 +98,8 @@ export default function SkyAndClouds() {
 
   // The cloud targets follow the canvas size and the current cloudScale; resized only when either changes.
   const sized = useRef('');
+  const moon = useRef<THREE.DirectionalLight>(null);
+  const fill = useRef<THREE.AmbientLight>(null);
 
   useEffect(
     () => () => {
@@ -104,8 +115,14 @@ export default function SkyAndClouds() {
   useFrame((state) => {
     const { camera, clock } = state;
     const s = experienceStore.getState();
+    const showcase = worldMode(s.phase, s.progress) === 'showcase';
+    const look = showcase ? MOONLIGHT.showcase : MOONLIGHT.night;
+    if (moon.current && fill.current) {
+      moon.current.intensity = look.intensity;
+      fill.current.intensity = look.fill;
+    }
     // showcase: the plain dark of the site and no cloud pass at all
-    if (worldMode(s.phase, s.progress) === 'showcase') {
+    if (showcase) {
       scene.background = SHOWCASE_BACKGROUND;
       return;
     }
@@ -141,9 +158,12 @@ export default function SkyAndClouds() {
   }, -1);
 
   return (
-    <directionalLight
-      color="#b9c7ff"
-      intensity={1.2}
+    <>
+      <ambientLight ref={fill} color={MOONLIGHT.fillColor} intensity={MOONLIGHT.showcase.fill} />
+      <directionalLight
+      ref={moon}
+      color={MOONLIGHT.color}
+      intensity={MOONLIGHT.showcase.intensity}
       position={MOON_DIRECTION.clone().multiplyScalar(80).toArray()}
       castShadow
       shadow-mapSize={[2048, 2048]}
@@ -155,6 +175,7 @@ export default function SkyAndClouds() {
       shadow-camera-far={200}
       shadow-bias={-0.0003}
       shadow-normalBias={0.04}
-    />
+      />
+    </>
   );
 }
