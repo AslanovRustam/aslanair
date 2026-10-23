@@ -1,12 +1,27 @@
-/* The showcase hero over the dark stage: one orchestrated entrance, then it hands over to the flight.
-   It sits under the plane picture (IntroPlane, z 2): the huge title reads behind the plane. */
+/* The showcase hero: one orchestrated entrance, then it hands over to the flight. Two layers share its opacity:
+   the title behind the canvas (z −1; the canvas is see-through in the showcase, so the live plane flies in front of
+   it) and the facts, lead and cue in front (z 1). The section itself is only their wrapper. */
 
 .hero {
+  display: contents;
+  color: var(--ink);
+}
+
+.back,
+.front {
   position: fixed;
   inset: 0;
-  z-index: 1;
   pointer-events: none;
-  color: var(--ink);
+  opacity: inherit;
+  visibility: inherit;
+}
+
+.back {
+  z-index: -1;
+}
+
+.front {
+  z-index: 1;
   container-type: size;
 }
 

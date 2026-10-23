@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { trackProgress, type ChapterId } from '@/experience/chapters';
+import { HERO_PICTURE, heroScale, INTRO } from '@/experience/introState';
 
 declare global {
   /** Installed in the page by the dev test hooks: pre-track progress of chapter `id` at local `t`. */
@@ -96,4 +97,13 @@ export async function wheelTo(page: Page, target: number): Promise<number> {
 export async function scrollToEnd(page: Page) {
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
   await expect.poll(() => progress(page), { timeout: 15_000 }).toBeGreaterThan(0.95);
+}
+
+/** Where the hero picture sits at the top of the page (the loader's picture and the live camera's frame agree):
+ * full frame height × heroScale, centred, lifted by HERO_PICTURE.lift. */
+export function heroPictureBox(page: Page) {
+  const { width: vw, height: vh } = page.viewportSize()!;
+  const height = vh * heroScale(vw / vh);
+  const width = (height * INTRO.picture.width) / INTRO.picture.height;
+  return { x: (vw - width) / 2, y: vh / 2 - HERO_PICTURE.lift * vh - height / 2, width, height };
 }

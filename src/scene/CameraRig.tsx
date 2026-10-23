@@ -4,19 +4,19 @@ import { useFrame } from '@react-three/fiber';
 import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { poseOnPostTrack, poseOnPreTrack, seatedPose, type CameraPose } from '@/experience/cameraPoses';
+import { applyLens, poseOnPostTrack, poseOnPreTrack, seatedPose, type CameraPose } from '@/experience/cameraPoses';
 import { experienceStore, trackOf, type Phase } from '@/experience/store';
 
 const SMOOTH_TIME = 0.4;
 /** Close enough to the pose to stop gliding and ride it (m; fov in degrees). */
 const SETTLED = { distance: 0.01, fov: 0.05 };
 
-function currentPose(): CameraPose {
+function currentPose(aspect: number): CameraPose {
   const s = experienceStore.getState();
   const seat = s.seats.find((x) => x.id === s.selectedSeatId);
   if (seat && s.phase === 'seated') return seatedPose(seat);
   if (seat && trackOf(s.phase) === 'post') return poseOnPostTrack(s.progress, seat);
-  return poseOnPreTrack(s.progress);
+  return poseOnPreTrack(s.progress, aspect);
 }
 
 /**
@@ -30,29 +30,35 @@ export default function CameraRig() {
   const ready = useRef(false);
   const riding = useRef(true);
   const phase = useRef<Phase | null>(null);
+  const lens = useRef({ fov: 30, lift: 0 });
 
   useFrame((state, delta) => {
     const cam = state.camera as PerspectiveCamera;
-    const pose = currentPose();
+    const { width, height } = state.size;
+    const pose = currentPose(width / height);
+    const l = lens.current;
     const now = experienceStore.getState().phase;
     if (phase.current !== null && now !== phase.current) riding.current = false;
     phase.current = now;
     if (!ready.current || riding.current) {
       cam.position.copy(pose.position);
       target.copy(pose.target);
-      cam.fov = pose.fov;
+      l.fov = pose.fov;
+      l.lift = pose.lift ?? 0;
       ready.current = true;
     } else {
       easing.damp3(cam.position, pose.position, SMOOTH_TIME, delta);
       easing.damp3(target, pose.target, SMOOTH_TIME, delta);
-      easing.damp(cam, 'fov', pose.fov, SMOOTH_TIME, delta);
+      easing.damp(l, 'fov', pose.fov, SMOOTH_TIME, delta);
+      easing.damp(l, 'lift', pose.lift ?? 0, SMOOTH_TIME, delta);
       riding.current =
         cam.position.distanceTo(pose.position) < SETTLED.distance &&
         target.distanceTo(pose.target) < SETTLED.distance &&
-        Math.abs(cam.fov - pose.fov) < SETTLED.fov;
+        Math.abs(l.fov - pose.fov) < SETTLED.fov &&
+        Math.abs(l.lift - (pose.lift ?? 0)) < 1e-3;
     }
     cam.lookAt(target);
-    cam.updateProjectionMatrix();
+    applyLens(cam, { position: cam.position, target, fov: l.fov, lift: l.lift }, width, height);
   }, -2);
 
   return null;

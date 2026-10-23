@@ -24,10 +24,14 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
   color: var(--ink);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* the dark on the root only: a body background would paint over layers set behind the canvas (z-index < 0) */
+html {
+  background: var(--bg);
 }
 
 :focus-visible {

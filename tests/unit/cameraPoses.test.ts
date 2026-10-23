@@ -16,9 +16,15 @@ import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
 import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
 
 describe('pre-track camera', () => {
-  test('starts on the sky shot with a narrow lens', () => {
-    expect(poseOnPreTrack(0).position.toArray()).toEqual([42, 6.5, -36]);
-    expect(poseOnPreTrack(0).fov).toBe(30);
+  test('starts on the capture pose, its lens opened to the hero picture and shifted up', () => {
+    const top = poseOnPreTrack(0);
+    expect(top.position.toArray()).toEqual([42, 6.5, -36]);
+    expect(top.fov).toBeCloseTo((2 * Math.atan(Math.tan(Math.PI / 12) / INTRO.heroScale) * 180) / Math.PI, 9);
+    expect(top.lift).toBeCloseTo(INTRO.heroLift, 9);
+    // by the swap point the lens is the capture camera's again
+    const open = poseOnPreTrack(trackProgress('pre', 'sky', INTRO.swapAt));
+    expect(open.fov).toBeCloseTo(30, 9);
+    expect(open.lift ?? 0).toBeCloseTo(0, 9);
   });
 
   test('the camera holds the capture pose until the swap', () => {
@@ -31,7 +37,7 @@ describe('pre-track camera', () => {
       const pose = poseOnPreTrack(trackProgress('pre', 'sky', t));
       expect(pose.position.distanceTo(INTRO.swapPose.position), `t=${t}`).toBeLessThan(1e-9);
       expect(pose.target.distanceTo(INTRO.swapPose.target), `t=${t}`).toBeLessThan(1e-9);
-      expect(pose.fov).toBe(INTRO.swapPose.fov);
+      if (t >= INTRO.swapAt) expect(pose.fov).toBeCloseTo(INTRO.swapPose.fov, 9);
     }
     // it sets off from rest: the first step past the hold is far shorter than an even share of the way
     const step = 0.01;

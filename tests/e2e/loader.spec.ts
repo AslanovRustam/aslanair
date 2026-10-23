@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { heroPictureBox } from './helpers';
 
 for (const viewport of [
   { width: 1440, height: 800 },
@@ -26,7 +27,7 @@ for (const viewport of [
     await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
     const before = (await loader.locator('img').boundingBox())!;
     await expect(loader).toBeHidden({ timeout: 30_000 });
-    const after = (await page.getByTestId('intro-plane').locator('img').boundingBox())!;
+    const after = heroPictureBox(page); // where the live camera frames the plane at the top
     for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(before[k] - after[k]), k).toBeLessThanOrEqual(2);
     await expect(page.getByTestId('hero').getByRole('heading', { name: 'Night flight' })).toBeVisible();
   });

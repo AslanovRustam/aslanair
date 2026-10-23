@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { INTRO } from '@/experience/introState';
-import { settledProgress, waitForStore } from './helpers';
+import { heroPictureBox, settledProgress, waitForStore } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -116,7 +116,7 @@ for (const viewport of [
   test(`at ${viewport.width}×${viewport.height} each hero note points at the plane and keeps clear of it and the title`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await openHero(page);
-    const img = (await page.getByTestId('intro-plane').locator('img').boundingBox())!;
+    const img = heroPictureBox(page);
     const { plane } = INTRO.picture;
     const planeBox = {
       x: img.x + plane.left * img.width,
@@ -156,7 +156,7 @@ for (const viewport of [
     const hero = page.getByTestId('hero');
     const others = {
       title: (await hero.getByRole('heading').boundingBox())!,
-      plane: (await page.getByTestId('intro-plane').locator('img').boundingBox())!,
+      plane: heroPictureBox(page),
       rail: (await page.getByRole('navigation', { name: 'Chapters' }).boundingBox())!,
       lead: (await hero.getByText('Board a fictional night flight.').boundingBox())!,
     };

@@ -1,7 +1,7 @@
-import { CatmullRomCurve3, MathUtils, Vector3 } from 'three';
+import { CatmullRomCurve3, MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { chapterAt, trackProgress } from './chapters';
 import { COCKPIT_DOOR } from './cabinLayout';
-import { INTRO } from './introState';
+import { HERO_PICTURE, heroScale, INTRO } from './introState';
 import {
   CABIN_WALL_Z,
   DOOR_1L,
@@ -22,6 +22,18 @@ export interface CameraPose {
   position: Vector3;
   target: Vector3;
   fov: number;
+  /** Lens shift: the frame's centre moves up by this many frame heights (0 when absent). */
+  lift?: number;
+}
+
+/** Puts a pose's lens on the camera for a `width` × `height` frame: field of view and lens shift. */
+export function applyLens(camera: PerspectiveCamera, pose: CameraPose, width: number, height: number): void {
+  camera.fov = pose.fov;
+  camera.aspect = width / height;
+  const lift = pose.lift ?? 0;
+  if (lift) camera.setViewOffset(width, height, 0, lift * height, width, height);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
 }
 
 type SeatRef = { row: number; letter: SeatLetter };
@@ -68,7 +80,15 @@ const SKY_EXIT_SPEED = (() => {
   return (doorSpeed * span('sky') * (1 - SKY.hold)) / SKY.from.distanceTo(SKY.to);
 })();
 
-function skyPose(t: number): CameraPose {
+/**
+ * The first screen. At the top the camera is the capture camera zoomed out to the hero's picture size and
+ * lens-shifted up (the loader's picture to the pixel); by INTRO.swapAt it has opened to the full frame, then sets off.
+ */
+function skyPose(t: number, aspect: number): CameraPose {
+  const open = 1 - (1 - clamp(t / INTRO.swapAt, 0, 1)) ** 3;
+  const scale = lerp(heroScale(aspect), 1, open);
+  const fov = (2 * Math.atan(Math.tan(MathUtils.degToRad(SKY.fov / 2)) / scale) * 180) / Math.PI;
+  const lift = HERO_PICTURE.lift * (1 - open);
   const u = clamp((t - SKY.hold) / (1 - SKY.hold), 0, 1);
   // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = SKY_EXIT_SPEED
   const k = SKY_EXIT_SPEED;
@@ -77,7 +97,8 @@ function skyPose(t: number): CameraPose {
     position: SKY.from.clone().lerp(SKY.to, f),
     // the door flight's gaze starts at rest, so this one comes to rest
     target: SKY.targetFrom.clone().lerp(SKY.targetTo, smoothstep(u, 0, 1)),
-    fov: SKY.fov,
+    fov,
+    ...(lift ? { lift } : {}),
   };
 }
 
@@ -119,13 +140,13 @@ function aislePose(t: number): CameraPose {
   return { position, target: position.clone().add(AISLE.lookAhead), fov: AISLE.fov };
 }
 
-export function poseOnPreTrack(progress: number): CameraPose {
+export function poseOnPreTrack(progress: number, aspect = 16 / 9): CameraPose {
   const { id, t } = chapterAt('pre', progress);
-  if (id === 'sky') return skyPose(t);
+  if (id === 'sky') return skyPose(t, aspect);
   if (id === 'door') return doorPose(t);
   if (id === 'aisle') return aislePose(t);
   // the journey's chapters (destinations, transfer, ready) hold the sky shot's end until they get poses of their own
-  return skyPose(1);
+  return skyPose(1, aspect);
 }
 
 export function aisleProgressForRow(row: number): number {

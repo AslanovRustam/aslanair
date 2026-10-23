@@ -46,7 +46,7 @@ export default function CaptureMode({ cabin }: { cabin: ReactNode }) {
       >
         <SkyAndClouds background={false} />
         <Suspense fallback={null}>
-          <Aircraft intro={false}>{cabin}</Aircraft>
+          <Aircraft>{cabin}</Aircraft>
           <Ready />
         </Suspense>
       </Canvas>

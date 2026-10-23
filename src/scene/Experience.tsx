@@ -11,7 +11,6 @@ import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Hero from '@/ui/Hero';
-import IntroPlane from '@/ui/IntroPlane';
 import Overlay from '@/ui/Overlay';
 import Shell from '@/ui/Shell';
 import Aircraft from './aircraft/Aircraft';
@@ -122,7 +121,6 @@ export default function Experience() {
       </div>
       <SmoothScroll />
       <Hero />
-      <IntroPlane />
       <Overlay />
       <Shell />
       <Outro />

@@ -11,8 +11,6 @@ import { BACKDROP_FRAGMENT, BACKDROP_VERTEX, BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_
 
 /** The moon: 32° up, behind-left of the hero camera, ahead of the nose — it lights the side the visitor sees. */
 export const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(85));
-/** The site's own background: the plane is shown like a product on it until the camera is aboard. */
-export const SHOWCASE_BACKGROUND = new THREE.Color('#07080b');
 /** The moon by mode: in the showcase it is the key light of a product shot and an ambient fill lifts the shadow side
  * (ambient adds no per-light shader work, unlike another directional light); aboard it is a plain night moon and the
  * fill is off, so nothing lights the cabin through the hull. Same lights in both modes: no shader ever recompiles. */
@@ -159,10 +157,11 @@ export default function SkyAndClouds({ background = true }: { background?: boole
       moon.current.intensity = look.intensity;
       fill.current.intensity = look.fill;
     }
-    // showcase: the plain dark of the site and no cloud pass at all — except under the loader, where the night
+    // showcase: the plain dark of the site (the page behind a see-through canvas) and no cloud pass at all — except under the loader, where the night
     // pipeline runs unseen so its shaders and targets are ready before the door flight first needs them
     if ((showcase && s.ready) || !background) {
-      scene.background = background ? SHOWCASE_BACKGROUND : null;
+      // see-through: the page's own dark shows, and the hero's title can sit behind the plane
+      scene.background = null;
       pipe.backdrop.visible = false;
       return;
     }

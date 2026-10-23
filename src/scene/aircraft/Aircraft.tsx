@@ -20,7 +20,6 @@ import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
-import { introState } from '@/experience/introState';
 import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideFuselage } from '@/experience/worldState';
 import NightLights from './NightLights';
@@ -60,7 +59,7 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
  * compiled (`onCompiled`) until the scene is ready: those frames upload its geometry and textures and compile the
  * shadow pass, so the swap finds nothing left to do.
  */
-export default function Aircraft({ children, intro = true, onCompiled }: { children?: ReactNode; intro?: boolean; onCompiled?: () => void }) {
+export default function Aircraft({ children, onCompiled }: { children?: ReactNode; onCompiled?: () => void }) {
   const { scene } = useGLTF(MODEL_URL);
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
@@ -146,8 +145,6 @@ export default function Aircraft({ children, intro = true, onCompiled }: { child
     const g = group.current;
     if (!g) return;
     const s = experienceStore.getState();
-    const warming = compiled.current && !s.ready; // under the loader
-    g.visible = warming || !intro || s.phase !== 'browse' || introState(s.progress).aircraftVisible;
     // the windows glow seen from outside; from inside — and from within the wall, passing through a window on the
     // way out — the glass must not tint the night view
     if (windowGlass.current) {

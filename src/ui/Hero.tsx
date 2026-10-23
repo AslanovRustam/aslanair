@@ -53,8 +53,8 @@ function Note({ id, label, value }: { id: NoteId; label: string; value: string }
 }
 
 /**
- * The showcase: a huge "Night flight" behind the plane picture, three facts pointing at it, a short lead and the
- * scroll hint. Its entrance waits for the loader to hand over; it gives way to the flight as soon as the visitor
+ * The showcase: a huge "Night flight" behind the live plane (its layer sits under the canvas, which is see-through
+ * in the showcase), three facts pointing at the plane, a short lead and the scroll hint. Its entrance waits for the loader to hand over; it gives way to the flight as soon as the visitor
  * scrolls.
  */
 export default function Hero() {
@@ -73,34 +73,39 @@ export default function Hero() {
       data-testid="hero"
       data-ready={ready}
       aria-hidden={opacity === 0}
-      style={{ opacity, visibility: opacity === 0 ? 'hidden' : 'visible', ...planeBoxVars() }}
+      style={{ opacity, visibility: opacity === 0 ? 'hidden' : 'visible' }}
     >
-      <h1 className={styles.title}>{t.title}</h1>
-      <div className={styles.planeBox}>
-        <svg className={styles.leaders} viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-          {(Object.keys(NOTES) as NoteId[]).map((id) => (
-            <line
-              key={id}
-              className={styles[id]}
-              data-testid="hero-leader"
-              x1={NOTES[id].at[0]}
-              y1={NOTES[id].at[1]}
-              x2={NOTES[id].to[0]}
-              y2={NOTES[id].to[1]}
-            />
-          ))}
-        </svg>
-        <ul className={styles.notes}>
-          <Note id="route" label={t.notes.route.label} value={t.notes.route.value} />
-          <Note id="cabin" label={t.notes.cabin.label} value={t.notes.cabin.value} />
-          <Note id="price" label={t.notes.price.label} value={t.notes.price.value(from)} />
-        </ul>
+      {/* behind the canvas: the live plane flies in front of the title */}
+      <div className={styles.back}>
+        <h1 className={styles.title}>{t.title}</h1>
       </div>
-      <p className={styles.lead}>
-        <strong>{t.lead.title}</strong>
-        {t.lead.body}
-      </p>
-      <ScrollCue label={t.scroll} className={styles.scroll} />
+      <div className={styles.front} style={planeBoxVars()}>
+        <div className={styles.planeBox}>
+          <svg className={styles.leaders} viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+            {(Object.keys(NOTES) as NoteId[]).map((id) => (
+              <line
+                key={id}
+                className={styles[id]}
+                data-testid="hero-leader"
+                x1={NOTES[id].at[0]}
+                y1={NOTES[id].at[1]}
+                x2={NOTES[id].to[0]}
+                y2={NOTES[id].to[1]}
+              />
+            ))}
+          </svg>
+          <ul className={styles.notes}>
+            <Note id="route" label={t.notes.route.label} value={t.notes.route.value} />
+            <Note id="cabin" label={t.notes.cabin.label} value={t.notes.cabin.value} />
+            <Note id="price" label={t.notes.price.label} value={t.notes.price.value(from)} />
+          </ul>
+        </div>
+        <p className={styles.lead}>
+          <strong>{t.lead.title}</strong>
+          {t.lead.body}
+        </p>
+        <ScrollCue label={t.scroll} className={styles.scroll} />
+      </div>
     </section>
   );
 }

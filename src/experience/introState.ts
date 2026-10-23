@@ -1,10 +1,9 @@
-import { MathUtils, Vector3 } from 'three';
+import { Vector3 } from 'three';
 import type { CameraPose } from './cameraPoses';
-import { chapterAt } from './chapters';
 
 /**
- * The intro: the hero shows a picture of the plane, captured from this scene at `swapPose`, and the live 3D
- * takes over when the camera reaches that same pose. Three-quarter front view, nose to the left, the plane
+ * The intro: the loader shows a picture of the plane, captured from this scene at `swapPose`; at the hand-over the
+ * live camera frames that pose zoomed and lens-shifted so the plane lands exactly where the picture showed it. Three-quarter front view, nose to the left, the plane
  * filling about 70 % of a 16:9 frame. Times are fractions of the sky chapter.
  */
 export const INTRO = {
@@ -20,19 +19,8 @@ export const INTRO = {
   picture: { width: 1600, height: 900, plane: { left: 0.187, right: 0.868, top: 0.243, bottom: 0.671 } },
 };
 
-export interface IntroFrame {
-  imageScale: number;
-  /** Lift of the picture above the frame centre, in frame heights. */
-  imageY: number;
-  imageOpacity: number;
-  aircraftVisible: boolean;
-}
-
 /** On a narrow screen the hero picture shrinks so the whole plane fits in this share of the width. */
 const HERO_FIT = 0.86;
-const easeOutCubic = (u: number) => 1 - (1 - u) ** 3;
-/** Float noise in progress must not keep the picture a hair from landed, or from gone. */
-const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
 
 /**
  * The hero picture's height in frame heights: `height`, or on a narrow screen `perWidth` × the frame's width over
@@ -44,19 +32,7 @@ export const HERO_PICTURE = (() => {
   return { height: INTRO.heroScale, perWidth: HERO_FIT / planeWidth, lift: INTRO.heroLift };
 })();
 
-function heroScale(aspect: number): number {
+/** The hero picture's height in frame heights for a frame of this aspect (width / height). */
+export function heroScale(aspect: number): number {
   return Math.min(HERO_PICTURE.height, HERO_PICTURE.perWidth * aspect);
-}
-
-/** The picture's flight from the hero to the full frame and the hand-over to the 3D plane, for pre-track progress. */
-export function introState(progress: number, aspect = 16 / 9): IntroFrame {
-  const chapter = chapterAt('pre', progress);
-  const t = chapter.id === 'sky' ? round6(chapter.t) : 1;
-  const k = easeOutCubic(MathUtils.clamp(t / INTRO.swapAt, 0, 1));
-  return {
-    imageScale: MathUtils.lerp(heroScale(aspect), 1, k),
-    imageY: INTRO.heroLift * (1 - k),
-    imageOpacity: round6(1 - MathUtils.clamp((t - INTRO.swapAt) / INTRO.crossfade, 0, 1)),
-    aircraftVisible: t >= round6(INTRO.swapAt - INTRO.crossfade),
-  };
 }
