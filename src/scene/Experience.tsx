@@ -25,6 +25,7 @@ import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
+import Globe from './globe/Globe';
 import SkyAndClouds from './sky/SkyAndClouds';
 
 const start = poseOnPreTrack(0);
@@ -43,16 +44,16 @@ function hasWebGL2(): boolean {
 }
 
 /**
- * Feeds the loader: drei's loading progress, then `ready` once the cabin has compiled and shown, the aircraft has
- * compiled, and two frames have drawn them both (under the loader) — by then nothing is left to stall the hero or
- * the swap.
+ * Feeds the loader: drei's loading progress, then `ready` once every part has compiled and shown (the cabin, the
+ * aircraft, the globe) and two frames have drawn them (under the loader) — by then nothing is left to stall the
+ * first screen or the journey.
  */
-function LoadTracker({ cabinShown, aircraftCompiled }: { cabinShown: RefObject<boolean>; aircraftCompiled: RefObject<boolean> }) {
+function LoadTracker({ parts }: { parts: RefObject<boolean>[] }) {
   const { progress, active } = useProgress();
   const framesSinceShown = useRef(0);
   useEffect(() => experienceStore.getState().setLoad(progress), [progress]);
   useFrame(() => {
-    if (experienceStore.getState().ready || active || !cabinShown.current || !aircraftCompiled.current) return;
+    if (experienceStore.getState().ready || active || parts.some((p) => !p.current)) return;
     framesSinceShown.current += 1;
     if (framesSinceShown.current >= 2) experienceStore.getState().setLoad(100, true);
   });
@@ -84,6 +85,10 @@ export default function Experience() {
   const onAircraftCompiled = useCallback(() => {
     aircraftCompiled.current = true;
   }, []);
+  const globeShown = useRef(false);
+  const onGlobeShown = useCallback(() => {
+    globeShown.current = true;
+  }, []);
 
   useEffect(() => installTestHooks(), []);
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function Experience() {
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
           <SceneTestHook />
-          <LoadTracker cabinShown={cabinShown} aircraftCompiled={aircraftCompiled} />
+          <LoadTracker parts={[cabinShown, aircraftCompiled, globeShown]} />
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>
@@ -116,6 +121,9 @@ export default function Experience() {
               <SeatCard />
             </Aircraft>
           </Suspense>
+          <CompileAsync onShown={onGlobeShown}>
+            <Globe />
+          </CompileAsync>
           <BoardingPass3D />
         </Canvas>
       </div>

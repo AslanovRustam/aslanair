@@ -1,6 +1,7 @@
 import { CatmullRomCurve3, MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { chapterAt, trackProgress } from './chapters';
 import { COCKPIT_DOOR } from './cabinLayout';
+import { GLOBE } from './globe';
 import { HERO_PICTURE, heroScale, INTRO } from './introState';
 import {
   CABIN_WALL_Z,
@@ -90,6 +91,27 @@ function skyPose(t: number, aspect: number): CameraPose {
   return { position: SKY.position.clone(), target: SKY.position.clone().add(gaze), fov: heroFov(aspect), lift: HERO_PICTURE.lift };
 }
 
+// --- destinations: from the same spot the camera turns to the globe and closes in, the lens shift easing out
+const GLOBE_SHARE = { height: 0.6, width: 0.85 };
+
+/** The lens that shows the globe at GLOBE_SHARE of the frame height — or of its width on a narrow screen. */
+function globeFov(aspect: number): number {
+  const grazing = Math.tan(Math.asin(GLOBE.radius / GLOBE.center.distanceTo(SKY.position)));
+  return (2 * Math.atan(grazing / Math.min(GLOBE_SHARE.height, GLOBE_SHARE.width * aspect)) * 180) / Math.PI;
+}
+
+function destinationsPose(t: number, aspect: number): CameraPose {
+  const from = skyPose(1, aspect);
+  const k = smoothstep(t, 0, 0.35);
+  const lift = HERO_PICTURE.lift * (1 - k);
+  return {
+    position: from.position,
+    target: from.target.lerp(GLOBE.center, k),
+    fov: lerp(from.fov, globeFov(aspect), k),
+    ...(lift ? { lift } : {}),
+  };
+}
+
 /**
  * The camera's speed leaving the ready chapter, in lengths of its move per unit of it, so that it meets the door
  * curve at the curve's own starting speed.
@@ -101,21 +123,19 @@ const READY_EXIT_SPEED = (() => {
 })();
 
 /**
- * Until the journey's chapters get poses of their own: from the first screen's last frame to the door flight's start,
- * the lens opening to the capture camera's and the gaze coming round to the door.
+ * Until the ready chapter gets a pose of its own: from the globe to the door flight's start, the lens becoming the
+ * capture camera's and the gaze coming round to the door.
  */
 function readyPose(t: number, aspect: number): CameraPose {
-  const from = skyPose(1, aspect);
+  const from = destinationsPose(1, aspect);
   // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = READY_EXIT_SPEED
   const k = READY_EXIT_SPEED;
   const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
   const open = smoothstep(t, 0, 1);
-  const lift = HERO_PICTURE.lift * (1 - open);
   return {
     position: from.position.clone().lerp(DOOR_START.position, f),
     target: from.target.clone().lerp(DOOR_START.target, open),
     fov: lerp(from.fov, SKY.fov, open),
-    ...(lift ? { lift } : {}),
   };
 }
 
@@ -162,9 +182,10 @@ export function poseOnPreTrack(progress: number, aspect = 16 / 9): CameraPose {
   if (id === 'sky') return skyPose(t, aspect);
   if (id === 'door') return doorPose(t);
   if (id === 'aisle') return aislePose(t);
+  if (id === 'destinations') return destinationsPose(t, aspect);
   if (id === 'ready') return readyPose(t, aspect);
-  // destinations and transfer hold the first screen's last frame until they get poses of their own
-  return skyPose(1, aspect);
+  // transfer holds the globe shot until it gets a pose of its own
+  return destinationsPose(1, aspect);
 }
 
 export function aisleProgressForRow(row: number): number {
