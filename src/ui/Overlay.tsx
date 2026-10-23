@@ -13,7 +13,8 @@ export default function Overlay() {
   const { autoPick, confirm, standUp, changeSeat } = useExperience((s) => s);
 
   const browsing = phase === 'browse';
-  const caption = browsing && (chapter === 'sky' || chapter === 'door' || chapter === 'aisle') ? copy.chapters[chapter] : null;
+  // the sky chapter belongs to the hero
+  const caption = browsing && (chapter === 'door' || chapter === 'aisle') ? copy.chapters[chapter] : null;
   const onPass = phase === 'confirmed' && chapter === 'pass';
 
   return (

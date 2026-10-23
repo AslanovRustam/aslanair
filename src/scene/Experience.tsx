@@ -7,6 +7,7 @@ import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
+import Hero from '@/ui/Hero';
 import Overlay from '@/ui/Overlay';
 import Shell from '@/ui/Shell';
 import Aircraft from './aircraft/Aircraft';
@@ -72,6 +73,7 @@ export default function Experience() {
         </Canvas>
       </div>
       <SmoothScroll />
+      <Hero />
       <Overlay />
       <Shell />
       <Outro />

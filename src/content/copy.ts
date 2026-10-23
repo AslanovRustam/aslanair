@@ -6,9 +6,21 @@ export const copy = {
     noWebgl: 'This experience needs WebGL2. Please open it in a recent Chrome, Edge, Firefox or Safari.',
   },
   chapters: {
-    sky: { title: 'Above the clouds, a seat is waiting for you.', body: 'Scroll to board flight ASLAN 270.' },
     door: { title: 'Welcome aboard.', body: 'Step in — the cabin is yours to explore.' },
     aisle: { title: 'Find your seat.', body: 'Hover a seat to see it, click to sit down.' },
+  },
+  hero: {
+    title: 'Night flight',
+    notes: {
+      route: { label: 'Tonight', value: 'IST → LIS · 22:40' },
+      cabin: { label: 'Cabin', value: '180 seats · 3+3' },
+      price: { label: 'Seats from', value: (usd: number) => `$${usd}` },
+    },
+    lead: {
+      title: 'Board a fictional night flight.',
+      body: 'Walk the aisle in real-time 3D, pick the seat you like and see your own window view.',
+    },
+    scroll: 'Scroll to board',
   },
   nav: {
     flight: 'Flight',

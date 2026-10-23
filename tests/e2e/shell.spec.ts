@@ -82,3 +82,32 @@ test('on a phone the navigation folds into a menu and nothing overflows', async 
   await page.getByRole('button', { name: 'Menu' }).click();
   await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'Cabin' })).toBeVisible();
 });
+
+const heroOpacity = (page: Page) =>
+  page.getByTestId('hero').evaluate((el) => Number(getComputedStyle(el).opacity));
+
+test('the hero shows the title, three notes and the scroll hint, then gives way on scroll', async ({ page }) => {
+  await open(page);
+  const hero = page.getByTestId('hero');
+  await expect(hero.getByRole('heading', { name: 'Night flight' })).toBeVisible();
+  for (const note of ['IST → LIS', '180 seats', '$15']) await expect(hero).toContainText(note);
+  await expect(hero.getByText('Scroll to board')).toBeVisible();
+  expect(await heroOpacity(page)).toBeGreaterThan(0.95);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => heroOpacity(page), { timeout: 5000 }).toBeLessThan(0.2);
+});
+
+test('on a phone the hero notes stack and nothing overflows', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await open(page);
+  const boxes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+  const title = (await page.getByTestId('hero').getByRole('heading').boundingBox())!;
+  const overlap = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  expect(boxes).toHaveLength(3);
+  for (let i = 0; i < boxes.length; i++) {
+    expect(overlap(boxes[i], title), `note ${i} vs title`).toBe(false);
+    for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i], boxes[j]), `notes ${i}/${j}`).toBe(false);
+  }
+  expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true);
+});
