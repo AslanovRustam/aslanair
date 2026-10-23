@@ -77,7 +77,8 @@ test('Lisbon is tonight’s pick; choosing Tokyo shows its flight and flies the 
   await page.getByTestId('departures').getByRole('button', { name: /Tokyo/ }).click();
   const clicked = Date.now();
   expect(await chosen(page)).toBe('HND');
-  await expect(card).toContainText(/Tokyo · HND · AS \d{3}/);
+  // \s: a no-break space keeps the flight number whole
+  await expect(card).toContainText(/Tokyo · HND · AS\s\d{3}/);
   await expect(card).toContainText('from $649');
   await expect.poll(() => planeToMarker(page, markerIndex('HND')), { timeout: 2200, intervals: [100] }).toBeLessThan(0.1 * GLOBE.radius);
   expect(Date.now() - clicked).toBeLessThan(2200);
