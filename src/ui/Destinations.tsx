@@ -7,8 +7,9 @@ import { experienceStore, useExperience } from '@/experience/store';
 import styles from './destinations.module.css';
 import { globeLabels } from './globeLabels';
 
-/** The chapter's words and controls show over this stretch of it: once the plane has come over the horizon. */
-const SHOWN = { from: 0.28, to: 0.95 };
+/** The chapter's words and controls show over this stretch of it: once the plane has come over the horizon, until
+ * it sets off over it again. */
+const SHOWN = { from: 0.28, to: 0.6 };
 
 const pick = (code: string) => experienceStore.getState().pickDestination(code, performance.now() / 1000);
 const hover = (code: string | null) => experienceStore.getState().hoverDestination(code);

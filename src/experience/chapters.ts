@@ -27,7 +27,7 @@ export const TRACKS: Record<Track, ChapterRange[]> = {
   pre: track([
     { id: 'sky', heightVh: 110 },
     { id: 'destinations', heightVh: 170 },
-    { id: 'transfer', heightVh: 110 },
+    { id: 'transfer', heightVh: 150 },
     { id: 'ready', heightVh: 130 },
     { id: 'door', heightVh: 125 },
     { id: 'aisle', heightVh: 275 },

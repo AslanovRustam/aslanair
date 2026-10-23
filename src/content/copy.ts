@@ -75,7 +75,17 @@ export const copy = {
     oneWay: 'one way, before your seat',
   },
   transfer: {
+    title: 'How will you get to the airport?', // pinned
+    lead: 'Free with every ticket. Times count back from your departure.',
     options: { home: 'From home', hotel: 'From your hotel', express: 'Airport express', own: 'On my own' },
+    lines: {
+      home: 'A car at your door, three hours before take-off.',
+      hotel: 'We collect you from the lobby.',
+      express: 'A reserved seat on the airport train.',
+      own: 'Make your own way; check-in closes 40 minutes before.',
+    },
+    pickup: (time: string) => `Pick-up ${time}`,
+    noPickup: 'No pick-up',
   },
   takeOff: {
     title: 'Ready for take-off.',

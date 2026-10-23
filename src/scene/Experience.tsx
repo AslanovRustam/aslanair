@@ -11,6 +11,7 @@ import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Destinations from '@/ui/Destinations';
+import Transfer from '@/ui/Transfer';
 import Hero from '@/ui/Hero';
 import Overlay from '@/ui/Overlay';
 import Shell from '@/ui/Shell';
@@ -133,6 +134,7 @@ export default function Experience() {
       <SmoothScroll />
       <Hero />
       <Destinations />
+      <Transfer />
       <Overlay />
       <Shell />
       <Outro />

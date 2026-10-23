@@ -23,6 +23,13 @@ const { smoothstep, degToRad } = MathUtils;
 /** Over the globe the plane is 6 % of its 60 m diameter long: 3.6 m of the 37.6 m airliner. */
 export const ON_GLOBE_SCALE = 0.0957;
 
+/**
+ * The transfer chapter: the plane flies in from behind (off to the right of the frame), nose first, slowing to a stop
+ * where it waits beside the choices, and over the chapter turns slowly to the course it holds into the ready chapter.
+ * Metres back along its nose and up, and the turn it starts from.
+ */
+const WAITING = { back: 80, up: 6, turn: degToRad(25), settle: 0.4 };
+
 /** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
 export interface OnGlobe {
   position: Vector3;
@@ -68,6 +75,17 @@ function departure(t: number): Stage {
   };
 }
 
+function waiting(t: number): Stage {
+  const yaw = WAITING.turn * (1 - smoothstep(t, 0, 1));
+  const nose = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const away = (1 - smoothstep(t, 0, WAITING.settle)) ** 2;
+  return {
+    position: nose.multiplyScalar(-WAITING.back * away).add(new Vector3(0, WAITING.up * away, 0)),
+    rotation: new Euler(0, yaw, 0, 'YZX'),
+    scale: 1,
+  };
+}
+
 function overTheGlobe(at: OnGlobe): Stage {
   const nose = at.heading.clone().normalize();
   const turn = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(nose, at.up, nose.clone().cross(at.up)));
@@ -78,15 +96,16 @@ function overTheGlobe(at: OnGlobe): Stage {
  * Where the aircraft stands for this phase and scroll position. The journey's chapters place it; from the door on,
  * and after a seat is chosen, it stands at the origin (the flight's fly-away is applied on top, see cameraPoses).
  * `onGlobe` is the plane's point over the globe; without it the journey holds the departure's end, out of frame.
- * Between the first screen and the globe it changes place unseen: out of frame, then behind the globe.
+ * Between the chapters it changes place unseen: out of frame, behind the globe, out of frame again.
  */
 export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe): Stage {
   if (trackOf(phase) === 'post' || phase === 'seated') return rest();
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return departure(t);
-  // over the globe (it comes there from behind its horizon, see globe.ts), and transfer keeps it there until that
-  // chapter places it
-  if (id === 'destinations' || id === 'transfer') return onGlobe ? overTheGlobe(onGlobe) : departure(1);
+  // over the globe it comes and goes over the horizon (globe.ts), so it is never seen to change place; before and
+  // after, it holds the departure's end, out of frame
+  if (id === 'destinations') return onGlobe ? overTheGlobe(onGlobe) : departure(1);
+  if (id === 'transfer') return waiting(t);
   return rest();
 }
 

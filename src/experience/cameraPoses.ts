@@ -115,6 +115,46 @@ function destinationsPose(t: number, aspect: number): CameraPose {
   };
 }
 
+// --- transfer: the camera turns up from the globe to the plane waiting beside the choices — on the right on a wide
+// screen, across the top on a narrow one — smaller than in the hero
+const TRANSFER = {
+  from: v(52, 9, -46).normalize(),
+  distance: 130,
+  /** Below this aspect the camera stands back so the plane stays in the right half. */
+  fit: 16 / 9,
+  /** Where the plane's middle sits across a wide frame. */
+  place: 0.72,
+  narrow: { distance: 175, lift: 0.28 },
+  /** The share of the chapter the camera takes to turn up from the globe. */
+  turn: 0.6,
+};
+
+function transferFrame(aspect: number): CameraPose {
+  if (aspect < NARROW.below) {
+    return { position: TRANSFER.from.clone().multiplyScalar(TRANSFER.narrow.distance), target: v(0, 0, 0), fov: SKY.fov, lift: TRANSFER.narrow.lift };
+  }
+  const distance = TRANSFER.distance * Math.max(1, TRANSFER.fit / aspect);
+  const position = TRANSFER.from.clone().multiplyScalar(distance);
+  // look to the left of the plane by as much as puts it at `place` across the frame
+  const left = UP.clone().cross(position).normalize().negate();
+  const aside = (TRANSFER.place - 0.5) * 2 * distance * Math.tan(MathUtils.degToRad(SKY.fov / 2)) * aspect;
+  return { position, target: left.multiplyScalar(aside), fov: SKY.fov };
+}
+
+function transferPose(t: number, aspect: number): CameraPose {
+  const from = destinationsPose(1, aspect);
+  const to = transferFrame(aspect);
+  // slow to a stop: the plane comes into view over the second half of the turn
+  const k = smoothstep(t, 0, TRANSFER.turn);
+  const lift = lerp(from.lift ?? 0, to.lift ?? 0, k);
+  return {
+    position: from.position.clone().lerp(to.position, k),
+    target: from.target.clone().lerp(to.target, k),
+    fov: lerp(from.fov, to.fov, k),
+    ...(lift ? { lift } : {}),
+  };
+}
+
 /**
  * The camera's speed leaving the ready chapter, in lengths of its move per unit of it, so that it meets the door
  * curve at the curve's own starting speed.
@@ -122,15 +162,15 @@ function destinationsPose(t: number, aspect: number): CameraPose {
 const READY_EXIT_SPEED = (() => {
   const h = 1e-4;
   const doorSpeed = DOOR_CURVE.getPoint(h).distanceTo(DOOR_CURVE.getPoint(0)) / h / span('door');
-  return (doorSpeed * span('ready')) / SKY.position.distanceTo(DOOR_START.position);
+  return (doorSpeed * span('ready')) / transferFrame(16 / 9).position.distanceTo(DOOR_START.position);
 })();
 
 /**
- * Until the ready chapter gets a pose of its own: from the globe to the door flight's start, the lens becoming the
- * capture camera's and the gaze coming round to the door.
+ * Until the ready chapter gets a pose of its own: from the transfer's frame to the door flight's start, the lens
+ * becoming the capture camera's and the gaze coming round to the door.
  */
 function readyPose(t: number, aspect: number): CameraPose {
-  const from = destinationsPose(1, aspect);
+  const from = transferPose(1, aspect);
   // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = READY_EXIT_SPEED
   const k = READY_EXIT_SPEED;
   const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
@@ -188,9 +228,8 @@ export function poseOnPreTrack(progress: number, aspect = 16 / 9): CameraPose {
   if (id === 'door') return doorPose(t);
   if (id === 'aisle') return aislePose(t);
   if (id === 'destinations') return destinationsPose(t, aspect);
-  if (id === 'ready') return readyPose(t, aspect);
-  // transfer holds the globe shot until it gets a pose of its own
-  return destinationsPose(1, aspect);
+  if (id === 'transfer') return transferPose(t, aspect);
+  return readyPose(t, aspect);
 }
 
 export function aisleProgressForRow(row: number): number {

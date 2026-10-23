@@ -75,7 +75,7 @@ export function globeFade(phase: Phase, progress: number): number {
   if (phase !== 'browse') return 0;
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return smoothstep(t, 0.55, 0.9);
-  if (id === 'destinations') return 1 - smoothstep(t, 0.9, 1);
+  if (id === 'destinations') return 1 - smoothstep(t, 0.93, 1);
   return 0;
 }
 
@@ -146,8 +146,9 @@ export function toWorld(local: { position: Vector3; heading: Vector3 }, turn: Qu
   };
 }
 
-/** The plane comes to the globe from this far round it, behind its horizon, over this share of the chapter. */
-const ARRIVAL = { angle: degToRad(130), share: 0.3 };
+/** The plane comes to the globe from this far round it, behind its horizon, over this share of the chapter; it
+ * leaves over the nearest horizon, this far round, over this stretch — gone before the globe fades. */
+const ARRIVAL = { angle: degToRad(130), share: 0.3, leaves: { angle: degToRad(110), from: 0.6, to: 0.92 } };
 
 /** How far the plane has come over the globe's horizon (0 … 1): it arrives early in the destinations chapter. */
 export function arrivalAt(phase: Phase, progress: number): number {
@@ -157,10 +158,53 @@ export function arrivalAt(phase: Phase, progress: number): number {
   return id === 'destinations' ? smoothstep(t, 0, ARRIVAL.share) : 1;
 }
 
+/** How far the plane has gone on over the horizon (0 … 1) as the destinations chapter ends. */
+export function departureAt(phase: Phase, progress: number): number {
+  const { id, t } = chapterAt('pre', progress);
+  if (phase !== 'browse' || id === 'sky') return 0;
+  return id === 'destinations' ? smoothstep(t, ARRIVAL.leaves.from, ARRIVAL.leaves.to) : 1;
+}
+
+/**
+ * Leaving `at` (globe frame), `k` of the way: it turns away from the globe's middle as the camera sees it (`facing`,
+ * globe frame) and flies over the nearest horizon, gathering speed — slow while it crosses the face of the globe.
+ */
+export function leaving(at: { position: Vector3; heading: Vector3 }, k: number, facing: Vector3): { position: Vector3; heading: Vector3 } {
+  if (k <= 0) return at;
+  const up = at.position.clone().normalize();
+  const away = up.clone().multiplyScalar(up.dot(facing)).sub(facing);
+  if (away.lengthSq() < 1e-8) away.copy(at.heading);
+  away.normalize();
+  const axis = up.clone().cross(away).normalize();
+  const ahead = ARRIVAL.leaves.angle * k ** 2;
+  // the nose comes round to the way out over the first stretch
+  const nose = at.heading.clone().lerp(away, smoothstep(k, 0, 0.3)).normalize();
+  return { position: at.position.clone().applyAxisAngle(axis, ahead), heading: nose.applyAxisAngle(axis, ahead) };
+}
+
 /** On its way to `at` (globe frame), `k` of the way: along its own heading from behind the horizon, slowing down. */
 export function arriving(at: { position: Vector3; heading: Vector3 }, k: number): { position: Vector3; heading: Vector3 } {
   const axis = at.position.clone().cross(at.heading).normalize();
   const back = -ARRIVAL.angle * (1 - k) ** 2;
   return { position: at.position.clone().applyAxisAngle(axis, back), heading: at.heading.clone().applyAxisAngle(axis, back) };
+}
+
+/**
+ * The plane over the globe in the world while it is there: from coming over the horizon to having gone back over it
+ * (then, still hidden by the globe, it leaves for the next chapter); undefined elsewhere.
+ */
+export function planeOverGlobe(
+  phase: Phase,
+  progress: number,
+  flight: ArcFlight | null,
+  chosen: LatLon,
+  now: number,
+): { position: Vector3; heading: Vector3; up: Vector3 } | undefined {
+  if (phase !== 'browse' || chapterAt('pre', progress).id !== 'destinations') return undefined;
+  const gone = departureAt(phase, progress);
+  if (gone >= 1) return undefined;
+  const turn = globeTurnAt(flight, chosen, now);
+  const there = arriving(planeOnGlobe(flight, chosen, now), arrivalAt(phase, progress));
+  return toWorld(leaving(there, gone, GLOBE.facing.clone().applyQuaternion(turn.clone().invert())), turn);
 }
 

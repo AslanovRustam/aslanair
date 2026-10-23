@@ -11,6 +11,7 @@ import {
   WINDOW_ON_EXIT,
 } from '@/experience/cameraPoses';
 import { trackProgress, TRACKS } from '@/experience/chapters';
+import { aircraftStage, projectedBox } from '@/experience/stage';
 import { INTRO } from '@/experience/introState';
 import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
 import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
@@ -96,6 +97,32 @@ describe('pre-track camera', () => {
     expect(poseOnPreTrack(aisleProgressForRow(14)).position.x).toBeCloseTo(rowX(14) + 0.6, 3);
     expect(poseOnPreTrack(trackProgress('pre', 'aisle', 0.8)).fov).toBe(60);
   });
+});
+
+describe('transfer camera', () => {
+  const box = (aspect: number, progress: number) => projectedBox(aircraftStage('browse', progress), poseOnPreTrack(progress, aspect), aspect);
+  const hero = box(1440 / 800, 0);
+  const waiting = trackProgress('pre', 'transfer', 0.6);
+
+  for (const aspect of [1440 / 800, 2100 / 900, 1280 / 800, 1000 / 800]) {
+    test(`at ${aspect.toFixed(2)} the plane waits in the right half, smaller than in the hero, wholly in frame`, () => {
+      const b = box(aspect, waiting);
+      expect(b.x0).toBeGreaterThan(0.53);
+      expect(b.x1).toBeLessThan(0.97);
+      expect(b.y0 > 0.1 && b.y1 < 0.9).toBe(true);
+      expect((b.x1 - b.x0) * aspect).toBeLessThan((hero.x1 - hero.x0) * (1440 / 800));
+    });
+  }
+
+  for (const aspect of [412 / 915, 768 / 1024]) {
+    test(`at ${aspect.toFixed(2)} the plane waits across the top of the screen, inside its width`, () => {
+      const b = box(aspect, waiting);
+      expect(b.x0).toBeGreaterThan(0.03);
+      expect(b.x1).toBeLessThan(0.97);
+      expect(b.y0).toBeGreaterThan(0.08);
+      expect(b.y1).toBeLessThan(0.36);
+    });
+  }
 });
 
 describe('seated and post-track camera', () => {

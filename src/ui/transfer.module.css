@@ -1,0 +1,196 @@
+/* How will you get to the airport: four choices on the left, the plane waiting on the right; on a narrow screen the
+   plane waits across the top and the choices stack under the words. Fades in once the plane has flown in; transform
+   and opacity only. */
+
+.transfer {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.45s ease,
+    visibility 0s linear 0.45s;
+}
+
+.transfer[data-shown='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.45s ease,
+    visibility 0s;
+}
+
+.side {
+  position: absolute;
+  top: calc(var(--header-h) + clamp(1rem, 5vh, 3rem));
+  left: clamp(1.25rem, 3vw, 2.75rem);
+  width: min(40rem, 45vw);
+  transform: translateY(0.75rem);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.transfer[data-shown='true'] .side {
+  transform: none;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: clamp(1.9rem, 3vw, 2.75rem);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  margin: 0 0 1.5rem;
+  color: var(--dim);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  pointer-events: auto;
+}
+
+.option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'icon icon'
+    'name name'
+    'line line'
+    'time time';
+  align-content: start;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem 1.05rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgba(7, 8, 11, 0.55);
+  color: var(--ink);
+  font: 400 0.875rem/1.35 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.option:hover,
+.option:focus-visible {
+  border-color: var(--faint);
+}
+
+.option[aria-checked='true'] {
+  border-color: var(--accent);
+  background-color: rgba(212, 104, 58, 0.12);
+}
+
+.icon {
+  grid-area: icon;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-bottom: 0.35rem;
+  fill: none;
+  stroke: var(--dim);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.option[aria-checked='true'] .icon {
+  stroke: var(--accent);
+}
+
+.name {
+  grid-area: name;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+
+.line {
+  grid-area: line;
+  color: var(--dim);
+}
+
+.time {
+  grid-area: time;
+  margin-top: 0.35rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.option[aria-checked='true'] .time {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* narrow: under the waiting plane, the choices in one column — icon, words, time in a row */
+@media (max-aspect-ratio: 6 / 5) {
+  .side {
+    top: 34vh;
+    left: clamp(1.25rem, 5vw, 2.75rem);
+    right: clamp(1.25rem, 5vw, 2.75rem);
+    width: auto;
+  }
+
+  .title {
+    font-size: clamp(1.6rem, 6.5vw, 2.25rem);
+  }
+
+  .lead {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .options {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .option {
+    grid-template-columns: 1.75rem 1fr auto;
+    grid-template-areas:
+      'icon name time'
+      'icon line line';
+    column-gap: 0.75rem;
+    row-gap: 0.15rem;
+    align-items: center;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .icon {
+    margin: 0;
+    align-self: start;
+  }
+
+  .name {
+    font-size: 1rem;
+  }
+
+  .line {
+    font-size: 0.8125rem;
+  }
+
+  .time {
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+}

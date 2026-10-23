@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
+import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { DESTINATIONS } from '@/experience/destinations';
 import { GLOBE } from '@/experience/globe';
-import { pre, waitForStore, wheelTo } from './helpers';
+import { aircraftStage, projectedBox } from '@/experience/stage';
+import { pre, progress, waitForStore, wheelTo } from './helpers';
 
 type Vec = { x: number; y: number; z: number; applyMatrix4(m: unknown): Vec; project(camera: unknown): Vec };
 type Node = {
@@ -14,7 +16,7 @@ type PageWindow = {
   __aslan: {
     scene: { position: { constructor: new (x: number, y: number, z: number) => Vec }; getObjectByName(name: string): Node | undefined };
     camera: unknown;
-    store: { getState(): { destinationId: string } };
+    store: { getState(): { destinationId: string; transferId: string } };
   };
 };
 
@@ -155,3 +157,62 @@ test('after a resize the labels on the globe stay on their markers and can be cl
   await label.click();
   expect(await chosen(page)).toBe('VIE');
 });
+
+const transfer = (page: Page) => page.evaluate(() => (window as unknown as PageWindow).__aslan.store.getState().transferId);
+
+async function toTransfer(page: Page) {
+  await open(page);
+  await wheelTo(page, pre('transfer', 0.75));
+  await expect(page.getByRole('radiogroup', { name: 'How will you get to the airport?' })).toBeVisible();
+}
+
+test('getting to the airport: On my own at first, then a click or the arrow keys choose', async ({ page }) => {
+  await toTransfer(page);
+  const group = page.getByRole('radiogroup', { name: 'How will you get to the airport?' });
+  await expect(group.getByRole('radio')).toHaveCount(4);
+  await expect(group.getByRole('radio', { name: /On my own/ })).toHaveAttribute('aria-checked', 'true');
+  const home = group.getByRole('radio', { name: /From home/ });
+  await home.click();
+  expect(await transfer(page)).toBe('home');
+  await expect(home).toHaveAttribute('aria-checked', 'true');
+  await expect(group.locator('[aria-checked="true"]')).toHaveCount(1);
+  await page.keyboard.press('ArrowRight');
+  const hotel = group.getByRole('radio', { name: /From your hotel/ });
+  await expect(hotel).toBeFocused();
+  await expect(hotel).toHaveAttribute('aria-checked', 'true');
+  expect(await transfer(page)).toBe('hotel');
+  await page.keyboard.press('ArrowLeft');
+  await expect(home).toBeFocused();
+  expect(await transfer(page)).toBe('home');
+});
+
+type Box = { x: number; y: number; width: number; height: number };
+const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 412, height: 915 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} the transfer choices keep clear of the waiting plane and read in full`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await toTransfer(page);
+    await page.waitForTimeout(700); // the choices' entrance
+    const at = await progress(page);
+    const aspect = viewport.width / viewport.height;
+    const b = projectedBox(aircraftStage('browse', at), poseOnPreTrack(at, aspect), aspect);
+    const margin = 8; // the plane's slow idle sway
+    const plane = { x: b.x0 * viewport.width - margin, y: b.y0 * viewport.height - margin, width: (b.x1 - b.x0) * viewport.width + 2 * margin, height: (b.y1 - b.y0) * viewport.height + 2 * margin };
+    const cards = await page.getByRole('radio').evaluateAll((els) =>
+      els.map((e) => ({ ...(e.getBoundingClientRect().toJSON() as { x: number; y: number; width: number; height: number }), clipped: e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1 })),
+    );
+    const footer = 44;
+    for (const [i, c] of cards.entries()) {
+      expect(overlaps(c, plane), `card ${i} vs plane`).toBe(false);
+      expect(c.x >= 0 && c.x + c.width <= viewport.width && c.y + c.height <= viewport.height - footer, `card ${i} on screen`).toBe(true);
+      expect(c.height, `card ${i} tall enough to tap`).toBeGreaterThanOrEqual(44);
+      expect(c.clipped, `card ${i} text in full`).toBe(false);
+      for (let j = i + 1; j < cards.length; j++) expect(overlaps(c, cards[j]), `cards ${i}/${j}`).toBe(false);
+    }
+  });
+}
+

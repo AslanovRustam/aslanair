@@ -1,9 +1,9 @@
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
-import { chapterAt, trackProgress } from '@/experience/chapters';
+import { chapterAt, trackProgress, TRACKS } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
-import { arrivalAt, arriving, GLOBE, globeTurnFor, planeOnGlobe, toWorld } from '@/experience/globe';
+import { GLOBE, globeFade, globeTurnFor, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
 import { aircraftStage, ON_GLOBE_SCALE, projectedBox, type ScreenBox, type Stage } from '@/experience/stage';
 
 const ASPECTS = [412 / 915, 1, 1440 / 800, 2100 / 900, 3.6];
@@ -13,9 +13,7 @@ const LIS = DESTINATIONS.find((d) => d.code === 'LIS')!;
 const TURN = globeTurnFor(HOME, LIS);
 /** The plane waiting over Chișinău before any pick, in the world. */
 const waiting = toWorld(planeOnGlobe(null, LIS, 0), TURN);
-/** Where it is over the globe at `progress`: coming over the horizon early in the chapter, then waiting. */
-const overGlobe = (progress: number) => toWorld(arriving(planeOnGlobe(null, LIS, 0), arrivalAt('browse', progress)), TURN);
-const stageAt = (progress: number) => aircraftStage('browse', progress, chapterAt('pre', progress).id === 'destinations' ? overGlobe(progress) : undefined);
+const stageAt = (progress: number) => aircraftStage('browse', progress, planeOverGlobe('browse', progress, null, LIS, 0));
 
 /** Whether any of the plane's outline can be seen from `eye`, past the globe (when the globe shows). */
 function unhidden(stage: Stage, eye: Vector3): boolean {
@@ -30,9 +28,30 @@ function unhidden(stage: Stage, eye: Vector3): boolean {
 const OUTLINE_PROBE = [new Vector3(18.8, 0, 0), new Vector3(-19, 0.9, 0), new Vector3(-4, 2.3, -17.84), new Vector3(-4, 2.3, 17.84), new Vector3(-15.6, 7.8, 0)];
 
 const boxAt = (progress: number, aspect: number) => projectedBox(stageAt(progress), poseOnPreTrack(progress, aspect), aspect);
-/** On screen: in frame and, once over the globe, not behind it. */
+/** On screen: in frame and not behind the globe (which hides only while nearly opaque). */
 const showing = (progress: number, aspect: number) =>
-  inFrame(boxAt(progress, aspect)) && (chapterAt('pre', progress).id !== 'destinations' || unhidden(stageAt(progress), poseOnPreTrack(progress, aspect).position));
+  inFrame(boxAt(progress, aspect)) &&
+  (chapterAt('pre', progress).id !== 'destinations' || globeFade('browse', progress) < 0.9 || unhidden(stageAt(progress), poseOnPreTrack(progress, aspect).position));
+/** The pre track's height in viewport heights: steps are judged per vh of scroll, whatever the chapter's length. */
+const TRACK_VH = TRACKS.pre.reduce((sum, c) => sum + c.heightVh, 0);
+/**
+ * The largest move of the plane's box on screen per vh of scroll between neighbouring points of `steps`, while it
+ * shows, as a share of the frame. The first screen's rule — 3 % of the frame per 1 % of its 110 vh — is 2.73 %/vh.
+ */
+function worstStep(steps: number[], aspect: number): number {
+  let worst = 0;
+  for (let i = 1; i < steps.length; i++) {
+    // a chapter's end and the next one's start are the same point
+    if (steps[i] === steps[i - 1] || (!showing(steps[i - 1], aspect) && !showing(steps[i], aspect))) continue;
+    const [a, b] = [boxAt(steps[i - 1], aspect), boxAt(steps[i], aspect)];
+    const moved = Math.max(Math.abs(a.x0 - b.x0), Math.abs(a.x1 - b.x1), Math.abs(a.y0 - b.y0), Math.abs(a.y1 - b.y1));
+    worst = Math.max(worst, moved / ((steps[i] - steps[i - 1]) * TRACK_VH));
+  }
+  return worst;
+}
+const PER_VH = 0.03 / 1.1;
+const across = (id: 'sky' | 'destinations' | 'transfer' | 'ready', from = 0, to = 1) =>
+  Array.from({ length: Math.round((to - from) * 100) + 1 }, (_, i) => trackProgress('pre', id, from + i / 100));
 
 describe('the aircraft stage', () => {
   test('the plane stands at the origin, level and full size, at the top and from the door on', () => {
@@ -70,15 +89,8 @@ describe('the aircraft stage', () => {
       expect((start.x0 + start.x1) / 2 - (mid.x0 + mid.x1) / 2).toBeGreaterThan(0.05);
       expect((start.y0 + start.y1) / 2 - (mid.y0 + mid.y1) / 2).toBeGreaterThan(0.1);
       expect(showing(sky(0.999), aspect), 'out of frame at the end of the first screen').toBe(false);
-      // at most 3 % of the frame per 1 % of the chapter, across the chapter and on over the globe
-      const steps = [...Array.from({ length: 101 }, (_, i) => sky(i / 100)), ...Array.from({ length: 50 }, (_, i) => trackProgress('pre', 'destinations', (i + 1) / 100))];
-      for (let i = 1; i < steps.length; i++) {
-        if (!showing(steps[i - 1], aspect) && !showing(steps[i], aspect)) continue;
-        const a = boxAt(steps[i - 1], aspect);
-        const b = boxAt(steps[i], aspect);
-        const moved = Math.max(Math.abs(a.x0 - b.x0), Math.abs(a.x1 - b.x1), Math.abs(a.y0 - b.y0), Math.abs(a.y1 - b.y1));
-        expect(moved, `step ${i}`).toBeLessThanOrEqual(0.03);
-      }
+      // at most 3 % of the frame per 1 % of the chapter (per vh, the same on over the globe)
+      expect(worstStep([...across('sky'), ...across('destinations', 0.01, 0.5)], aspect)).toBeLessThanOrEqual(PER_VH);
     });
   }
 
@@ -97,6 +109,29 @@ describe('the aircraft stage', () => {
       expect(showing(trackProgress('pre', 'destinations', 0), aspect), `${aspect} destinations start`).toBe(false);
       expect(showing(trackProgress('pre', 'destinations', 0.3), aspect), `${aspect} arrived`).toBe(true);
     }
+  });
+
+  for (const aspect of ASPECTS) {
+    test(`at ${aspect.toFixed(2)} it leaves the globe unseen and flies in to wait for the transfer, smoothly into ready`, () => {
+      expect(showing(trackProgress('pre', 'destinations', 0.93), aspect), 'gone round the globe before it fades').toBe(false);
+      expect(showing(trackProgress('pre', 'transfer', 0), aspect), 'out of view as the transfer begins').toBe(false);
+      expect(showing(trackProgress('pre', 'transfer', 0.5), aspect), 'waiting in view').toBe(true);
+      const steps = [...across('destinations', 0.5), ...across('transfer'), ...across('ready', 0, 0.3)];
+      expect(worstStep(steps, aspect)).toBeLessThanOrEqual(PER_VH);
+    });
+  }
+
+  test('waiting, it turns slowly to the course it holds into the ready chapter, level and at rest by its end', () => {
+    const yaw = (t: number) => aircraftStage('browse', trackProgress('pre', 'transfer', t)).rotation.y;
+    let last = Infinity;
+    for (let i = 40; i <= 100; i += 5) {
+      expect(yaw(i / 100), `t ${i / 100}`).toBeLessThanOrEqual(last + 1e-12);
+      last = yaw(i / 100);
+    }
+    const end = aircraftStage('browse', trackProgress('pre', 'transfer', 0.9999));
+    expect(end.position.length()).toBeLessThan(1e-3);
+    expect(Math.abs(end.rotation.x) + Math.abs(end.rotation.y) + Math.abs(end.rotation.z)).toBeLessThan(1e-3);
+    expect(end.scale).toBe(1);
   });
 });
 
