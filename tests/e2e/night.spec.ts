@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { trackProgress } from '@/experience/chapters';
 import { NIGHT_LIGHTS } from '@/experience/geometry';
 import { worldMode } from '@/experience/worldState';
+import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
 import { visibleLights, waitForStore } from './helpers';
 
 type StoreWindow = Window & {
@@ -220,4 +221,66 @@ test('aboard, the fuselage beacons never glow into the cabin; the wing lights st
       }),
   );
   expect(seen).toEqual({ beaconTop: false, beaconBottom: false, navPort: true });
+});
+
+/** Bright specks in a screen box: connected groups of pixels well above the local sky, and their sizes in pixels. */
+async function specks(page: Page, box: { x: number; y: number; width: number; height: number }) {
+  const png = (await page.screenshot({ clip: box })).toString('base64');
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+    const lum = (i: number) => 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2];
+    const sorted = Array.from({ length: width * height }, (_, i) => lum(i)).sort((a, b) => a - b);
+    const sky = sorted[Math.floor(sorted.length / 2)];
+    const lit = (i: number) => lum(i) > sky + 18;
+    const seen = new Uint8Array(width * height);
+    const sizes: number[] = [];
+    for (let i = 0; i < width * height; i++) {
+      if (seen[i] || !lit(i)) continue;
+      let n = 0;
+      const stack = [i];
+      seen[i] = 1;
+      while (stack.length) {
+        const j = stack.pop()!;
+        n++;
+        const x = j % width, y = (j - x) / width;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          const k = ny * width + nx;
+          if (nx >= 0 && ny >= 0 && nx < width && ny < height && !seen[k] && lit(k)) {
+            seen[k] = 1;
+            stack.push(k);
+          }
+        }
+      }
+      sizes.push(n);
+    }
+    return sizes.sort((a, b) => a - b);
+  }, png);
+}
+
+test('out of the window the stars are crisp points, not soft blobs', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await page.evaluate((window_) => {
+    const s = (window as unknown as StoreWindow).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(window_); // at the window on the way out: open sky above the wing
+  }, WINDOW_ON_EXIT);
+  await page.waitForTimeout(2500);
+  // specks between 3 and 400 px: stars (single pixels are noise, bigger patches are clouds)
+  const stars = (await specks(page, { x: 0, y: 70, width: 1000, height: 260 })).filter((n) => n >= 3 && n <= 400);
+  expect(stars.length, 'stars in the sky').toBeGreaterThanOrEqual(8);
+  const median = stars[Math.floor(stars.length / 2)];
+  expect(median, `median star size ${median} px (${stars.join(',')})`).toBeLessThanOrEqual(12);
 });

@@ -7,7 +7,7 @@ import { cloudScale } from '@/experience/cloudDetail';
 import { experienceStore } from '@/experience/store';
 import { worldMode } from '@/experience/worldState';
 import { bakeNoise3D } from './noise3d';
-import { BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VERTEX } from './shaders';
+import { BACKDROP_FRAGMENT, BACKDROP_VERTEX, BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VERTEX } from './shaders';
 
 /** The moon: 32° up, behind-left of the hero camera, ahead of the nose — it lights the side the visitor sees. */
 export const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(85));
@@ -23,7 +23,10 @@ const MOONLIGHT = {
   fillColor: '#8ea2cc',
 };
 
-/** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred. */
+/** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred — a little: the backdrop
+ * sharpens them back at full resolution. */
+const BLUR_SPREAD = 0.45;
+const SHARPEN = 0.7;
 const NOISE_SIZE = 64;
 
 function noiseTexture(): THREE.Data3DTexture {
@@ -66,7 +69,41 @@ function createPipeline() {
     depthTest: false,
     depthWrite: false,
   });
-  return { raw, tmp, out, uniforms, cloudScene, blur, blurScene: fullscreen(blur), quadCamera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+  // the night background at full resolution, drawn first behind everything: clouds, then the moon and stars as points
+  const backdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        uClouds: { value: out.texture },
+        uTexel: { value: new THREE.Vector2() },
+        uSharpen: { value: SHARPEN },
+        uPixel: { value: 0.001 },
+        uTime: uniforms.uTime,
+        uMoon: uniforms.uMoon,
+        uInvProj: uniforms.uInvProj,
+        uInvView: uniforms.uInvView,
+      },
+      vertexShader: BACKDROP_VERTEX,
+      fragmentShader: BACKDROP_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  backdrop.name = 'NightBackdrop';
+  backdrop.frustumCulled = false;
+  backdrop.renderOrder = -1000;
+  backdrop.visible = false;
+  return {
+    raw,
+    tmp,
+    out,
+    uniforms,
+    cloudScene,
+    blur,
+    blurScene: fullscreen(blur),
+    backdrop,
+    quadCamera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
+  };
 }
 
 /** `background={false}`: no sky behind the scene at all — the capture tool photographs the plane on transparency. */
@@ -126,9 +163,11 @@ export default function SkyAndClouds({ background = true }: { background?: boole
     // pipeline runs unseen so its shaders and targets are ready before the door flight first needs them
     if ((showcase && s.ready) || !background) {
       scene.background = background ? SHOWCASE_BACKGROUND : null;
+      pipe.backdrop.visible = false;
       return;
     }
-    scene.background = pipe.out.texture;
+    scene.background = null;
+    pipe.backdrop.visible = true;
     const scale = cloudScale(s.phase, s.progress);
     const w = Math.max(2, Math.round(size.width * dpr * scale));
     const h = Math.max(2, Math.round(size.height * dpr * scale));
@@ -144,16 +183,20 @@ export default function SkyAndClouds({ background = true }: { background?: boole
     u.uCam.value.copy(camera.position);
     u.uInvProj.value.copy(camera.projectionMatrixInverse);
     u.uInvView.value.copy(camera.matrixWorld);
+    const b = pipe.backdrop.material.uniforms;
+    b.uTexel.value.set(1 / w, 1 / h);
+    // radians across one drawing-buffer pixel, for stars a pixel wide
+    b.uPixel.value = (2 * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2)) / (size.height * dpr);
 
     const previous = gl.getRenderTarget();
     gl.setRenderTarget(pipe.raw);
     gl.render(pipe.cloudScene, pipe.quadCamera);
     pipe.blur.uniforms.uTex.value = pipe.raw.texture;
-    pipe.blur.uniforms.uDir.value.set(1 / pipe.raw.width, 0);
+    pipe.blur.uniforms.uDir.value.set(BLUR_SPREAD / pipe.raw.width, 0);
     gl.setRenderTarget(pipe.tmp);
     gl.render(pipe.blurScene, pipe.quadCamera);
     pipe.blur.uniforms.uTex.value = pipe.tmp.texture;
-    pipe.blur.uniforms.uDir.value.set(0, 1 / pipe.raw.height);
+    pipe.blur.uniforms.uDir.value.set(0, BLUR_SPREAD / pipe.raw.height);
     gl.setRenderTarget(pipe.out);
     gl.render(pipe.blurScene, pipe.quadCamera);
     gl.setRenderTarget(previous);
@@ -161,6 +204,7 @@ export default function SkyAndClouds({ background = true }: { background?: boole
 
   return (
     <>
+      <primitive object={pipe.backdrop} />
       <ambientLight ref={fill} color={MOONLIGHT.fillColor} intensity={MOONLIGHT.showcase.fill} />
       <directionalLight
       ref={moon}

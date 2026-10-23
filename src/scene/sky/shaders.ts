@@ -1,29 +1,19 @@
 // Cloud raymarch ported from the v4 cloud spike (.superpowers/brainstorm/.../spike-plane-v4.html), relit for a night
 // flight: moonlight, a starry navy sky, a dark sea with the moon's path on it.
 
-/** Night sky above the horizon (navy gradient, moon with its halo, stars), dark sea below; shared by the clouds and
- * the environment map. */
+/** Night sky above the horizon (navy gradient, the moon's glow), dark sea below; shared by the clouds and the
+ * environment map. The moon's disc and the stars are points, drawn crisp at full resolution by skyPoints. */
 export const SKY_GLSL = /* glsl */ `
   uniform vec3 uMoon;
   const vec3 NIGHT_HORIZON = vec3(0.030, 0.045, 0.090);
   const vec3 NIGHT_ZENITH = vec3(0.004, 0.008, 0.024);
   const vec3 MOONLIGHT = vec3(0.80, 0.86, 1.00);
   float starHash(vec3 p){ p = fract(p * vec3(443.897, 441.423, 437.195)); p += dot(p, p.yzx + 19.19); return fract((p.x + p.y) * p.z); }
-  vec3 stars(vec3 rd){
-    vec3 p = rd * 220.;
-    vec3 cell = floor(p);
-    float h = starHash(cell);
-    if (h < 0.988) return vec3(0.);
-    vec3 star = cell + 0.5 + 0.35 * (vec3(starHash(cell + 1.3), starHash(cell + 2.7), starHash(cell + 4.1)) - 0.5);
-    // small and bright: the cloud pass is drawn at a fraction of the screen and blurred, which spreads them
-    return vec3(0.9, 0.93, 1.0) * smoothstep(0.24, 0.0, length(p - star)) * (h - 0.988) / 0.012 * 5.;
-  }
   vec3 skyCol(vec3 rd){
     float y = max(rd.y, 0.);
     vec3 c = mix(NIGHT_HORIZON, NIGHT_ZENITH, pow(y, 0.45));
     float m = max(dot(rd, uMoon), 0.);
-    c += MOONLIGHT * (smoothstep(0.99975, 0.99985, m) * 8. + pow(m, 600.) * 0.6 + pow(m, 24.) * 0.06);
-    return c + stars(rd) * smoothstep(0.02, 0.25, rd.y);
+    return c + MOONLIGHT * (pow(m, 600.) * 0.6 + pow(m, 24.) * 0.06);
   }
   vec3 belowCol(vec3 rd, float camY){
     float t = (-2600. - camY) / min(rd.y, -1e-4);
@@ -32,6 +22,43 @@ export const SKY_GLSL = /* glsl */ `
     return mix(sea, NIGHT_HORIZON, 1. - exp(-t * 0.00006));
   }
   vec3 bgCol(vec3 rd, float camY){ return rd.y > 0. ? skyCol(rd) : belowCol(rd, camY); }
+`;
+
+/**
+ * The moon's disc and the stars for direction rd, `pixel` radians across one screen pixel: drawn at full resolution
+ * so they stay points. Stars sit on a grid over the faces of a cube around the camera (about 0.01 rad a cell, one
+ * in fifty cells lit), each a Gaussian under a pixel wide, searched in the 3×3 cells around rd so none is clipped.
+ */
+export const SKY_POINTS_GLSL = /* glsl */ `
+  vec3 skyPoints(vec3 rd, float pixel, float time){
+    if (rd.y <= 0.) return vec3(0.);
+    float r = acos(clamp(dot(rd, uMoon), -1., 1.));
+    vec3 col = MOONLIGHT * 5. * (1. - smoothstep(0.017 - pixel, 0.017 + pixel, r)) * (0.85 + 0.15 * smoothstep(0.017, 0., r));
+    vec3 a = abs(rd);
+    vec2 uv; float face; float amax;
+    if (a.x >= a.y && a.x >= a.z) { uv = rd.yz / a.x; face = rd.x > 0. ? 0. : 1.; amax = a.x; }
+    else if (a.y >= a.z) { uv = rd.xz / a.y; face = rd.y > 0. ? 2. : 3.; amax = a.y; }
+    else { uv = rd.xy / a.z; face = rd.z > 0. ? 4. : 5.; amax = a.z; }
+    const float K = 100.;
+    vec2 g = uv * K;
+    vec2 base = floor(g);
+    float toAngle = amax * amax / K;
+    float sigma = max(pixel * 0.8, 1e-5);
+    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
+      vec2 cell = base + vec2(float(i), float(j));
+      vec3 key = vec3(cell, face);
+      float h = starHash(key);
+      if (h < 0.98) continue;
+      vec2 at = cell + 0.5 + 0.8 * (vec2(starHash(key + 1.3), starHash(key + 2.7)) - 0.5);
+      float d = length(g - at) * toAngle;
+      float rank = (h - 0.98) / 0.02;
+      float glow = 0.35 + 3.2 * rank * rank * rank;
+      float twinkle = 0.8 + 0.2 * sin(time * (1.3 + 2.4 * starHash(key + 7.7)) + 6.2832 * starHash(key + 9.1));
+      vec3 tint = mix(vec3(0.78, 0.85, 1.0), vec3(1.0, 0.9, 0.78), starHash(key + 5.5));
+      col += tint * glow * twinkle * exp(-d * d / (sigma * sigma));
+    }
+    return col * smoothstep(0.02, 0.2, rd.y);
+  }
 `;
 
 export const FULLSCREEN_VERTEX = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
@@ -66,7 +93,7 @@ export const CLOUD_FRAGMENT = /* glsl */ `
       vec4 v = uInvProj * vec4(vUv * 2. - 1., 1., 1.); v /= v.w;
       vec3 rd = normalize((uInvView * vec4(v.xyz, 0.)).xyz), ro = uCam;
       vec3 bg = bgCol(rd, ro.y);
-      if (abs(rd.y) < 1e-4) { gl_FragColor = vec4(bg, 1.); return; }
+      if (abs(rd.y) < 1e-4) { gl_FragColor = vec4(bg, 1.); return; }  // alpha: how much of the sky behind shows (for skyPoints)
       float tb = (B - ro.y) / rd.y, tt = (T - ro.y) / rd.y;
       float t0 = max(min(tb, tt), 0.), t1 = min(max(tb, tt), 45000.);
       if (t1 <= t0) { gl_FragColor = vec4(bg, 1.); return; }
@@ -98,7 +125,7 @@ export const CLOUD_FRAGMENT = /* glsl */ `
       }
       float dist = wsum > 0. ? hit / wsum : 0.;
       acc = mix(acc, NIGHT_HORIZON * (1. - Tr), 1. - exp(-dist * 0.00006));
-      gl_FragColor = vec4(acc + Tr * bg, 1.);
+      gl_FragColor = vec4(acc + Tr * bg, Tr);
     }`;
 
 /** Separable 9-tap Gaussian (linear-sampling trick); uDir is one texel along x or y. */
@@ -109,3 +136,26 @@ export const BLUR_FRAGMENT = /* glsl */ `uniform sampler2D uTex; uniform vec2 uD
       c += (texture2D(uTex, vUv + uDir * 3.2307692308) + texture2D(uTex, vUv - uDir * 3.2307692308)) * 0.0702702703;
       gl_FragColor = c;
     }`;
+
+/** The night background at full resolution: the blurred cloud pass, sharpened a little where it was upsampled, with
+ * the moon's disc and the stars on top wherever the clouds let the sky show (the pass's alpha). */
+export const BACKDROP_VERTEX = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 1., 1.); }`;
+
+export const BACKDROP_FRAGMENT = /* glsl */ `
+  uniform sampler2D uClouds; uniform vec2 uTexel; uniform float uSharpen; uniform float uPixel; uniform float uTime;
+  uniform mat4 uInvProj, uInvView;
+  varying vec2 vUv;
+  ${SKY_GLSL}
+  ${SKY_POINTS_GLSL}
+  void main(){
+    vec4 c = texture2D(uClouds, vUv);
+    vec3 around = (texture2D(uClouds, vUv + vec2(uTexel.x, 0.)).rgb + texture2D(uClouds, vUv - vec2(uTexel.x, 0.)).rgb
+      + texture2D(uClouds, vUv + vec2(0., uTexel.y)).rgb + texture2D(uClouds, vUv - vec2(0., uTexel.y)).rgb) * 0.25;
+    vec3 col = max(c.rgb + (c.rgb - around) * uSharpen, 0.);
+    vec4 v = uInvProj * vec4(vUv * 2. - 1., 1., 1.); v /= v.w;
+    vec3 rd = normalize((uInvView * vec4(v.xyz, 0.)).xyz);
+    col += skyPoints(rd, uPixel, uTime) * c.a;
+    gl_FragColor = vec4(col, 1.);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }`;
