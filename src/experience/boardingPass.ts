@@ -1,13 +1,20 @@
+import { copy } from '@/content/copy';
+import { HOME, pickupTime, TRANSFERS, type Destination, type TransferId } from './destinations';
 import { hashString, mulberry32 } from './random';
 import type { Seat } from './seats';
 
+/** Boarding closes this long before departure. */
+const BOARDING_BEFORE = 40;
+
 export interface BoardingPassData {
   airline: 'AslanAir';
-  flight: 'ASLAN 270';
-  from: { code: 'IST'; city: 'Istanbul' };
-  to: { code: 'LIS'; city: 'Lisbon' };
+  flight: string;
+  from: { code: string; city: string };
+  to: { code: string; city: string };
   date: '22 OCT';
-  boarding: '14:35';
+  boarding: string;
+  /** The way to the airport the visitor chose; a pick-up time unless they get there on their own. */
+  transfer: { label: string; pickup: string | null };
   gate: 'B12';
   seat: string;
   zone: 1 | 2 | 3;
@@ -16,15 +23,17 @@ export interface BoardingPassData {
   barcode: number[];
 }
 
-export function boardingPassFor(seat: Seat): BoardingPassData {
+export function boardingPassFor(seat: Seat, to: Destination, transfer: TransferId): BoardingPassData {
   const rnd = mulberry32(hashString(seat.id));
+  const before = TRANSFERS.find((t) => t.id === transfer)!.minutesBefore;
   return {
     airline: 'AslanAir',
-    flight: 'ASLAN 270',
-    from: { code: 'IST', city: 'Istanbul' },
-    to: { code: 'LIS', city: 'Lisbon' },
+    flight: to.flight,
+    from: { code: HOME.code, city: HOME.city },
+    to: { code: to.code, city: to.city },
     date: '22 OCT',
-    boarding: '14:35',
+    boarding: pickupTime(to.departs, BOARDING_BEFORE),
+    transfer: { label: copy.transfer.options[transfer], pickup: before === null ? null : pickupTime(to.departs, before) },
     gate: 'B12',
     seat: seat.id,
     zone: seat.row <= 10 ? 1 : seat.row <= 20 ? 2 : 3,

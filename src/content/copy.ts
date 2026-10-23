@@ -64,6 +64,9 @@ export const copy = {
     change: 'Change seat', // pinned
     takeOff: 'Take off',
   },
+  transfer: {
+    options: { home: 'From home', hotel: 'From your hotel', express: 'Airport express', own: 'On my own' },
+  },
   takeOff: {
     title: 'Ready for take-off.',
     cue: 'Scroll to fly out',

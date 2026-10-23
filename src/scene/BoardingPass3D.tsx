@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { copy } from '@/content/copy';
 import { boardingPassFor, type BoardingPassData } from '@/experience/boardingPass';
 import { chapterAt } from '@/experience/chapters';
+import { destination } from '@/experience/destinations';
 import { experienceStore, useExperience } from '@/experience/store';
 
 const CARD = { w: 0.5, h: 0.24, radius: 0.02, distance: 0.8 };
@@ -144,7 +145,12 @@ export default function BoardingPass3D() {
   const flipper = useRef<THREE.Group>(null);
   const offset = useMemo(() => new THREE.Vector3(), []);
   const geometry = useMemo(cardGeometry, []);
-  const data = useMemo(() => (seat ? boardingPassFor(seat) : null), [seat]);
+  const destinationId = useExperience((s) => s.destinationId);
+  const transferId = useExperience((s) => s.transferId);
+  const data = useMemo(
+    () => (seat ? boardingPassFor(seat, destination(destinationId)!, transferId) : null),
+    [seat, destinationId, transferId],
+  );
   const textures = useMemo(() => (data ? { front: cardTexture(drawFront, data), back: cardTexture(drawBack, data) } : null), [data]);
 
   useEffect(

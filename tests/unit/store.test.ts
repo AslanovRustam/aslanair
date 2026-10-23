@@ -76,6 +76,23 @@ describe('experience store', () => {
     expect(s().loadProgress).toBe(100);
   });
 
+  test('destination and transfer change until the seat is confirmed, then lock; Start again resets them', () => {
+    expect([s().destinationId, s().transferId]).toEqual(['LIS', 'own']);
+    expect(s().chooseDestination('HND')).toBe(true);
+    expect(s().chooseDestination('XXX')).toBe(false);
+    expect(s().destinationId).toBe('HND');
+    const free = s().seats.find((x) => x.status === 'free')!;
+    s().sit(free.id);
+    expect(s().chooseTransfer('home')).toBe(true); // seated: still open
+    expect(s().transferId).toBe('home');
+    s().confirm();
+    expect(s().chooseDestination('JFK')).toBe(false);
+    expect(s().chooseTransfer('own')).toBe(false);
+    expect([s().destinationId, s().transferId]).toEqual(['HND', 'home']);
+    s().restart();
+    expect([s().destinationId, s().transferId]).toEqual(['LIS', 'own']);
+  });
+
   test('progress is clamped and hover is ignored while seated', () => {
     s().setProgress(2);
     expect(s().progress).toBe(1);
