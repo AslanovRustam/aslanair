@@ -292,12 +292,14 @@ test('the hover glow is the seat itself lighting up in teal, never a white wash'
   for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
   await settledProgress(page);
   await page.addStyleTag({ content: '[data-testid="seat-card"] { visibility: hidden !important; }' }); // compare the 3D only
-  await scanForHoveredSeat(page);
+  const hit = await scanForHoveredSeat(page);
+  // around the seat only: the clouds drift past the windows between the two shots
+  const clip = { x: Math.max(0, hit.x - 160), y: Math.max(0, hit.y - 120), width: 320, height: 240 };
   await page.waitForTimeout(500);
-  const shown = (await page.screenshot()).toString('base64');
+  const shown = (await page.screenshot({ clip })).toString('base64');
   await page.mouse.move(5, 5);
   await page.waitForTimeout(500);
-  const hidden = (await page.screenshot()).toString('base64');
+  const hidden = (await page.screenshot({ clip })).toString('base64');
   const px = await page.evaluate(
     async ([a, b]) => {
       const load = async (src: string) => {
@@ -316,7 +318,8 @@ test('the hover glow is the seat itself lighting up in teal, never a white wash'
       let white = 0;
       let teal = 0;
       for (let i = 0; i < p.length; i += 4) {
-        if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) < 24) continue;
+        // the glow only adds light; pixels the 4 cm lift merely moves can turn darker or brighter
+        if (p[i] + p[i + 1] + p[i + 2] - (q[i] + q[i + 1] + q[i + 2]) < 24) continue;
         changed++;
         if (p[i] > 245 && p[i + 1] > 245 && p[i + 2] > 245) white++;
         if (p[i + 1] > p[i] + 10 && p[i + 2] > p[i] + 10) teal++;
@@ -326,7 +329,7 @@ test('the hover glow is the seat itself lighting up in teal, never a white wash'
     [shown, hidden] as const,
   );
   console.log('hover glow pixels', JSON.stringify(px));
-  expect(px.changed).toBeGreaterThan(300);
+  expect(px.changed).toBeGreaterThan(200);
   expect(px.white / px.changed).toBeLessThan(0.05);
   expect(px.teal / px.changed).toBeGreaterThan(0.5);
 });

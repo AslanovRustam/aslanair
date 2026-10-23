@@ -1,8 +1,5 @@
-import { poseOnPreTrack } from './cameraPoses';
-import { CABIN_WALL_Z, stationToX } from './geometry';
 import type { Phase } from './store';
-
-const CABIN_FRONT_X = stationToX(4.0);
+import { cameraInsideCabin } from './worldState';
 
 /**
  * Fraction of the drawing buffer the clouds are raymarched at. While the walking camera is inside the cabin
@@ -12,7 +9,5 @@ const CABIN_FRONT_X = stationToX(4.0);
  */
 export function cloudScale(phase: Phase, progress: number, base = 0.5): number {
   if (phase !== 'browse') return base;
-  const { x, z } = poseOnPreTrack(progress).position;
-  const inside = Math.abs(z) < CABIN_WALL_Z - 0.1 && x < CABIN_FRONT_X;
-  return inside ? base / 2 : base;
+  return cameraInsideCabin(phase, progress) ? base / 2 : base;
 }

@@ -5,14 +5,14 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { cloudScale } from '@/experience/cloudDetail';
 import { experienceStore } from '@/experience/store';
+import { worldMode } from '@/experience/worldState';
 import { bakeNoise3D } from './noise3d';
 import { BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VERTEX } from './shaders';
 
-export const SUN_DIRECTION = new THREE.Vector3().setFromSphericalCoords(
-  1,
-  THREE.MathUtils.degToRad(50),
-  THREE.MathUtils.degToRad(160),
-);
+/** The moon: 32° up, behind-left of the hero camera, ahead of the nose — it lights the side the visitor sees. */
+export const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(85));
+/** The site's own background: the plane is shown like a product on it until the camera is aboard. */
+export const SHOWCASE_BACKGROUND = new THREE.Color('#07080b');
 
 /** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred. */
 const NOISE_SIZE = 64;
@@ -42,7 +42,7 @@ function createPipeline() {
   const uniforms = {
     uNoise: { value: noiseTexture() },
     uCam: { value: new THREE.Vector3() },
-    uSun: { value: SUN_DIRECTION },
+    uMoon: { value: MOON_DIRECTION },
     uInvProj: { value: new THREE.Matrix4() },
     uInvView: { value: new THREE.Matrix4() },
     uTime: { value: 0 },
@@ -72,13 +72,12 @@ export default function SkyAndClouds() {
     env.add(
       new THREE.Mesh(
         new THREE.SphereGeometry(100, 64, 32),
-        new THREE.ShaderMaterial({ side: THREE.BackSide, uniforms: { uSun: { value: SUN_DIRECTION } }, vertexShader: ENV_VERTEX, fragmentShader: ENV_FRAGMENT }),
+        new THREE.ShaderMaterial({ side: THREE.BackSide, uniforms: { uMoon: { value: MOON_DIRECTION } }, vertexShader: ENV_VERTEX, fragmentShader: ENV_FRAGMENT }),
       ),
     );
     const pmrem = new THREE.PMREMGenerator(gl);
     const envTarget = pmrem.fromScene(env, 0);
     pmrem.dispose();
-    scene.background = pipe.out.texture;
     scene.environment = envTarget.texture;
     scene.environmentIntensity = 0.9;
     return () => {
@@ -105,6 +104,12 @@ export default function SkyAndClouds() {
   useFrame((state) => {
     const { camera, clock } = state;
     const s = experienceStore.getState();
+    // showcase: the plain dark of the site and no cloud pass at all
+    if (worldMode(s.phase, s.progress) === 'showcase') {
+      scene.background = SHOWCASE_BACKGROUND;
+      return;
+    }
+    scene.background = pipe.out.texture;
     const scale = cloudScale(s.phase, s.progress);
     const w = Math.max(2, Math.round(size.width * dpr * scale));
     const h = Math.max(2, Math.round(size.height * dpr * scale));
@@ -137,9 +142,9 @@ export default function SkyAndClouds() {
 
   return (
     <directionalLight
-      color="#fff4e6"
-      intensity={3}
-      position={SUN_DIRECTION.clone().multiplyScalar(80).toArray()}
+      color="#b9c7ff"
+      intensity={1.2}
+      position={MOON_DIRECTION.clone().multiplyScalar(80).toArray()}
       castShadow
       shadow-mapSize={[2048, 2048]}
       shadow-camera-left={-26}

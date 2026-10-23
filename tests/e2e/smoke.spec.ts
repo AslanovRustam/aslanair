@@ -6,6 +6,6 @@ test('home renders a WebGL canvas without console errors', async ({ page }) => {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 }); // the dev server may still be compiling
   expect(errors).toEqual([]);
 });
