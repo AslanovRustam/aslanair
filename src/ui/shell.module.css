@@ -125,7 +125,8 @@
 
 .rail {
   position: absolute;
-  top: 50%;
+  /* a little below the middle: seven chapters tall, it keeps clear of the hero's top-right note */
+  top: 54%;
   right: clamp(1rem, 3vw, 2.75rem);
   transform: translateY(-50%);
   /* readable over the light cabin too */
@@ -137,7 +138,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 1.1rem;
+  gap: 0.85rem;
   margin: 0;
   padding: 0;
   list-style: none;
