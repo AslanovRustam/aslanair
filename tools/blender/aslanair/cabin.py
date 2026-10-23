@@ -83,32 +83,50 @@ def _side_wall(faces, outlines, side):
     return cut, [boundary_ring(points, outline) for outline, _ in outlines]
 
 
+def _facing(face, ref):
+    """The face's records wound so its normal (Newell) points towards ref: the shell is single-sided."""
+    pts = [Vector(r[2:5]) for r in face]
+    n = Vector((0.0, 0.0, 0.0))
+    for a, b in zip(pts, pts[1:] + pts[:1]):
+        n += Vector(((a.y - b.y) * (a.z + b.z), (a.z - b.z) * (a.x + b.x), (a.x - b.x) * (a.y + b.y)))
+    centre = sum(pts, Vector()) / len(pts)
+    return face if n.dot(ref - centre) >= 0 else face[::-1]
+
+
+def _into_cabin(face):
+    """Wall and ceiling faces look at the cabin's centreline."""
+    x = sum(r[2] for r in face) / len(face)
+    return _facing(face, Vector((x, 0.0, 0.6)))
+
+
 def _reveal(rim, side):
-    """Tube from an opening's shell rim out to the hull."""
+    """Tube from an opening's shell rim out to the hull, its faces turned towards the opening."""
     hull = [_record(r[0], side * hull_half_width_at(L / 2 - r[0], r[1]), r[1]) for r in rim]
     n = len(rim)
-    return [[rim[i], rim[(i + 1) % n], hull[(i + 1) % n], hull[i]] for i in range(n)]
+    centre = sum((Vector(r[2:5]) for r in rim), Vector()) / n
+    return [_facing([rim[i], rim[(i + 1) % n], hull[(i + 1) % n], hull[i]], centre) for i in range(n)]
 
 
-def _bulkhead(s):
-    return [[_record(X(s), y, z) for y, z in shell_profile(s)]]
+def _bulkhead(s, step):
+    """An end wall, facing into the cabin (step: the X direction from the wall into the cabin)."""
+    return [_facing([_record(X(s), y, z) for y, z in shell_profile(s)], Vector((X(s) + step, 0.0, 0.6)))]
 
 
 def build_cabin():
-    wall = material('CabinWall', '#ebe7de', rough=0.85, double=True)
+    wall = material('CabinWall', '#ebe7de', rough=0.85)
     outlines = window_outlines()
     door = door_outline()
     outlines[1].append((door, _bbox(door)))
 
     grid = _grid_faces()
-    polys = [f for f in grid if _is_ceiling(f)]
+    polys = [_into_cabin(f) for f in grid if _is_ceiling(f)]
     for side in (1, -1):
         side_faces = [f for f in grid if not _is_ceiling(f) and (sum(r[3] for r in f) > 0) == (side > 0)]
         faces, rims = _side_wall(side_faces, outlines[side], side)
-        polys += faces
+        polys += [_into_cabin(f) for f in faces]
         for rim in rims:
             polys += _reveal(rim, side)
-    polys += _bulkhead(CABIN['front_station']) + _bulkhead(CABIN['aft_station'])
+    polys += _bulkhead(CABIN['front_station'], -1.0) + _bulkhead(CABIN['aft_station'], 1.0)
     shell = object_from_polys('CabinShell', polys, wall)
     shell.data.uv_layers.remove(shell.data.uv_layers['UVMap'])   # untextured: no UVs to ship
     _shade_walls(shell)

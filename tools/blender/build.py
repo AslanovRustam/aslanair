@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aslanair import context as ctx  # noqa: E402
 from aslanair.export import export_glb  # noqa: E402
 from aslanair.cabin import wall_corner_normal  # noqa: E402
-from aslanair.geometry import CABIN, FLOOR_Z, L, X, hull_half_width_at  # noqa: E402
+from aslanair.geometry import CABIN, FLOOR_Z, L, X, ceiling_z, hull_half_width_at, liner_half_width_at  # noqa: E402
+from mathutils import Vector  # noqa: E402
 from aslanair.hull import build_aircraft  # noqa: E402
 from aslanair.render import render  # noqa: E402
 
@@ -54,6 +55,29 @@ def verify_cabin_shell():
     ctx.log('cabin shell is crack-free')
 
 
+def verify_cabin_facing():
+    """Single-sided shell: every wall, ceiling and bulkhead face looks into the cabin (the reveals face their
+    opening and are checked by the build of each reveal)."""
+    me = bpy.data.objects['CabinShell'].data
+    ends = {X(CABIN['front_station']): -1.0, X(CABIN['aft_station']): 1.0}
+    away = 0
+    for p in me.polygons:
+        cos = [me.vertices[v].co for v in p.vertices]
+        if any(abs(abs(co.y) - liner_half_width_at(L / 2 - co.x, co.z)) > 1e-4 and abs(co.z - ceiling_z(L / 2 - co.x)) > 1e-4
+               and not any(abs(co.x - x) < 1e-4 for x in ends) for co in cos):
+            continue                                                    # reveal: runs out to the hull
+        c = p.center
+        ref = Vector((c.x, 0.0, 0.6))
+        for x, step in ends.items():
+            if all(abs(co.x - x) < 1e-4 for co in cos):
+                ref = Vector((x + step, 0.0, 0.6))
+        if p.normal.dot(ref - c) <= 0:
+            away += 1
+    if away:
+        sys.exit(f'cabin facing check failed: {away} shell faces look away from the cabin')
+    ctx.log('cabin shell faces into the cabin')
+
+
 def verify_cabin_shading():
     """Wall corners shade with the liner's own normal, so the clipped slivers round the openings don't streak."""
     me = bpy.data.objects['CabinShell'].data
@@ -92,6 +116,7 @@ def main():
     root = build_aircraft()
     verify_lettering()
     verify_cabin_shell()
+    verify_cabin_facing()
     verify_cabin_shading()
     export_glb(root)
     shots = [s for s in args.renders.split(',') if s]
