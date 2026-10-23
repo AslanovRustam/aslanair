@@ -10,6 +10,7 @@ import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
+import Destinations from '@/ui/Destinations';
 import Hero from '@/ui/Hero';
 import Overlay from '@/ui/Overlay';
 import Shell from '@/ui/Shell';
@@ -26,6 +27,7 @@ import CameraRig from './CameraRig';
 import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
 import Globe from './globe/Globe';
+import GlobeLabels from './globe/GlobeLabels';
 import SkyAndClouds from './sky/SkyAndClouds';
 
 const start = poseOnPreTrack(0);
@@ -124,11 +126,13 @@ export default function Experience() {
           <CompileAsync onShown={onGlobeShown}>
             <Globe />
           </CompileAsync>
+          <GlobeLabels />
           <BoardingPass3D />
         </Canvas>
       </div>
       <SmoothScroll />
       <Hero />
+      <Destinations />
       <Overlay />
       <Shell />
       <Outro />

@@ -1,0 +1,384 @@
+/* Where to tonight: the departures board on the left, the globe in the middle (3D), the chosen flight on the right;
+   on a narrow screen the globe rides higher and the board becomes a strip under the flight. Fades in once the plane
+   is over the globe; transform and opacity only. */
+
+.destinations {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.45s ease,
+    visibility 0s linear 0.45s;
+}
+
+.destinations[data-shown='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.45s ease,
+    visibility 0s;
+}
+
+.side {
+  position: absolute;
+  top: calc(var(--header-h) + clamp(1rem, 4vh, 2.5rem));
+  left: clamp(1.25rem, 3vw, 2.75rem);
+  width: clamp(13rem, 19vw, 17.5rem);
+  transform: translateY(0.75rem);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.destinations[data-shown='true'] .side,
+.destinations[data-shown='true'] .card {
+  transform: none;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: clamp(1.9rem, 3vw, 2.75rem);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  margin: 0 0 1.5rem;
+  color: var(--dim);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+/* the board: an airport departures screen — codes, cities, times and fares in columns, hairlines between */
+.board {
+  pointer-events: auto;
+}
+
+.boardHead,
+.row {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr 3rem 3rem;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.boardHead {
+  margin: 0 0 0.35rem;
+  padding: 0 0.6rem;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.boardHead span:nth-child(n + 3) {
+  text-align: right;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.42rem 0.6rem;
+  background: transparent;
+  color: var(--dim);
+  font: 500 0.875rem/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 transparent;
+  transition:
+    color 0.2s,
+    background-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.row:hover,
+.row:focus-visible {
+  color: var(--ink);
+  background-color: rgba(242, 239, 232, 0.05);
+}
+
+.row[aria-pressed='true'] {
+  color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--accent);
+  background-color: rgba(212, 104, 58, 0.1);
+}
+
+.code {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.row[aria-pressed='true'] .code {
+  color: var(--accent);
+}
+
+.city {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time,
+.fare {
+  text-align: right;
+}
+
+/* a label on the globe: a round hit area centred on its marker (placed by the scene), the code beside it on the side
+   the scene picks — or none when it would cover another; the fare shows on hover and for the chosen one */
+.labels {
+  position: absolute;
+  inset: 0;
+}
+
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.875rem 0 0 -0.875rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.label[data-facing='false'] {
+  visibility: hidden;
+}
+
+.labelText {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  translate: 0 -50%;
+  font: 700 0.75rem/1 var(--font-display);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(7, 8, 11, 0.9);
+  pointer-events: none;
+}
+
+.label[data-side='left'] .labelText {
+  left: auto;
+  right: 100%;
+  flex-direction: row-reverse;
+}
+
+.label[data-side='above'] .labelText,
+.label[data-side='below'] .labelText {
+  left: 50%;
+  translate: -50% 0;
+}
+
+.label[data-side='above'] .labelText {
+  top: auto;
+  bottom: 100%;
+}
+
+.label[data-side='below'] .labelText {
+  top: 100%;
+}
+
+.label[data-side='none'] .labelText {
+  opacity: 0;
+}
+
+.label[data-chosen='true'] .labelText {
+  color: var(--accent);
+}
+
+.labelFare {
+  display: none;
+  color: var(--ink);
+  font: 500 0.75rem/1 var(--font-ui);
+  letter-spacing: 0;
+}
+
+.label:hover .labelText {
+  opacity: 1;
+}
+
+.label:hover .labelFare,
+.label[data-chosen='true'] .labelFare {
+  display: inline;
+}
+
+/* the chosen flight */
+.card {
+  position: absolute;
+  right: clamp(1.25rem, 3vw, 2.75rem);
+  bottom: calc(var(--footer-h) + clamp(1.5rem, 6vh, 3.5rem));
+  width: clamp(13rem, 19vw, 17.5rem);
+  margin: 0;
+  transform: translateY(0.75rem);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card p {
+  margin: 0;
+}
+
+.cardLabel {
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.card .cardRoute {
+  margin-top: 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: clamp(1.25rem, 1.9vw, 1.6rem);
+  line-height: 1.1;
+}
+
+.card .cardMeta {
+  margin-top: 0.35rem;
+  color: var(--dim);
+  font-size: 0.875rem;
+}
+
+.card .cardFare {
+  margin-top: 0.9rem;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  line-height: 1;
+}
+
+.cardFare span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--faint);
+  font: 400 0.75rem/1.3 var(--font-ui);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side,
+  .card {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* narrow (tablets upright, phones): words at the top, the globe higher (the camera lifts it), the flight under it
+   and the board as a strip of fares along the bottom */
+@media (max-aspect-ratio: 6 / 5) {
+  /* no box of its own here: its parts place themselves on the screen */
+  .side,
+  .destinations[data-shown='true'] .side {
+    position: static;
+    width: auto;
+    transform: none;
+    transition: none;
+  }
+
+  .title,
+  .lead {
+    position: absolute;
+    left: clamp(1.25rem, 5vw, 2.75rem);
+    right: clamp(1.25rem, 5vw, 2.75rem);
+  }
+
+  .title {
+    top: calc(var(--header-h) + 0.75rem);
+    font-size: clamp(1.75rem, 7vw, 2.5rem);
+  }
+
+  .lead {
+    top: calc(var(--header-h) + 0.75rem + clamp(1.75rem, 7vw, 2.5rem) + 0.6rem);
+    font-size: 0.875rem;
+  }
+
+  .board {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--footer-h) + 1rem);
+  }
+
+  .boardHead {
+    display: none;
+  }
+
+  .rows {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0 clamp(1.25rem, 5vw, 2.75rem) 0.25rem;
+    border: 0;
+    scrollbar-width: none;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    width: auto;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+  }
+
+  .row[aria-pressed='true'] {
+    border-color: var(--accent);
+    box-shadow: none;
+  }
+
+  /* the city and time stay in the button's name, out of sight */
+  .city,
+  .time {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .fare {
+    text-align: left;
+    font-size: 0.8125rem;
+  }
+
+  .card {
+    left: clamp(1.25rem, 5vw, 2.75rem);
+    right: clamp(1.25rem, 5vw, 2.75rem);
+    bottom: calc(var(--footer-h) + 6.25rem);
+    width: auto;
+  }
+
+  .cardLabel,
+  .cardFare span {
+    display: none;
+  }
+
+  .card .cardFare {
+    margin-top: 0.4rem;
+    font-size: 1.5rem;
+  }
+}

@@ -19,8 +19,11 @@ import { doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
 import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
+import { chapterAt } from '@/experience/chapters';
+import { destination } from '@/experience/destinations';
 import { DOOR_1L } from '@/experience/geometry';
-import { aircraftStage } from '@/experience/stage';
+import { arrivalAt, arriving, globeTurnAt, planeOnGlobe, toWorld } from '@/experience/globe';
+import { aircraftStage, type OnGlobe } from '@/experience/stage';
 import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideFuselage } from '@/experience/worldState';
 import NightLights from './NightLights';
@@ -59,6 +62,15 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
  * (`onCompiled`) until the scene is ready: those frames upload its geometry and textures and compile the shadow pass,
  * so the hand-over finds nothing left to do.
  */
+/** Over the globe (destinations, transfer): coming over its horizon, waiting over Chișinău or on a flight. */
+function overTheGlobe(s: ReturnType<typeof experienceStore.getState>): OnGlobe | undefined {
+  const { id } = chapterAt('pre', s.progress);
+  const chosen = destination(s.destinationId);
+  if (s.phase !== 'browse' || (id !== 'destinations' && id !== 'transfer') || !chosen) return undefined;
+  const now = performance.now() / 1000;
+  return toWorld(arriving(planeOnGlobe(s.flight, chosen, now), arrivalAt(s.phase, s.progress)), globeTurnAt(s.flight, chosen, now));
+}
+
 export default function Aircraft({ children, onCompiled }: { children?: ReactNode; onCompiled?: () => void }) {
   const { scene } = useGLTF(MODEL_URL);
   const gl = useThree((s) => s.gl);
@@ -152,7 +164,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
       windowGlass.current.emissiveIntensity = pointInsideFuselage(eye.x, eye.y, eye.z) ? 0 : WINDOW_GLOW.intensity;
     }
     // the stage stands it through the journey and the fly-away moves it in flight; one of the two is always at rest
-    const stage = aircraftStage(s.phase, s.progress);
+    const stage = aircraftStage(s.phase, s.progress, overTheGlobe(s));
     const fly = trackOf(s.phase) === 'post' ? aircraftFlyAway(s.progress) : { offsetX: 0, climb: 0, bank: 0 };
     g.position.set(stage.position.x + fly.offsetX, stage.position.y + fly.climb, stage.position.z);
     g.rotation.copy(stage.rotation);

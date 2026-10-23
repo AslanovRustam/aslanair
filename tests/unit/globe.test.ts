@@ -3,7 +3,22 @@ import { describe, expect, test } from 'vitest';
 import { applyLens, poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
-import { arcPoints, GLOBE, globeFade, globeTurnFor, greatCircle, latLonToVector } from '@/experience/globe';
+import { FUSELAGE_LENGTH } from '@/experience/geometry';
+import {
+  arcPoints,
+  FLIGHT,
+  flightAt,
+  GLOBE,
+  globeFade,
+  globeTurnAt,
+  globeTurnFor,
+  greatCircle,
+  latLonToVector,
+  nextFlight,
+  planeOnGlobe,
+  toWorld,
+} from '@/experience/globe';
+import { ON_GLOBE_SCALE } from '@/experience/stage';
 
 const EARTH_KM = 6371;
 
@@ -139,3 +154,78 @@ describe('the globe', () => {
     expect(globeFade('seated', trackProgress('pre', 'destinations', 0.5))).toBe(0);
   });
 });
+
+describe('the flight over the globe', () => {
+  const city = (code: string) => DESTINATIONS.find((d) => d.code === code)!;
+  const above = (p: { lat: number; lon: number }) => latLonToVector(p.lat, p.lon, GLOBE.radius + FLIGHT.cruise);
+  const homeFlight = (to: string, startedAt: number) => ({ from: above(HOME), to: city(to), startedAt, turnFrom: globeTurnFor(HOME, city('LIS')) });
+
+  test('it starts where the plane is and lands above the city at cruise height in 1.6 s, level, nose along its way', () => {
+    const f = homeFlight('HND', 10);
+    expect(flightAt(f, 10).position.distanceTo(above(HOME))).toBeLessThan(1e-9);
+    expect(flightAt(f, 10 + FLIGHT.seconds - 0.05).done).toBe(false);
+    const end = flightAt(f, 10 + FLIGHT.seconds);
+    expect(end.done).toBe(true);
+    expect(end.position.distanceTo(above(city('HND')))).toBeLessThan(1e-6);
+    for (const now of [10.1, 10.5, 10.8, 11.2, 11.55]) {
+      const { position, heading } = flightAt(f, now);
+      expect(heading.length()).toBeCloseTo(1, 9);
+      expect(Math.abs(heading.dot(position.clone().normalize())), `level at ${now}`).toBeLessThan(1e-6);
+      const ahead = flightAt(f, now + 0.01).position.sub(position);
+      const up = position.clone().normalize();
+      const along = ahead.sub(up.multiplyScalar(ahead.dot(up)));
+      expect(heading.dot(along.normalize()), `along its way at ${now}`).toBeGreaterThan(0.999);
+    }
+  });
+
+  test('a pick mid-flight sets off from where the plane is and never goes back through Chișinău', () => {
+    const first = homeFlight('JFK', 0);
+    const mid = flightAt(first, 0.7).position;
+    const second = { from: mid, to: city('FCO'), startedAt: 0.7, turnFrom: globeTurnAt(first, first.to, 0.7) };
+    expect(flightAt(second, 0.7).position.distanceTo(mid)).toBeLessThan(1e-9);
+    const home = latLonToVector(HOME.lat, HOME.lon);
+    for (let i = 0; i <= 40; i++) {
+      const p = flightAt(second, 0.7 + (FLIGHT.seconds * i) / 40).position.normalize();
+      expect((p.angleTo(home) * 180) / Math.PI, `step ${i}`).toBeGreaterThan(2);
+    }
+  });
+
+  test('before any pick the plane waits over Chișinău, nose towards the chosen city, and the globe faces that flight', () => {
+    const lis = city('LIS');
+    const rest = planeOnGlobe(null, lis, 123);
+    expect(rest.position.distanceTo(above(HOME))).toBeLessThan(1e-9);
+    const path = greatCircle(HOME, lis, 401);
+    const towards = path[1].sub(path[0]).normalize();
+    expect(rest.heading.dot(towards)).toBeGreaterThan(0.999);
+    expect(globeTurnAt(null, lis, 123).angleTo(globeTurnFor(HOME, lis))).toBeLessThan(1e-9);
+  });
+
+  test('the globe turns with the flight, from where it stood to the turn of the new flight', () => {
+    const f = homeFlight('GIG', 5);
+    expect(globeTurnAt(f, f.to, 5).angleTo(f.turnFrom)).toBeLessThan(1e-9);
+    expect(globeTurnAt(f, f.to, 5 + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('GIG')))).toBeLessThan(1e-6);
+  });
+
+  test('a new flight sets off from the plane and the globe as they are at that moment', () => {
+    const f = homeFlight('BKK', 0);
+    const next = nextFlight(f, city('BKK'), city('CPT'), 0.9);
+    expect(next.from.distanceTo(flightAt(f, 0.9).position)).toBeLessThan(1e-9);
+    expect(next.turnFrom.angleTo(globeTurnAt(f, f.to, 0.9))).toBeLessThan(1e-6);
+    expect(next).toMatchObject({ to: city('CPT'), startedAt: 0.9 });
+    const first = nextFlight(null, city('LIS'), city('HND'), 3);
+    expect(first.from.distanceTo(above(HOME))).toBeLessThan(1e-9);
+  });
+
+  test('in the world the plane stands over the turned globe, its top away from the centre', () => {
+    const turn = globeTurnFor(HOME, city('LIS'));
+    const world = toWorld(planeOnGlobe(null, city('LIS'), 0), turn);
+    expect(world.position.distanceTo(GLOBE.center)).toBeCloseTo(GLOBE.radius + FLIGHT.cruise, 9);
+    expect(world.up.dot(world.position.clone().sub(GLOBE.center).normalize())).toBeCloseTo(1, 9);
+    expect(Math.abs(world.heading.dot(world.up))).toBeLessThan(1e-9);
+  });
+
+  test('the plane over the globe is 6 % of the diameter of the globe long', () => {
+    expect((ON_GLOBE_SCALE * FUSELAGE_LENGTH) / (2 * GLOBE.radius)).toBeCloseTo(0.06, 3);
+  });
+});
+

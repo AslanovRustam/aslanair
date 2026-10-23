@@ -2,6 +2,7 @@ import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import type { Track } from './chapters';
 import { DEFAULT_TRANSFER, destination, SUGGESTED, TRANSFERS, type TransferId } from './destinations';
+import { nextFlight, type ArcFlight } from './globe';
 import { generateSeatMap, pickRecommendedSeat, type Seat } from './seats';
 
 export type Phase = 'browse' | 'seated' | 'confirmed' | 'thanks';
@@ -22,6 +23,13 @@ export interface ExperienceState {
   /** Both choices stay open until the seat is confirmed; false (and no change) after that or for an unknown id. */
   chooseDestination(code: string): boolean;
   chooseTransfer(id: TransferId): boolean;
+  /** The plane's last flight over the globe (null: it waits over Chișinău). */
+  flight: ArcFlight | null;
+  /** Chooses `code` and flies the plane there from wherever it is at `now` (seconds); false if the choice is refused. */
+  pickDestination(code: string, now: number): boolean;
+  /** The destination under the pointer or keyboard focus, for the globe to highlight. */
+  hoveredDestinationId: string | null;
+  hoverDestination(code: string | null): void;
   /** 0..100: how much of the scene has loaded; it only moves forward. */
   loadProgress: number;
   /** The scene has loaded, compiled and rendered: the loader hands over to the hero. Never reverts. */
@@ -60,6 +68,16 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
       set({ destinationId: code });
       return true;
     },
+    flight: null,
+    pickDestination: (code, now) => {
+      const chosen = destination(get().destinationId)!;
+      const to = destination(code);
+      if (!to || !get().chooseDestination(code)) return false;
+      set({ flight: nextFlight(get().flight, chosen, to, now) });
+      return true;
+    },
+    hoveredDestinationId: null,
+    hoverDestination: (code) => set({ hoveredDestinationId: code }),
     chooseTransfer: (id) => {
       if (trackOf(get().phase) === 'post' || !TRANSFERS.some((t) => t.id === id)) return false;
       set({ transferId: id });
@@ -103,6 +121,8 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
         hoveredSeatId: null,
         destinationId: SUGGESTED,
         transferId: DEFAULT_TRANSFER,
+        flight: null,
+        hoveredDestinationId: null,
       }),
   };
 });

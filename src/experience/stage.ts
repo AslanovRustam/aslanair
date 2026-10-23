@@ -20,6 +20,16 @@ export interface ScreenBox {
 
 const { smoothstep, degToRad } = MathUtils;
 
+/** Over the globe the plane is 6 % of its 60 m diameter long: 3.6 m of the 37.6 m airliner. */
+export const ON_GLOBE_SCALE = 0.0957;
+
+/** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
+export interface OnGlobe {
+  position: Vector3;
+  heading: Vector3;
+  up: Vector3;
+}
+
 /**
  * The first screen's departure: from rest the plane accelerates along its nose, turning right (towards +z, away from
  * the hero camera) and climbing, banked into the turn; with the camera's gaze turning down and left it crosses the
@@ -58,16 +68,25 @@ function departure(t: number): Stage {
   };
 }
 
+function overTheGlobe(at: OnGlobe): Stage {
+  const nose = at.heading.clone().normalize();
+  const turn = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(nose, at.up, nose.clone().cross(at.up)));
+  return { position: at.position.clone(), rotation: new Euler().setFromQuaternion(turn, 'YZX'), scale: ON_GLOBE_SCALE };
+}
+
 /**
  * Where the aircraft stands for this phase and scroll position. The journey's chapters place it; from the door on,
  * and after a seat is chosen, it stands at the origin (the flight's fly-away is applied on top, see cameraPoses).
+ * `onGlobe` is the plane's point over the globe; without it the journey holds the departure's end, out of frame.
+ * Between the first screen and the globe it changes place unseen: out of frame, then behind the globe.
  */
-export function aircraftStage(phase: Phase, progress: number): Stage {
+export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe): Stage {
   if (trackOf(phase) === 'post' || phase === 'seated') return rest();
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return departure(t);
-  // destinations and transfer hold the departure's end (out of frame) until they place the plane themselves
-  if (id === 'destinations' || id === 'transfer') return departure(1);
+  // over the globe (it comes there from behind its horizon, see globe.ts), and transfer keeps it there until that
+  // chapter places it
+  if (id === 'destinations' || id === 'transfer') return onGlobe ? overTheGlobe(onGlobe) : departure(1);
   return rest();
 }
 

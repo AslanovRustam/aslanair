@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest';
+import { flightAt } from '@/experience/globe';
 import { pickRecommendedSeat } from '@/experience/seats';
 import { experienceStore, trackOf } from '@/experience/store';
 
@@ -91,6 +92,22 @@ describe('experience store', () => {
     expect([s().destinationId, s().transferId]).toEqual(['HND', 'home']);
     s().restart();
     expect([s().destinationId, s().transferId]).toEqual(['LIS', 'own']);
+  });
+
+  test('a pick flies the plane there from where it is; a refused pick flies nowhere; Start again grounds it', () => {
+    expect(s().flight).toBeNull();
+    expect(s().pickDestination('HND', 10)).toBe(true);
+    const first = s().flight!;
+    expect(first).toMatchObject({ to: { code: 'HND' }, startedAt: 10 });
+    expect(s().pickDestination('JFK', 10.5)).toBe(true);
+    expect(s().flight!.from.distanceTo(flightAt(first, 10.5).position)).toBeLessThan(1e-9);
+    expect(s().pickDestination('XXX', 11)).toBe(false);
+    expect(s().flight!.to).toMatchObject({ code: 'JFK' });
+    s().hoverDestination('FCO');
+    expect(s().hoveredDestinationId).toBe('FCO');
+    s().restart();
+    expect(s().flight).toBeNull();
+    expect(s().hoveredDestinationId).toBeNull();
   });
 
   test('progress is clamped and hover is ignored while seated', () => {

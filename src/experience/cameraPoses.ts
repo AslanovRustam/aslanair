@@ -93,17 +93,20 @@ function skyPose(t: number, aspect: number): CameraPose {
 
 // --- destinations: from the same spot the camera turns to the globe and closes in, the lens shift easing out
 const GLOBE_SHARE = { height: 0.6, width: 0.85 };
+/** Narrower than this the chapter's words go above and below the globe: it is smaller and rides higher. */
+const NARROW = { below: 1.2, height: 0.45, lift: 0.1 };
 
 /** The lens that shows the globe at GLOBE_SHARE of the frame height — or of its width on a narrow screen. */
 function globeFov(aspect: number): number {
   const grazing = Math.tan(Math.asin(GLOBE.radius / GLOBE.center.distanceTo(SKY.position)));
-  return (2 * Math.atan(grazing / Math.min(GLOBE_SHARE.height, GLOBE_SHARE.width * aspect)) * 180) / Math.PI;
+  const height = aspect < NARROW.below ? NARROW.height : GLOBE_SHARE.height;
+  return (2 * Math.atan(grazing / Math.min(height, GLOBE_SHARE.width * aspect)) * 180) / Math.PI;
 }
 
 function destinationsPose(t: number, aspect: number): CameraPose {
   const from = skyPose(1, aspect);
   const k = smoothstep(t, 0, 0.35);
-  const lift = HERO_PICTURE.lift * (1 - k);
+  const lift = HERO_PICTURE.lift * (1 - k) + (aspect < NARROW.below ? NARROW.lift : 0) * k;
   return {
     position: from.position,
     target: from.target.lerp(GLOBE.center, k),
@@ -132,10 +135,12 @@ function readyPose(t: number, aspect: number): CameraPose {
   const k = READY_EXIT_SPEED;
   const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
   const open = smoothstep(t, 0, 1);
+  const lift = (from.lift ?? 0) * (1 - open);
   return {
     position: from.position.clone().lerp(DOOR_START.position, f),
     target: from.target.clone().lerp(DOOR_START.target, open),
     fov: lerp(from.fov, SKY.fov, open),
+    ...(lift ? { lift } : {}),
   };
 }
 

@@ -64,6 +64,16 @@ export const copy = {
     change: 'Change seat', // pinned
     takeOff: 'Take off',
   },
+  destinations: {
+    title: 'Where to tonight?',
+    lead: 'Every AslanAir flight leaves Chișinău after dark.',
+    board: 'Departures',
+    columns: { code: 'To', city: 'City', departs: 'Departs', fare: 'Fare' },
+    card: 'Your flight',
+    departs: (time: string) => `Departs ${time} from Chișinău`,
+    from: (usd: number) => `from $${usd}`,
+    oneWay: 'one way, before your seat',
+  },
   transfer: {
     options: { home: 'From home', hotel: 'From your hotel', express: 'Airport express', own: 'On my own' },
   },
