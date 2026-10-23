@@ -102,7 +102,8 @@ test('a new pick in mid-flight carries on from where the plane is, never jumping
   await board.getByRole('button', { name: /New York/ }).click();
   await page.waitForTimeout(400);
   await board.getByRole('button', { name: /Rome/ }).click();
-  await page.waitForTimeout(2200);
+  // home to Chișinău first, then out to Rome (r3 §5: every flight leaves Chișinău)
+  await page.waitForTimeout(2900);
   const path = await page.evaluate(() => (window as unknown as { __path: number[][] }).__path);
   let worst = 0;
   for (let i = 1; i < path.length; i++) worst = Math.max(worst, Math.hypot(...path[i].map((v, k) => v - path[i - 1][k])));
@@ -342,7 +343,7 @@ test('the pass carries the route, the flight and the transfer; once confirmed th
     .poll(() => page.evaluate(() => (window as unknown as PassWindow).__aslan.scene.getObjectByName('BoardingPassFront')?.material.map.userData.lines?.join(' | ') ?? ''))
     .toContain('HND');
   const lines = await page.evaluate(() => (window as unknown as PassWindow).__aslan.scene.getObjectByName('BoardingPassFront')!.material.map.userData.lines!);
-  expect(lines).toEqual(expect.arrayContaining(['RMO', 'HND', 'Chișinău', 'Tokyo', tokyo.flight, 'From home · 18:20']));
+  expect(lines).toEqual(expect.arrayContaining(['RMO', 'HND', 'Chișinău', 'Tokyo', tokyo.flight, tokyo.departs, 'From home · 18:20']));
   // fixed now: the header cannot take the visitor back to change them
   await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Destinations' })).toBeDisabled();
   await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Transfer' })).toBeDisabled();

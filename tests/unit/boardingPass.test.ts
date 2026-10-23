@@ -27,6 +27,7 @@ describe('boarding pass', () => {
     expect(pass.from).toEqual({ code: 'RMO', city: 'Chișinău' });
     expect(pass.to).toEqual({ code: 'HND', city: 'Tokyo' });
     expect(pass.flight).toBe(tokyo.flight);
+    expect(pass.departs).toBe(tokyo.departs);
     expect(pass.boarding).toBe(pickupTime(tokyo.departs, 40));
     expect(pass.transfer).toEqual({ label: 'From home', pickup: pickupTime(tokyo.departs, 180) });
     expect(boardingPassFor({ ...base, id: '14C', row: 14, letter: 'C' }, tokyo, 'own').transfer).toEqual({ label: 'On my own', pickup: null });

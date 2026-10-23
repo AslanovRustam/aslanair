@@ -125,6 +125,20 @@ describe('transfer camera', () => {
   }
 });
 
+describe('ready into the door flight', () => {
+  for (const aspect of [412 / 915, 1, 1280 / 800, 16 / 9, 2100 / 900]) {
+    test(`at ${aspect.toFixed(2)} the camera keeps its speed across the seam`, () => {
+      const seam = trackProgress('pre', 'door', 0);
+      const h = 1e-5;
+      const at = (p: number) => poseOnPreTrack(p, aspect).position;
+      const before = at(seam - h).distanceTo(at(seam - 2 * h));
+      const after = at(seam + 2 * h).distanceTo(at(seam + h));
+      expect(after / before).toBeGreaterThan(0.95);
+      expect(after / before).toBeLessThan(1.05);
+    });
+  }
+});
+
 describe('seated and post-track camera', () => {
   const seat = { row: 14, letter: 'A' as const };
 

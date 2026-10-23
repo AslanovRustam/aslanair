@@ -3,12 +3,14 @@ import { HOME, pickupTime, TRANSFERS, type Destination, type TransferId } from '
 import { hashString, mulberry32 } from './random';
 import type { Seat } from './seats';
 
-/** Boarding closes this long before departure. */
+/** Boarding starts this long before departure. */
 const BOARDING_BEFORE = 40;
 
 export interface BoardingPassData {
   airline: 'AslanAir';
   flight: string;
+  /** The chosen flight's departure, 'HH:MM'. */
+  departs: string;
   from: { code: string; city: string };
   to: { code: string; city: string };
   date: '22 OCT';
@@ -29,6 +31,7 @@ export function boardingPassFor(seat: Seat, to: Destination, transfer: TransferI
   return {
     airline: 'AslanAir',
     flight: to.flight,
+    departs: to.departs,
     from: { code: HOME.code, city: HOME.city },
     to: { code: to.code, city: to.city },
     date: '22 OCT',

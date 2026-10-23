@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { chapterAt, trackProgress, TRACKS } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
-import { GLOBE, globeFade, globeTurnFor, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
+import { GLOBE, globeFade, globeTurnFor, nextFlight, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
 import { aircraftStage, ON_GLOBE_SCALE, projectedBox, type ScreenBox, type Stage } from '@/experience/stage';
 
 const ASPECTS = [412 / 915, 1, 1440 / 800, 2100 / 900, 3.6];
@@ -143,6 +143,33 @@ describe('the aircraft stage', () => {
       expect(s.position.length()).toBeLessThan(1e-3);
       expect(Math.abs(s.rotation.x) + Math.abs(s.rotation.y) + Math.abs(s.rotation.z)).toBeLessThan(1e-3);
       expect(s.scale).toBe(1);
+    }
+  });
+
+  test('after a flight to any city, or in mid-flight, the plane still comes over the horizon unseen and moves smoothly', () => {
+    for (const d of DESTINATIONS) {
+      const flight = nextFlight(null, LIS, d, 0);
+      for (const now of [0.6, 10]) {
+        const at = (p: number) => aircraftStage('browse', p, planeOverGlobe('browse', p, flight, d, now));
+        for (const aspect of [412 / 915, 16 / 9]) {
+          const box = (p: number) => projectedBox(at(p), poseOnPreTrack(p, aspect), aspect);
+          const on = (p: number) =>
+            inFrame(box(p)) &&
+            (chapterAt('pre', p).id !== 'destinations' || globeFade('browse', p) < 0.9 || unhidden(at(p), poseOnPreTrack(p, aspect).position));
+          const label = `${d.code} at ${now} s, ${aspect.toFixed(2)}`;
+          expect(on(trackProgress('pre', 'destinations', 0)), `${label}: hidden as the chapter begins`).toBe(false);
+          expect(on(trackProgress('pre', 'destinations', 0.93)), `${label}: gone before the globe fades`).toBe(false);
+          const points = [...across('sky', 0.9), ...across('destinations', 0.01)];
+          let worst = 0;
+          for (let i = 1; i < points.length; i++) {
+            if (!on(points[i - 1]) && !on(points[i])) continue;
+            const [a, b] = [box(points[i - 1]), box(points[i])].map(seen);
+            const moved = Math.max(Math.abs(a.x0 - b.x0), Math.abs(a.x1 - b.x1), Math.abs(a.y0 - b.y0), Math.abs(a.y1 - b.y1));
+            worst = Math.max(worst, moved / ((points[i] - points[i - 1]) * TRACK_VH));
+          }
+          expect(worst, label).toBeLessThanOrEqual(PER_VH);
+        }
+      }
     }
   });
 });

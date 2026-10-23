@@ -155,24 +155,20 @@ function transferPose(t: number, aspect: number): CameraPose {
   };
 }
 
-/**
- * The camera's speed leaving the ready chapter, in lengths of its move per unit of it, so that it meets the door
- * curve at the curve's own starting speed.
- */
-const READY_EXIT_SPEED = (() => {
+/** The door curve's starting speed, in metres per unit of track progress. */
+const DOOR_START_SPEED = (() => {
   const h = 1e-4;
-  const doorSpeed = DOOR_CURVE.getPoint(h).distanceTo(DOOR_CURVE.getPoint(0)) / h / span('door');
-  return (doorSpeed * span('ready')) / transferFrame(16 / 9).position.distanceTo(DOOR_START.position);
+  return DOOR_CURVE.getPoint(h).distanceTo(DOOR_CURVE.getPoint(0)) / h / span('door');
 })();
 
 /**
- * Until the ready chapter gets a pose of its own: from the transfer's frame to the door flight's start, the lens
- * becoming the capture camera's and the gaze coming round to the door.
+ * Ready to choose your seat: from the transfer's frame the camera closes in to the door flight's start, the lens
+ * becoming the capture camera's and the gaze coming round to the door, while the plane turns to face it (stage.ts).
  */
 function readyPose(t: number, aspect: number): CameraPose {
   const from = transferPose(1, aspect);
-  // from rest to the door curve's speed: f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = READY_EXIT_SPEED
-  const k = READY_EXIT_SPEED;
+  // from rest to the door curve's own starting speed (for this screen's frame): f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = k
+  const k = (DOOR_START_SPEED * span('ready')) / from.position.distanceTo(DOOR_START.position);
   const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
   const open = smoothstep(t, 0, 1);
   const lift = (from.lift ?? 0) * (1 - open);

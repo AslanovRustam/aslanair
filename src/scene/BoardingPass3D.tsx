@@ -105,6 +105,7 @@ function drawFront(ctx: CanvasRenderingContext2D, d: BoardingPassData) {
   field(ctx, t.zone, String(d.zone), 880, 300, 32);
   field(ctx, t.boarding, d.boarding, 760, 390, 32);
   field(ctx, t.transfer, d.transfer.pickup ? `${d.transfer.label} · ${d.transfer.pickup}` : d.transfer.label, 40, 410, 32);
+  field(ctx, t.departs, d.departs, 500, 410, 32);
 }
 
 function drawBack(ctx: CanvasRenderingContext2D, d: BoardingPassData) {

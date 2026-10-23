@@ -112,6 +112,7 @@ export const copy = {
     date: 'Date',
     seat: 'Seat',
     transfer: 'Transfer',
+    departs: 'Departs',
     gate: 'Gate',
     zone: 'Zone',
     boarding: 'Boarding',

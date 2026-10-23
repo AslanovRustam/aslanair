@@ -103,6 +103,10 @@ describe('experience store', () => {
     expect(s().flight!.from.distanceTo(flightAt(first, 10.5).position)).toBeLessThan(1e-9);
     expect(s().pickDestination('XXX', 11)).toBe(false);
     expect(s().flight!.to).toMatchObject({ code: 'JFK' });
+    // picking it again changes nothing: no new flight, the arc stays drawn
+    const flying = s().flight;
+    expect(s().pickDestination('JFK', 20)).toBe(true);
+    expect(s().flight).toBe(flying);
     s().hoverDestination('FCO');
     expect(s().hoveredDestinationId).toBe('FCO');
     s().restart();

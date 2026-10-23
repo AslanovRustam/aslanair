@@ -4,6 +4,7 @@ import { applyLens, poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
 import { FUSELAGE_LENGTH } from '@/experience/geometry';
+import type { ArcFlight } from '@/experience/globe';
 import {
   arcDrawn,
   arcPoints,
@@ -159,7 +160,25 @@ describe('the globe', () => {
 describe('the flight over the globe', () => {
   const city = (code: string) => DESTINATIONS.find((d) => d.code === code)!;
   const above = (p: { lat: number; lon: number }) => latLonToVector(p.lat, p.lon, GLOBE.radius + FLIGHT.cruise);
-  const homeFlight = (to: string, startedAt: number) => ({ from: above(HOME), to: city(to), startedAt, turnFrom: globeTurnFor(HOME, city('LIS')) });
+  const homeFlight = (to: string, startedAt: number) => ({
+    from: above(HOME),
+    to: city(to),
+    startedAt,
+    turnFrom: globeTurnFor(HOME, city('LIS')),
+    headingFrom: planeOnGlobe(null, city('LIS'), 0).heading,
+  });
+  /** The whole of a flight's way, sampled: its largest step (m) and the largest turn of its nose (degrees). */
+  const steps = (f: ArcFlight, from: number, to: number) => {
+    let [move, turn] = [0, 0];
+    let last = flightAt(f, from);
+    for (let i = 1; i <= 600; i++) {
+      const now = flightAt(f, from + ((to - from) * i) / 600);
+      move = Math.max(move, now.position.distanceTo(last.position));
+      turn = Math.max(turn, (now.heading.angleTo(last.heading) * 180) / Math.PI);
+      last = now;
+    }
+    return { move, turn };
+  };
 
   test('it starts where the plane is and lands above the city at cruise height in 1.6 s, level, nose along its way', () => {
     const f = homeFlight('HND', 10);
@@ -168,7 +187,8 @@ describe('the flight over the globe', () => {
     const end = flightAt(f, 10 + FLIGHT.seconds);
     expect(end.done).toBe(true);
     expect(end.position.distanceTo(above(city('HND')))).toBeLessThan(1e-6);
-    for (const now of [10.1, 10.5, 10.8, 11.2, 11.55]) {
+    // once its nose has come round from where it pointed while waiting
+    for (const now of [10 + FLIGHT.turn, 10.5, 10.8, 11.2, 11.55]) {
       const { position, heading } = flightAt(f, now);
       expect(heading.length()).toBeCloseTo(1, 9);
       expect(Math.abs(heading.dot(position.clone().normalize())), `level at ${now}`).toBeLessThan(1e-6);
@@ -189,17 +209,39 @@ describe('the flight over the globe', () => {
     }
     expect(arcDrawn(null, 5)).toBe(1);
     expect(arcDrawn(f, 9)).toBe(1);
+    // flying home first, the new arc waits; on the way out its tip is with the plane again
+    const second = nextFlight(f, city('GIG'), city('HND'), 3);
+    expect(arcDrawn(second, 3 + FLIGHT.back * 0.8)).toBe(0);
+    const out = home.angleTo(latLonToVector(city('HND').lat, city('HND').lon));
+    for (const t of [0.3, 0.8, 1.3]) {
+      const now = 3 + FLIGHT.back + t;
+      expect(arcDrawn(second, now), `out ${t} s`).toBeCloseTo(flightAt(second, now).position.normalize().angleTo(home) / out, 3);
+    }
   });
 
-  test('a pick mid-flight sets off from where the plane is and never goes back through Chișinău', () => {
+  test('a pick away from Chișinău flies home first, then out along the new arc, the plane and its nose never jumping', () => {
     const first = homeFlight('JFK', 0);
-    const mid = flightAt(first, 0.7).position;
-    const second = { from: mid, to: city('FCO'), startedAt: 0.7, turnFrom: globeTurnAt(first, first.to, 0.7) };
-    expect(flightAt(second, 0.7).position.distanceTo(mid)).toBeLessThan(1e-9);
-    const home = latLonToVector(HOME.lat, HOME.lon);
-    for (let i = 0; i <= 40; i++) {
-      const p = flightAt(second, 0.7 + (FLIGHT.seconds * i) / 40).position.normalize();
-      expect((p.angleTo(home) * 180) / Math.PI, `step ${i}`).toBeGreaterThan(2);
+    const mid = flightAt(first, 0.7);
+    const second = nextFlight(first, city('JFK'), city('FCO'), 0.7);
+    expect(flightAt(second, 0.7).position.distanceTo(mid.position)).toBeLessThan(1e-9);
+    expect(flightAt(second, 0.7).heading.angleTo(mid.heading)).toBeLessThan(1e-6);
+    expect(flightAt(second, 0.7 + FLIGHT.back).position.distanceTo(above(HOME))).toBeLessThan(1e-6);
+    const end = flightAt(second, 0.7 + FLIGHT.back + FLIGHT.seconds);
+    expect(end.done).toBe(true);
+    expect(end.position.distanceTo(above(city('FCO')))).toBeLessThan(1e-6);
+    expect(flightAt(second, 0.7 + FLIGHT.back + FLIGHT.seconds - 0.05).done).toBe(false);
+    const { move, turn } = steps(second, 0.7, 0.7 + FLIGHT.back + FLIGHT.seconds);
+    expect(move, 'largest step (m)').toBeLessThan(0.02 * GLOBE.radius);
+    expect(turn, 'largest turn of the nose (°)').toBeLessThan(6);
+  });
+
+  test('a flight from a city to that same city goes nowhere and keeps the nose as it was', () => {
+    const landed = flightAt(homeFlight('JFK', 0), 5);
+    const again = { from: landed.position, to: city('JFK'), startedAt: 5, turnFrom: globeTurnFor(HOME, city('JFK')), headingFrom: landed.heading };
+    for (const now of [5, 5.4, 6, 9]) {
+      const at = flightAt(again, now);
+      expect(at.position.distanceTo(landed.position), `at ${now}`).toBeLessThan(1e-6);
+      expect(at.heading.angleTo(landed.heading), `at ${now}`).toBeLessThan(1e-6);
     }
   });
 
@@ -217,6 +259,8 @@ describe('the flight over the globe', () => {
     const f = homeFlight('GIG', 5);
     expect(globeTurnAt(f, f.to, 5).angleTo(f.turnFrom)).toBeLessThan(1e-9);
     expect(globeTurnAt(f, f.to, 5 + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('GIG')))).toBeLessThan(1e-6);
+    const second = nextFlight(f, city('GIG'), city('BKK'), 9);
+    expect(globeTurnAt(second, second.to, 9 + FLIGHT.back + FLIGHT.seconds).angleTo(globeTurnFor(HOME, city('BKK')))).toBeLessThan(1e-6);
   });
 
   test('a new flight sets off from the plane and the globe as they are at that moment', () => {
@@ -224,6 +268,7 @@ describe('the flight over the globe', () => {
     const next = nextFlight(f, city('BKK'), city('CPT'), 0.9);
     expect(next.from.distanceTo(flightAt(f, 0.9).position)).toBeLessThan(1e-9);
     expect(next.turnFrom.angleTo(globeTurnAt(f, f.to, 0.9))).toBeLessThan(1e-6);
+    expect(next.headingFrom.angleTo(flightAt(f, 0.9).heading)).toBeLessThan(1e-9);
     expect(next).toMatchObject({ to: city('CPT'), startedAt: 0.9 });
     const first = nextFlight(null, city('LIS'), city('HND'), 3);
     expect(first.from.distanceTo(above(HOME))).toBeLessThan(1e-9);

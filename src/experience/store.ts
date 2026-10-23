@@ -70,6 +70,8 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     },
     flight: null,
     pickDestination: (code, now) => {
+      // the city already chosen and flown to: nothing to do (the first pick of tonight's city still flies there)
+      if (code === get().destinationId && get().flight) return trackOf(get().phase) !== 'post';
       const chosen = destination(get().destinationId)!;
       const to = destination(code);
       if (!to || !get().chooseDestination(code)) return false;

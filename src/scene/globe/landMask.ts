@@ -21,14 +21,23 @@ function unwrap(ring: Ring): { points: Ring; winds: number } {
   return { points, winds: points[points.length - 1][0] - points[0][0] };
 }
 
+/** Something to draw on in 2D: an OffscreenCanvas, or a page canvas where there is none or it cannot draw in 2D
+ * (Safari before 16.4 has WebGL2 but no OffscreenCanvas). */
+export function drawingSurface(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const offscreen = new OffscreenCanvas(width, height);
+    if (offscreen.getContext('2d')) return offscreen;
+  }
+  return Object.assign(document.createElement('canvas'), { width, height });
+}
+
 /**
  * Natural Earth's 1:110m land (world-atlas, public domain) drawn into an equirectangular mask `width` × `width / 2`;
  * returns whether a latitude and longitude is land. Runs in the browser (it draws on a canvas).
  */
 export function landMask(width = 1024): (lat: number, lon: number) => boolean {
   const height = width / 2;
-  const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const ctx = drawingSurface(width, height).getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
   const x = (lon: number) => ((lon + 180) / 360) * width;
   const y = (lat: number) => ((90 - lat) / 180) * height;
   const shapes = feature(land, land.objects.land);
