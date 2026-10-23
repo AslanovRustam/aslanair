@@ -86,6 +86,10 @@ export default function Experience() {
   }, []);
 
   useEffect(() => installTestHooks(), []);
+  useEffect(() => {
+    // no scene will ever be ready: the loader steps aside for the message
+    if (!supported) experienceStore.getState().setLoad(100, true);
+  }, [supported]);
 
   if (!supported) {
     return <p className="fallback">{copy.fallback.noWebgl}</p>;

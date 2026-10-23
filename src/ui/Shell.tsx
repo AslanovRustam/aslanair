@@ -62,6 +62,7 @@ export default function Shell() {
     }
     if (!target) return;
     setMenu(false);
+    if (target === 'stay') return;
     const s = experienceStore.getState();
     if (s.phase === 'seated' && target.track === 'pre') s.standUp();
     // after the stand-up has re-rendered the track

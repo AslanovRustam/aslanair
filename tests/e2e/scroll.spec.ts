@@ -98,5 +98,16 @@ test('no WebGL2 shows the fallback', async ({ page }) => {
     };
   });
   await page.goto('/');
-  await expect(page.getByText(/WebGL2/i)).toBeVisible();
+  const message = page.getByText(/WebGL2/i);
+  await expect(message).toBeVisible();
+  // visible to the visitor, not just in the layout: nothing (such as the loader) covers it
+  await expect(page.locator('#loader')).toBeHidden();
+  await expect
+    .poll(() =>
+      message.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+      }),
+    )
+    .toBe(true);
 });

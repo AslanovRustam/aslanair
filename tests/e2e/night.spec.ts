@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { trackProgress } from '@/experience/chapters';
 import { NIGHT_LIGHTS } from '@/experience/geometry';
+import { worldMode } from '@/experience/worldState';
 import { visibleLights, waitForStore } from './helpers';
 
 type StoreWindow = Window & {
@@ -125,4 +127,42 @@ test('reading lights burn over a quarter of the occupied seats', async ({ page }
     return { lamps: lamps?.count ?? 0, occupied };
   });
   expect(state.lamps).toBe(Math.round(state.occupied / 4));
+});
+
+/** The first progress of the door flight at which the world turns to night (the camera is inside the cabin). */
+const NIGHT_FROM = (() => {
+  for (let i = 0; i <= 1000; i++) {
+    const p = trackProgress('pre', 'door', i / 1000);
+    if (worldMode('browse', p) === 'night') return p;
+  }
+  throw new Error('the door flight never reaches the night');
+})();
+
+test('boarding into the night compiles nothing new and never stalls a frame', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  type Gl = { info: { programs: unknown[] | null; memory: { geometries: number; textures: number } } };
+  await page.evaluate((p) => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(p), NIGHT_FROM - 0.01);
+  await page.waitForTimeout(2500);
+  const r = await page.evaluate(async (after) => {
+    const w = window as unknown as { __aslan: { gl: Gl; store: { getState(): { setProgress(p: number): void } } } };
+    const gpu = () => ({ programs: w.__aslan.gl.info.programs!.length, textures: w.__aslan.gl.info.memory.textures });
+    const before = gpu();
+    let worst = 0;
+    let last = performance.now();
+    await new Promise<void>((done) => {
+      let n = 0;
+      const tick = (t: number) => {
+        if (n > 0) worst = Math.max(worst, t - last);
+        last = t;
+        if (n++ === 0) w.__aslan.store.getState().setProgress(after);
+        if (n < 40) requestAnimationFrame(tick);
+        else done();
+      };
+      requestAnimationFrame(tick);
+    });
+    return { before, after: gpu(), worst };
+  }, NIGHT_FROM + 0.01);
+  expect(r.after, 'nothing compiled or uploaded as the night sky comes in').toEqual(r.before);
+  expect(r.worst, `worst frame ${r.worst.toFixed(0)} ms`).toBeLessThan(250);
 });

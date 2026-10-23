@@ -2,7 +2,8 @@ import { copy } from '@/content/copy';
 import { trackProgress, type ChapterId, type Track } from './chapters';
 import type { Phase } from './store';
 
-export type NavTarget = { track: Track; progress: number } | 'panel' | null;
+/** A place on a track, the How it's made panel, `stay` (the current place: nothing to do) or out of reach. */
+export type NavTarget = { track: Track; progress: number } | 'panel' | 'stay' | null;
 
 export interface NavItem<Id extends string = string> {
   id: Id;
@@ -27,8 +28,9 @@ function item<Id extends string>(id: Id, label: string, target: NavTarget, activ
 
 /**
  * The header's chapter links under the seat gate (spec r2 §4). Before confirmation Flight and Cabin go to their
- * chapters, Your seat goes to the aisle and Boarding pass is out of reach; after it Flight and Cabin are out of
- * reach and Your seat and Boarding pass go to the pass. How it's made is a panel, always there.
+ * chapters, Your seat goes to the aisle (or, while seated, keeps the visitor in the seat) and Boarding pass is out
+ * of reach; after it Flight and Cabin are out of reach and Your seat and Boarding pass go to the pass. How it's made
+ * is a panel, always there.
  */
 export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] {
   const t = copy.nav;
@@ -45,7 +47,7 @@ export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] 
   return [
     item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && (chapter === 'sky' || chapter === 'door')),
     item('cabin', t.cabin, AISLE, browsing && chapter === 'aisle'),
-    item('seat', t.seat, AISLE, phase === 'seated'),
+    phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
     item('pass', t.pass, null),
     item('made', t.made, 'panel'),
   ];
@@ -67,7 +69,7 @@ export function railItems(phase: Phase, chapter: ChapterId): (NavItem<RailId> & 
         item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && chapter === 'sky'),
         item('boarding', t.boarding, { track: 'pre', progress: trackProgress('pre', 'door', 0) }, browsing && chapter === 'door'),
         item('cabin', t.cabin, AISLE, browsing && chapter === 'aisle'),
-        item('seat', t.seat, AISLE, phase === 'seated'),
+        phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
         item('takeoff', t.takeoff, null),
       ];
   return items.map((it, i) => ({ ...it, number: String(i + 1).padStart(2, '0') }));

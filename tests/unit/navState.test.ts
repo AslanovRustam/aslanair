@@ -26,6 +26,11 @@ describe('header navigation', () => {
       expect(item(navItems(ph, ch), 'made')).toMatchObject({ enabled: true, target: 'panel' });
   });
 
+  test('while seated, Your seat keeps the visitor in the seat instead of standing them up', () => {
+    expect(item(navItems('seated', 'aisle'), 'seat')).toMatchObject({ enabled: true, active: true, target: 'stay' });
+    expect(railItems('seated', 'aisle').find((r) => r.id === 'seat')).toMatchObject({ enabled: true, active: true, target: 'stay' });
+  });
+
   test('the current place is marked', () => {
     expect(item(navItems('browse', 'door'), 'flight').active).toBe(true);
     expect(item(navItems('seated', 'aisle'), 'seat').active).toBe(true);

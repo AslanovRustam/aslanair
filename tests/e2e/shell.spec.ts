@@ -28,6 +28,13 @@ async function open(page: Page) {
   await waitForStore(page);
 }
 
+/** Open, then let the loader hand over and the hero's entrance (paused until then) play out. */
+async function openHero(page: Page) {
+  await open(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  await page.waitForTimeout(1800);
+}
+
 test('header, chapter rail and footer frame the experience from the start', async ({ page }) => {
   await open(page);
   await expect(page.getByRole('banner')).toBeVisible();
@@ -108,8 +115,7 @@ for (const viewport of [
 ]) {
   test(`at ${viewport.width}×${viewport.height} each hero note points at the plane and keeps clear of it and the title`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await open(page);
-    await page.waitForTimeout(1600); // the entrance
+    await openHero(page);
     const img = (await page.getByTestId('intro-plane').locator('img').boundingBox())!;
     const { plane } = INTRO.picture;
     const planeBox = {
@@ -139,6 +145,36 @@ for (const viewport of [
   });
 }
 
+for (const viewport of [
+  { width: 768, height: 1024 },
+  { width: 960, height: 800 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} the hero notes line up under the plane, all on screen and clear of everything`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await openHero(page);
+    const notes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as Box));
+    const hero = page.getByTestId('hero');
+    const others = {
+      title: (await hero.getByRole('heading').boundingBox())!,
+      plane: (await page.getByTestId('intro-plane').locator('img').boundingBox())!,
+      rail: (await page.getByRole('navigation', { name: 'Chapters' }).boundingBox())!,
+      lead: (await hero.getByText('Board a fictional night flight.').boundingBox())!,
+    };
+    const { plane } = INTRO.picture;
+    const img = others.plane;
+    others.plane = { x: img.x + plane.left * img.width, y: img.y + plane.top * img.height, width: (plane.right - plane.left) * img.width, height: (plane.bottom - plane.top) * img.height };
+    expect(notes).toHaveLength(3);
+    for (const [i, n] of notes.entries()) {
+      expect(n.x >= 0 && n.x + n.width <= viewport.width && n.y + n.height <= viewport.height, `note ${i} on screen`).toBe(true);
+      for (const [name, b] of Object.entries(others)) expect(overlaps(n, b), `note ${i} vs ${name}`).toBe(false);
+      for (let j = i + 1; j < notes.length; j++) expect(overlaps(n, notes[j]), `notes ${i}/${j}`).toBe(false);
+    }
+    const lead = (await hero.locator('p', { hasText: 'Board a fictional night flight.' }).boundingBox())!;
+    const scroll = (await hero.getByText('Scroll to board').boundingBox())!;
+    expect(overlaps(lead, scroll), 'lead vs scroll hint').toBe(false);
+  });
+}
+
 test('on a phone the hero notes stack and nothing overflows', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 });
   await open(page);
@@ -152,4 +188,20 @@ test('on a phone the hero notes stack and nothing overflows', async ({ page }) =
     for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i], boxes[j]), `notes ${i}/${j}`).toBe(false);
   }
   expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('while seated, choosing Your seat keeps the seat', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as StoreWindow).__aslan.store.getState();
+    s.setProgress(0.6);
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await expect.poll(async () => (await state(page)).phase).toBe('seated');
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Your seat' }).click();
+  await page.getByRole('navigation', { name: 'Chapters' }).getByRole('button', { name: /Your seat/ }).click();
+  await page.waitForTimeout(800);
+  expect(await state(page)).toMatchObject({ phase: 'seated' });
+  expect(await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { selectedSeatId: string } } } }).__aslan.store.getState().selectedSeatId)).toBe('14F');
 });

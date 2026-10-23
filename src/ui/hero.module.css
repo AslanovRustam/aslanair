@@ -153,7 +153,8 @@
   left: 50%;
   bottom: calc(var(--footer-h) + 1.75rem);
   margin: 0;
-  transform: translateX(-50%);
+  /* translate, not transform: the entrance animates transform and would drop the centring meanwhile */
+  translate: -50% 0;
   color: var(--dim);
   font-size: 0.8125rem;
   letter-spacing: 0.04em;
@@ -177,6 +178,43 @@
   .lead,
   .scroll {
     animation: none;
+  }
+}
+
+/* narrower than 5:4 (tablets upright, square windows) the notes beside the plane would run off the side:
+   they line up in a row under it instead, without leaders */
+@container (max-aspect-ratio: 5 / 4) {
+  .planeBox {
+    left: clamp(1.25rem, 5vw, 2.75rem);
+    right: clamp(1.25rem, 5vw, 2.75rem);
+    top: auto;
+    bottom: calc(var(--footer-h) + 12rem);
+    width: auto;
+    height: auto;
+  }
+
+  .notes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+  }
+
+  .note,
+  .note[data-runs='left'] {
+    position: static;
+    align-items: flex-start;
+    text-align: left;
+    translate: none;
+  }
+
+  .leaders {
+    display: none;
+  }
+
+  /* the lead ends before the centred scroll hint */
+  .lead {
+    max-width: min(21rem, calc(50cqw - 6rem));
   }
 }
 

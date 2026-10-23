@@ -122,8 +122,9 @@ export default function SkyAndClouds({ background = true }: { background?: boole
       moon.current.intensity = look.intensity;
       fill.current.intensity = look.fill;
     }
-    // showcase: the plain dark of the site and no cloud pass at all
-    if (showcase || !background) {
+    // showcase: the plain dark of the site and no cloud pass at all — except under the loader, where the night
+    // pipeline runs unseen so its shaders and targets are ready before the door flight first needs them
+    if ((showcase && s.ready) || !background) {
       scene.background = background ? SHOWCASE_BACKGROUND : null;
       return;
     }
