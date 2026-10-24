@@ -244,6 +244,8 @@
 }
 
 .outroColumn {
+  position: relative;
+  z-index: 1;
   width: min(40rem, 100%);
   animation: rise 0.7s ease 0.15s both;
 }

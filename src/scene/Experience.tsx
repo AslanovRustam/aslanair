@@ -11,6 +11,7 @@ import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Destinations from '@/ui/Destinations';
+import GridBackdrop from '@/ui/GridBackdrop';
 import Ready from '@/ui/Ready';
 import Transfer from '@/ui/Transfer';
 import Hero from '@/ui/Hero';
@@ -108,6 +109,7 @@ export default function Experience() {
 
   return (
     <>
+      <GridBackdrop />
       <div className="stage">
         <Canvas
           dpr={[1, 2]}

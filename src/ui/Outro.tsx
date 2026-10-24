@@ -5,6 +5,7 @@ import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
+import GridBackdrop from './GridBackdrop';
 import { openHowItsMade } from './HowItsMade';
 import styles from './ui.module.css';
 
@@ -34,6 +35,7 @@ export default function Outro() {
   return (
     // data-lenis-prevent: let the wheel scroll this page natively when it overflows a short window.
     <section className={styles.outro} aria-label="Booking" data-lenis-prevent>
+      <GridBackdrop surface />
       <div className={styles.outroColumn}>
         <h2 className={styles.outroTitle}>{t.title}</h2>
         {phase === 'thanks' ? (

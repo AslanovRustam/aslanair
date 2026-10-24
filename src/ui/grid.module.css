@@ -1,0 +1,56 @@
+/* The grid backdrop (GridBackdrop.tsx): faint 64 px lines, a lit copy of them under a round mask that follows the
+   cursor (--mx, --my), and a canvas for the trail of lit cells. Behind the hero title (z −1) and the see-through
+   canvas (z 0) on the dark chapters; inside the outro's panel as a surface. Takes no pointer events. */
+
+.backdrop,
+.surface {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  transition: opacity 0.3s linear;
+}
+
+/* the outro's panel is dark on the left and lets the sky through on the right: the grid follows its dark */
+.surface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  mask-image: linear-gradient(90deg, #000 0%, #000 45%, transparent 95%);
+}
+
+.lines,
+.lit {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.lines {
+  --grid-line: rgba(242, 239, 232, 0.045);
+}
+
+.lit {
+  --grid-line: rgba(212, 104, 58, 0.55);
+  mask-image: radial-gradient(220px at var(--mx, -999px) var(--my, -999px), #000 0%, transparent 75%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+[data-glow='on'] > .lit {
+  opacity: 1;
+}
+
+.trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
