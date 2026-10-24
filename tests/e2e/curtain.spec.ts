@@ -264,18 +264,15 @@ test('scrolling stays held through the whole curtain, even when the jump changes
   expect(Math.abs((await progress(page)) - landed), 'the page moved under the curtain').toBeLessThan(0.002);
 });
 
-// Headless Chromium draws no scrollbar, so the layout can't shift here; this holds the CSS that keeps the scrollbar's
-// room on a desktop with classic scrollbars (checked headed: the canvas stays 1425 px wide through a curtain).
-test('the page keeps its scrollbar room while the curtain stops it', async ({ page }) => {
+// Headless Chromium draws no scrollbar, so no layout shift can show here; this holds the CSS that leaves the page no
+// scrollbar to lose when Lenis stops it (checked headed: the canvas stays 1440 px wide through a curtain).
+test('the page has no scrollbar to lose while the curtain stops it', async ({ page }) => {
   await open(page);
-  const root = () => page.evaluate(() => {
-    const s = getComputedStyle(document.documentElement);
-    return { gutter: s.scrollbarGutter, overflow: s.overflow };
-  });
-  expect((await root()).gutter).toBe('stable');
+  const root = () => page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth);
+  expect(await root()).toBe('none');
   await rail(page).getByRole('button', { name: /Transfer/ }).click();
   await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
-  expect(await root()).toEqual({ gutter: 'stable', overflow: 'hidden' });
+  expect(await root()).toBe('none');
 });
 
 test('in the aisle, Choose your seat leads where the visitor already is: no curtain', async ({ page }) => {

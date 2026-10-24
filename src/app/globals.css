@@ -32,14 +32,13 @@ body {
 /* the dark on the root only: a body background would paint over layers set behind the canvas (z-index < 0) */
 html {
   background: var(--bg);
-  /* the scrollbar's room stays when Lenis stops the page (sitting down, the curtain): the stage and the shell never
-     jump sideways and the canvas never resizes */
-  scrollbar-gutter: stable;
+  /* no page scrollbar: the chapter rail is the journey's progress, and a classic scrollbar would vanish and come back
+     each time Lenis stops the page (sitting down, every curtain), shifting the stage and resizing the canvas */
+  scrollbar-width: none;
 }
 
-/* Lenis stops the page with overflow: clip, which scrollbar-gutter ignores; hidden holds it just as still */
-html.lenis:not(.lenis-autoToggle).lenis-stopped {
-  overflow: hidden;
+html::-webkit-scrollbar {
+  display: none;
 }
 
 :focus-visible {
