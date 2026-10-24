@@ -40,8 +40,8 @@ test('the loader and the plane picture preload come with the server response, be
   expect(html).toContain('Preparing your night flight');
   // Next 16 sends resource hints as a Link header; a <link> tag in the HTML would do as well
   const header = response.headers()['link'] ?? '';
-  const tag = /<link[^>]*rel="preload"[^>]*plane-hero\.png|<link[^>]*plane-hero\.png[^>]*rel="preload"/.test(html);
-  expect(tag || /<\/images\/plane-hero\.png>;\s*rel=preload;\s*as="image"/.test(header)).toBe(true);
+  const tag = /<link[^>]*rel="preload"[^>]*plane-hero\.webp|<link[^>]*plane-hero\.webp[^>]*rel="preload"/.test(html);
+  expect(tag || /<\/images\/plane-hero\.webp>;\s*rel=preload;\s*as="image"/.test(header)).toBe(true);
 });
 
 test('the loader reveals the emblem bottom to top on the compositor, with no outline and no bar', async ({ page }) => {

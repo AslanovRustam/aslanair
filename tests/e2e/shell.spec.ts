@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
+import { INTRO } from '@/experience/introState';
+import { heroPictureBox, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -205,4 +206,14 @@ test('the scroll hint rises in from below, its light runs down the line smoothly
   const box = (await hint.boundingBox())!;
   const { width } = page.viewportSize()!;
   expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+});
+
+test('the hero plane clears the scroll hint', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await openHero(page);
+  const img = heroPictureBox(page);
+  const { plane } = INTRO.picture;
+  const planeBottom = img.y + plane.bottom * img.height;
+  const cue = (await page.getByTestId('hero').getByText('Scroll to board').boundingBox())!;
+  expect(cue.y - planeBottom, `plane bottom ${planeBottom.toFixed(0)} px, cue top ${cue.y.toFixed(0)} px`).toBeGreaterThanOrEqual(40);
 });

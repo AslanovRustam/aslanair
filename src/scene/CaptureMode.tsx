@@ -33,7 +33,8 @@ export default function CaptureMode({ cabin }: { cabin: ReactNode }) {
   return (
     <div style={{ width: INTRO.picture.width, height: INTRO.picture.height }}>
       <Canvas
-        dpr={1}
+        // the picture is taken at twice its CSS size (2× screens): the canvas draws at the page's device pixel ratio
+        dpr={window.devicePixelRatio}
         // PCF, not R3F's default PCFSoft: three r18x swaps PCFSoft for PCF at the first shadow render, so programs
         // precompiled before then would carry the wrong shadow type and all compile again on first sight
         shadows="percentage"

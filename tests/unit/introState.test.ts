@@ -33,6 +33,18 @@ describe('the hero frame is the capture frame, scaled and lifted', () => {
     });
   }
 
+  test('the hero plane fills two thirds of a 16:9 frame, its middle near the centre', () => {
+    const { plane } = INTRO.picture;
+    const s = heroScale(16 / 9);
+    // the picture is 16:9 like the frame: the plane's share of the width is its share of the picture, scaled
+    const width = (plane.right - plane.left) * s;
+    const middle = 0.5 - HERO_PICTURE.lift + ((plane.top + plane.bottom) / 2 - 0.5) * s;
+    expect(width).toBeGreaterThanOrEqual(0.62);
+    expect(width).toBeLessThanOrEqual(0.7);
+    expect(middle).toBeGreaterThanOrEqual(0.47);
+    expect(middle).toBeLessThanOrEqual(0.56);
+  });
+
   test('on a phone the hero picture keeps the whole plane inside the screen width', () => {
     const [w, h] = [412, 915];
     const plane = INTRO.picture.plane;

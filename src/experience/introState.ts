@@ -11,12 +11,15 @@ export const INTRO = {
   swapAt: 0.8,
   /** The picture fades out over this after the swap; the camera holds the pose until it has. */
   crossfade: 0.06,
-  /** The hero: the picture at this fraction of the frame height, lifted by this fraction of it. */
-  heroScale: 0.42,
-  heroLift: 0.18,
+  /** The hero: the picture at this fraction of the frame height, lifted by this fraction of it (negative: lowered).
+   * At 16:9 the plane spans two thirds of the width, its middle at the centre: it flies over the foot of the title and
+   * clears the scroll cue (spec r4 §3.2). */
+  heroScale: 0.97,
+  heroLift: -0.04,
   swapPose: { position: new Vector3(42, 6.5, -36), target: new Vector3(0, 0, 0), fov: 30 } satisfies CameraPose,
-  /** public/images/plane-hero.png, and the plane's box in it (fractions; measured — re-measure on a recapture). */
-  picture: { width: 1600, height: 900, plane: { left: 0.187, right: 0.868, top: 0.243, bottom: 0.671 } },
+  /** The picture (CSS size; the file is twice that, for 2× screens) and the plane's box in it (fractions; measured —
+   * re-measure on a recapture). */
+  picture: { src: '/images/plane-hero.webp', width: 1600, height: 900, plane: { left: 0.187, right: 0.868, top: 0.243, bottom: 0.671 } },
 };
 
 /** On a narrow screen the hero picture shrinks so the whole plane fits in this share of the width. */

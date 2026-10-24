@@ -37,7 +37,7 @@ export default function Loader() {
     >
       <Image
         className={styles.picture}
-        src="/images/plane-hero.png"
+        src={INTRO.picture.src}
         width={INTRO.picture.width}
         height={INTRO.picture.height}
         alt=""
