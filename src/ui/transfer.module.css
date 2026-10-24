@@ -141,6 +141,11 @@
   transform: translateY(calc(-1 * var(--lift)));
 }
 
+/* the row clips what spills over it (contain: paint): the keyboard's ring sits inside the card */
+.option:focus-visible {
+  outline-offset: -3px;
+}
+
 @media (hover: hover) {
   .option:hover {
     border-color: var(--faint);
@@ -364,6 +369,11 @@
 
   .slot[data-chosen='true'] .option {
     transform: translateY(calc(-1 * var(--lift)));
+  }
+
+  /* no tilt and no lift on hover: the plate alone answers the pointer */
+  .slot[data-open='true']:not([data-chosen='true']):hover .option {
+    transform: none;
   }
 }
 

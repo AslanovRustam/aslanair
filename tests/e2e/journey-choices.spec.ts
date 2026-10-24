@@ -242,6 +242,26 @@ test('hovering a strip opens it; leaving shows the chosen one again', async ({ p
   for (const other of [/From home/, /From your hotel/, /Airport express/]) expect(own).toBeGreaterThan(await width(page, other));
 });
 
+test('under reduced motion a hovered card neither lifts nor tilts; the keyboard focus ring sits inside the card', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await toTransfer(page);
+  await page.waitForTimeout(700);
+  const home = page.getByRole('radio', { name: /From home/ });
+  await home.hover();
+  await page.waitForTimeout(300);
+  expect(await home.evaluate((e) => getComputedStyle(e).transform)).toBe('none');
+  // the row clips what spills over it, so the ring must not stand outside the card
+  await page.getByRole('radio', { name: /On my own/ }).focus();
+  await page.keyboard.press('ArrowLeft');
+  const ring = await page.evaluate(() => {
+    const e = document.activeElement as HTMLElement;
+    return { name: e.getAttribute('aria-label') ?? e.textContent, visible: e.matches(':focus-visible'), offset: parseFloat(getComputedStyle(e).outlineOffset) };
+  });
+  expect(ring.visible, String(ring.name)).toBe(true);
+  expect(ring.offset).toBeLessThan(0);
+});
+
 test('the chosen card shows its price, its times and Selected', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await toTransfer(page);
