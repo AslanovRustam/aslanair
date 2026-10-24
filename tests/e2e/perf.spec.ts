@@ -179,9 +179,9 @@ function planeOnScreen(scale: number, lift: number) {
   };
 }
 
-/** Mean and variance of a screenshot's luminance (0–255). */
-function luminance(page: Page, png: Buffer) {
-  return page.evaluate(async (b64) => {
+/** Mean and variance of a screenshot's luminance (0–255), over `box` when given (screen pixels). */
+function luminance(page: Page, png: Buffer, box?: { x: number; y: number; width: number; height: number }) {
+  return page.evaluate(async ([b64, box]) => {
     const img = new Image();
     img.src = `data:image/png;base64,${b64}`;
     await img.decode();
@@ -190,7 +190,7 @@ function luminance(page: Page, png: Buffer) {
     c.height = img.height;
     const ctx = c.getContext('2d')!;
     ctx.drawImage(img, 0, 0);
-    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    const d = (box ? ctx.getImageData(box.x, box.y, box.width, box.height) : ctx.getImageData(0, 0, c.width, c.height)).data;
     let sum = 0;
     let sq = 0;
     let lit = 0;
@@ -202,7 +202,7 @@ function luminance(page: Page, png: Buffer) {
       if (l > 40) lit++;
     }
     return { mean: sum / n, variance: sq / n - (sum / n) ** 2, lit: lit / n };
-  }, png.toString('base64'));
+  }, [png.toString('base64'), box] as const);
 }
 
 test('review screenshot set — never a black screen', async ({ page }) => {
@@ -216,7 +216,8 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   const shoot = async (name: string, { settle = 2500, dark = false, night = false, judgeOn }: { settle?: number; dark?: boolean; night?: boolean; judgeOn?: Box } = {}) => {
     await page.waitForTimeout(settle);
     const png = await page.screenshot({ path: `${dir}/${name}.png` });
-    const l = await luminance(page, judgeOn ? await page.screenshot({ clip: judgeOn }) : png);
+    // judged on the same frame that is saved: the curtain and the globe flight move between two screenshots
+    const l = await luminance(page, png, judgeOn);
     report.push(`${name} mean ${l.mean.toFixed(1)} variance ${l.variance.toFixed(0)} lit ${(l.lit * 100).toFixed(1)} %`);
     expect(l.variance, `${name} is not blank`).toBeGreaterThan(1);
     // the "not a black screen" guard: the plane or the cabin is clearly lit (the loader is meant to be dark)
@@ -249,6 +250,7 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await setProgress(page, pre('sky', 0.25));
   await page.mouse.move(300, 620); // the grid's glow follows the pointer
   await shoot('grid', { judgeOn: planeAt(pre('sky', 0.25)) });
+  await page.mouse.move(1200, 720); // off the chapters' cards, so a hover never opens one in a later shot
   await setProgress(page, pre('sky', 0.45));
   await shoot('first-screen', { judgeOn: planeAt(pre('sky', 0.45)) });
   await setProgress(page, pre('sky', 0.9));
@@ -270,7 +272,8 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   // the curtain mid-flight: from the aisle's end to Destinations, the plane crossing the covered screen
   await page.getByRole('navigation', { name: 'Chapters' }).getByRole('button', { name: /Destinations/ }).click();
   await page.waitForFunction(() => !!document.documentElement.dataset.curtain);
-  await shoot('curtain', { settle: (CURTAIN.cover + CURTAIN.flight / 2) * 1000 });
+  // dark by design (the night's dark): judged on the band the plane flies down, by its lit share
+  await shoot('curtain', { settle: (CURTAIN.cover + CURTAIN.flight / 2) * 1000, night: true, judgeOn: onScreen({ x0: 0.3, x1: 0.7, y0: 0, y1: 1 }) });
   for (const id of ['1A', '14F', '30A']) {
     await sit(id);
     await shoot(`seat-${id}`);
