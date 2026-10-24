@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { AFT_GALLEY, BIN, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT } from '@/experience/cabinLayout';
+import { AFT_GALLEY, BIN, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT } from '@/experience/cabinLayout';
 import { ROWS, rowStation, SEAT_FOOTPRINT } from '@/experience/geometry';
 import { glbNodeNames } from './glb';
 import { linerHalfWidthAt } from './linerProfile';
@@ -63,6 +63,16 @@ describe('cabin kit', () => {
     expect(kit.exitSign).toEqual({ ...EXIT_SIGN, placements: EXIT_SIGN.placements.map((p) => [...p]) });
     expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['GalleyPanels', 'GalleySteel', 'GalleyWorktop', 'Curtain', 'ExitSign']));
     expect(statSync(KIT).size).toBeLessThanOrEqual(600_000);
+  });
+
+  test('the galley is equipment: steel doors, red latches, dark glass and plates, within its budget', () => {
+    expect(glbNodeNames(KIT)).toEqual(expect.arrayContaining(['GalleySteel', 'GalleyLatches', 'GalleyDark']));
+    expect(kit.triangles.GalleySteel + kit.triangles.GalleyLatches + kit.triangles.GalleyDark).toBeLessThanOrEqual(4000);
+    expect(statSync(KIT).size).toBeLessThanOrEqual(600_000);
+  });
+
+  test('the flight-deck placard is the size the site letters', () => {
+    expect(kit.placard).toEqual({ ...COCKPIT_PLACARD });
   });
 
   test('nose parts match cabinLayout', () => {

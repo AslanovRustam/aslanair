@@ -394,3 +394,91 @@ test('the closed fuselage keeps direct sun off the seats and bins', async ({ pag
   expect(Math.abs(lit.seats - dark.seats) / dark.seats).toBeLessThan(0.03);
   expect(Math.abs(lit.bins - dark.bins) / dark.bins).toBeLessThan(0.03);
 });
+
+type EntryWindow = {
+  __aslan: {
+    camera: unknown;
+    scene: {
+      position: { constructor: new (x: number, y: number, z: number) => { applyMatrix4(m: unknown): { project(c: unknown): { x: number; y: number; z: number } } } };
+      getObjectByName(n: string): { visible: boolean; matrixWorld: unknown; updateWorldMatrix(a: boolean, b: boolean): void; material?: { map?: { userData: { lines?: string[] } } } } | undefined;
+    };
+    store: { getState(): { setProgress(p: number): void } };
+  };
+};
+
+/** At the entry: the camera inside door 1L, looking at the flight-deck door with the galley on its right. */
+async function atEntry(page: import('@playwright/test').Page) {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await page.evaluate(() => (window as unknown as EntryWindow).__aslan.store.getState().setProgress(__pre('door', 0.78)));
+  await page.addStyleTag({ content: 'body > *:not(.stage), nextjs-portal { visibility: hidden !important; }' });
+  await page.waitForTimeout(1500);
+}
+
+test('the flight-deck door reads FLIGHT DECK / CREW ONLY', async ({ page }) => {
+  await atEntry(page);
+  const placard = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as EntryWindow).__aslan;
+    const p = scene.getObjectByName('CockpitPlacard');
+    if (!p) return null;
+    p.updateWorldMatrix(true, false);
+    const V = scene.position.constructor;
+    const q = new V(0, 0, 0).applyMatrix4(p.matrixWorld).project(camera);
+    return { visible: p.visible, lines: p.material?.map?.userData.lines ?? null, onScreen: Math.abs(q.x) < 1 && Math.abs(q.y) < 1 && q.z < 1 };
+  });
+  expect(placard).toEqual({ visible: true, lines: ['FLIGHT DECK', 'CREW ONLY'], onScreen: true });
+});
+
+test('the galley is equipment, not blank mirrors', async ({ page }) => {
+  await atEntry(page);
+  // the galley's equipment on screen: its steel parts' corners in front of the camera (the camera stands within the
+  // galley's length here, so the box of the whole galley would wrap round behind it)
+  const box = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as EntryWindow).__aslan;
+    const steel = scene.getObjectByName('GalleySteel') as unknown as {
+      matrixWorld: unknown;
+      updateWorldMatrix(a: boolean, b: boolean): void;
+      geometry: { attributes: { position: { count: number; getX(i: number): number; getY(i: number): number; getZ(i: number): number } } };
+    };
+    steel.updateWorldMatrix(true, false);
+    const V = scene.position.constructor;
+    const pos = steel.geometry.attributes.position;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i < pos.count; i++) {
+      const q = new V(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(steel.matrixWorld).project(camera);
+      if (q.z >= 1 || Math.abs(q.x) > 1 || Math.abs(q.y) > 1) continue;
+      xs.push(((q.x + 1) / 2) * innerWidth);
+      ys.push(((1 - q.y) / 2) * innerHeight);
+    }
+    const cut = (v: number, hi: number) => Math.min(hi, Math.max(0, v));
+    const [x0, x1, y0, y1] = [cut(Math.min(...xs), innerWidth), cut(Math.max(...xs), innerWidth), cut(Math.min(...ys), innerHeight), cut(Math.max(...ys), innerHeight)];
+    return { x: Math.round(x0), y: Math.round(y0), width: Math.round(x1 - x0), height: Math.round(y1 - y0) };
+  });
+  expect(box.width * box.height, 'the galley is in view').toBeGreaterThan(20_000);
+  const png = (await page.screenshot({ clip: box })).toString('base64');
+  const s = await page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${src}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    [c.width, c.height] = [img.width, img.height];
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let [red, sum, sq] = [0, 0, 0];
+    const n = d.length / 4;
+    for (let i = 0; i < d.length; i += 4) {
+      // red-dominant: the night cabin lights the latches a deep red, never bright
+      if (d[i] > 80 && d[i] > 2.5 * d[i + 1] && d[i] > 2.5 * d[i + 2]) red++;
+      const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      sum += l;
+      sq += l * l;
+    }
+    return { red, sd: Math.sqrt(sq / n - (sum / n) ** 2) };
+  }, png);
+  console.log('galley', JSON.stringify(s));
+  expect(s.red, 'red turn latches').toBeGreaterThanOrEqual(30);
+  expect(s.sd, 'detail, not flat panels').toBeGreaterThanOrEqual(18);
+});

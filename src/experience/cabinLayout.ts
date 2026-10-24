@@ -95,6 +95,8 @@ export const EXIT_SIGN = {
  * so it clears the galley; the folded attendant jump seat beside it; the arrowed exit sign over the aisle at door 1L,
  * hung lower than the others because the ceiling dips towards the nose. */
 export const COCKPIT_DOOR = { station: 4.0, width: 0.8, height: 1.9, z: -0.1 } as const;
+/** The flight-deck door's placard (FLIGHT DECK / CREW ONLY): its centre height (floor + 1.74 m) and size. */
+export const COCKPIT_PLACARD = { y: 1.29, w: 0.3, h: 0.11 } as const;
 export const JUMP_SEAT = { station: 4.02, z: -0.75, width: 0.45, height: 1.05 } as const;
 export const EXIT_ARROWS = { station: 4.4, y: 1.43, w: 0.42 } as const;
 /** Tail, mirrored from the kit meta (|z|): a galley across the aisle end between two lavatories running out to the

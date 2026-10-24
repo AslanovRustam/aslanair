@@ -5,7 +5,7 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (AFT_GALLEY, BIN, BIN_LATCH, COCKPIT_DOOR, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+from .geometry import (AFT_GALLEY, BIN, BIN_LATCH, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
                        L, X, bin_latch, bin_profile, door_hinge, door_rect, hull_half_width_at, hull_top, lavatory_door, lavatory_outline, liner_grid,
                        section)
 
@@ -90,6 +90,7 @@ def kit_meta(parts):
         'curtain': {'station': CURTAIN['station'], 'innerZ': CURTAIN['inner_z'], 'outerZ': CURTAIN['outer_z'], 'bottomY': CURTAIN['bottom_y']},
         'exitSign': {'w': EXIT_SIGN['w'], 'h': EXIT_SIGN['h'], 'd': EXIT_SIGN['d'], 'y': EXIT_SIGN['y'], 'placements': EXIT_SIGN['placements']},
         'cockpitDoor': dict(COCKPIT_DOOR),
+        'placard': dict(COCKPIT_PLACARD),
         'jumpSeat': dict(JUMP_SEAT),
         'exitArrows': dict(EXIT_ARROWS),
         'aftGalley': {'s0': AFT_GALLEY['s0'], 's1': AFT_GALLEY['s1'], 'halfWidth': AFT_GALLEY['half_width'], 'topY': AFT_GALLEY['top_y']},

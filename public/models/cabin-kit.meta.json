@@ -297,6 +297,11 @@
     "s0": 29.85,
     "s1": 30.45
   },
+  "placard": {
+    "h": 0.11,
+    "w": 0.3,
+    "y": 1.29
+  },
   "seat": {
     "armTop": 0.65,
     "backFrontTopX": -0.3,
@@ -318,8 +323,10 @@
     "Curtain": 768,
     "ExitSign": 108,
     "GalleyCart": 428,
+    "GalleyDark": 204,
+    "GalleyLatches": 120,
     "GalleyPanels": 206,
-    "GalleySteel": 440,
+    "GalleySteel": 1724,
     "GalleyWorktop": 44,
     "JumpSeat": 324,
     "JumpSeatFrame": 200,

@@ -135,6 +135,7 @@ export const copy = {
     rowLabel: (row: number, side: -1 | 1) => `${row} ${side < 0 ? 'ABC' : 'DEF'}`,
     exitSign: 'EXIT',
     exitSignArrows: '← EXIT →',
+    placard: ['FLIGHT DECK', 'CREW ONLY'],
   },
   author: { line: 'Concept & code: Aslanov Rustam', link: 'GitHub', href: 'https://github.com/AslanovRustam' },
   footer: {

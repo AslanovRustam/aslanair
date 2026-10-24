@@ -268,6 +268,8 @@ EXIT_SIGN = {'w': 0.30, 'h': 0.11, 'd': 0.05, 'y': 1.58, 'placements': [[16.45, 
 # the galley; a folded attendant jump seat beside it, facing aft; an arrowed exit sign over the aisle at door 1L, hung
 # lower than the others because the ceiling dips towards the nose.
 COCKPIT_DOOR = {'station': 4.0, 'width': 0.80, 'height': 1.90, 'z': -0.10}
+# The placard on the flight-deck door, lettered on the site (FLIGHT DECK / CREW ONLY): its centre height and size.
+COCKPIT_PLACARD = {'y': round(FLOOR_Z + 1.74, 4), 'w': 0.30, 'h': 0.11}
 JUMP_SEAT = {'station': 4.02, 'z': -0.75, 'width': 0.45, 'height': 1.05}
 EXIT_ARROWS = {'station': 4.40, 'y': 1.43, 'w': 0.42}
 

@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CanvasTexture, MeshBasicMaterial, SRGBColorSpace } from 'three';
+import { CanvasTexture, MeshBasicMaterial, MeshLambertMaterial, SRGBColorSpace } from 'three';
 import { copy } from '@/content/copy';
-import { EXIT_ARROWS, EXIT_SIGN } from '@/experience/cabinLayout';
+import { COCKPIT_DOOR, COCKPIT_PLACARD, EXIT_ARROWS, EXIT_SIGN } from '@/experience/cabinLayout';
 import { stationToX } from '@/experience/geometry';
+import { withCabinLight } from './cabinLight';
 import { cabinMaterials } from './materials';
 import { useKitGeometry } from './Seats';
 
@@ -23,6 +24,30 @@ function exitFace(text: string, width: number): CanvasTexture {
   const tex = new CanvasTexture(canvas);
   tex.colorSpace = SRGBColorSpace;
   tex.anisotropy = 8;
+  return tex;
+}
+
+/** The flight-deck door's placard: FLIGHT DECK over CREW ONLY, warm white on a navy plate (spec r4 §8.2). */
+function placardFace(): CanvasTexture {
+  const lines = copy.cabin.placard;
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = Math.round((600 * COCKPIT_PLACARD.h) / COCKPIT_PLACARD.w);
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#1b2541';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#f2efe8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '800 92px system-ui, sans-serif';
+  ctx.fillText(lines[0], canvas.width / 2, canvas.height * 0.38);
+  ctx.font = '600 50px system-ui, sans-serif';
+  ctx.fillText(lines[1], canvas.width / 2, canvas.height * 0.78);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.anisotropy = 8;
+  // what the plate says, for the tests (as the boarding pass does)
+  if (process.env.NODE_ENV !== 'production') tex.userData.lines = [...lines];
   return tex;
 }
 
@@ -52,6 +77,7 @@ export default function EntryZone() {
     () => ({
       exit: new MeshBasicMaterial({ map: exitFace(copy.cabin.exitSign, EXIT_SIGN.w) }),
       arrows: new MeshBasicMaterial({ map: exitFace(copy.cabin.exitSignArrows, EXIT_ARROWS.w) }),
+      placard: withCabinLight(new MeshLambertMaterial({ map: placardFace() }), { sun: false }),
     }),
     [],
   );
@@ -62,10 +88,21 @@ export default function EntryZone() {
     <group>
       <mesh name="GalleyPanels" geometry={kit('GalleyPanels')} material={m.panels} />
       <mesh name="GalleySteel" geometry={kit('GalleySteel')} material={m.steel} />
+      <mesh name="GalleyLatches" geometry={kit('GalleyLatches')} material={m.latch} />
+      <mesh name="GalleyDark" geometry={kit('GalleyDark')} material={m.dark} />
       <mesh name="GalleyWorktop" geometry={kit('GalleyWorktop')} material={m.worktop} />
       <mesh name="Curtain" geometry={kit('Curtain')} material={m.curtain} />
       <mesh name="CockpitDoor" geometry={kit('CockpitDoor')} material={m.panels} />
       <mesh name="CockpitDoorHardware" geometry={kit('CockpitDoorHardware')} material={m.worktop} />
+      {/* on the placard's face, which looks aft (−x), inside its dark frame */}
+      <mesh
+        name="CockpitPlacard"
+        position={[stationToX(COCKPIT_DOOR.station) - 0.0305, COCKPIT_PLACARD.y, COCKPIT_DOOR.z]}
+        rotation-y={-Math.PI / 2}
+        material={faces.placard}
+      >
+        <planeGeometry args={[COCKPIT_PLACARD.w - 0.01, COCKPIT_PLACARD.h - 0.01]} />
+      </mesh>
       <mesh name="JumpSeat" geometry={kit('JumpSeat')} material={m.fabric} />
       <mesh name="JumpSeatFrame" geometry={kit('JumpSeatFrame')} material={m.legs} />
       {stations.map((s) => (

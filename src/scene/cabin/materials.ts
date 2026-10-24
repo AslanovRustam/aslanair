@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { withCabinLight } from './cabinLight';
+import { brushedTexels } from './brushed';
 import { aisleRunnerTexels, carpetTexels } from './carpet';
 import { weaveNormals } from './fabric';
 import { fabricPrint } from './fabricPrint';
@@ -29,6 +30,10 @@ export interface CabinMaterials {
   curtain: MeshStandardMaterial;
   panels: MeshStandardMaterial;
   steel: MeshStandardMaterial;
+  /** The galley's red turn latches. */
+  latch: MeshLambertMaterial;
+  /** Oven glass, the coffee maker's front, vent slats and plates. */
+  dark: MeshStandardMaterial;
   worktop: MeshStandardMaterial;
   laminate: MeshStandardMaterial;
 }
@@ -61,6 +66,23 @@ function printTexture(): DataTexture {
   return tex;
 }
 
+function brushedTexture(): DataTexture {
+  const size = 128;
+  const grey = brushedTexels(size, 5);
+  // roughness reads the green channel: grey in all three
+  const rgba = new Uint8Array(size * size * 4);
+  for (let i = 0; i < grey.length; i++) rgba.set([grey[i], grey[i], grey[i], 255], i * 4);
+  const tex = new DataTexture(rgba, size, size);
+  tex.colorSpace = NoColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.repeat.set(4, 4); // kit UVs are in metres: a tile is 25 cm of steel
+  tex.minFilter = LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 /** One set for the whole cabin; instance colours carry per-seat state. */
 export function cabinMaterials(): CabinMaterials {
   if (!shared) {
@@ -78,8 +100,10 @@ export function cabinMaterials(): CabinMaterials {
       trackSlot: new MeshLambertMaterial({ color: '#23272e' }),
       curtain: new MeshStandardMaterial({ color: '#1b2541', roughness: 0.95, normalMap: weave, side: DoubleSide }),
       panels: new MeshStandardMaterial({ color: '#e9e6df', roughness: 0.55 }),
-      // satin steel: lit by the cabin light, not a mirror of the dark night sky outside
-      steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.45, metalness: 0.35 }),
+      // brushed satin steel: lit by the cabin light, its streaks breaking the light up — never a flat mirror
+      steel: new MeshStandardMaterial({ color: '#c9ced4', roughness: 0.75, roughnessMap: brushedTexture(), metalness: 0.35 }),
+      latch: new MeshLambertMaterial({ color: '#d8392c' }),
+      dark: new MeshStandardMaterial({ color: '#15181d', roughness: 0.3 }),
       worktop: new MeshStandardMaterial({ color: '#2f343c', roughness: 0.4 }),
       // lavatory doors: a warm grey laminate that separates them from the white walls and galley
       laminate: new MeshStandardMaterial({ color: '#bdb6a9', roughness: 0.6 }),

@@ -10,7 +10,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import context as ctx
-from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, BIN_LATCH, CEILING_Z, COCKPIT_DOOR, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
+from .geometry import (AFT_GALLEY, BACK_DISH, BACK_HALF, BIN, BIN_LATCH, CEILING_Z, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, CUSHION, EXIT_SIGN, FLOOR_Z, GALLEY,
                        GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, X, lavatory_door, lavatory_outline,
                        backrest_depth, backrest_section, bin_door_z, bin_latch, bin_profile, cushion_section, liner_half_width_at)
 
@@ -301,8 +301,10 @@ def _loft(bm, stations, profile):
 
 
 def build_galley():
-    """GalleyPanels (body: lower units, worktop recess, upper units, outer side on the liner), GalleySteel (cart
-    doors, oven fronts, handles), GalleyWorktop — in cabin coordinates, starboard, opposite door 1L."""
+    """GalleyPanels (body: lower units, worktop recess, upper units, outer side on the liner), GalleySteel (cart doors
+    with raised frames and handles, oven doors with handle bars, a coffee maker), GalleyLatches (red turn latches),
+    GalleyDark (oven windows, the coffee maker's front, vent slats, cart number plates), GalleyWorktop — in cabin
+    coordinates, starboard, opposite door 1L."""
     g, gap, iz = GALLEY, 0.02, GALLEY['inner_z']
     recess_top, recess_depth = 0.55, 0.30
     stations = [g['s0'] + (g['s1'] - g['s0']) * k / 6 for k in range(7)]
@@ -317,24 +319,54 @@ def build_galley():
         _loft(bm, stations, profile)
         _sharpen(bm)
 
+    length = g['s1'] - g['s0']
+    cart_w = length / 4 - 0.03
+    cart_h = g['worktop_y'] - 0.04 - (FLOOR_Z + 0.02)
+    cart_z = FLOOR_Z + 0.02 + cart_h / 2
+    carts = [g['s0'] + length * (k + 0.5) / 4 for k in range(4)]          # four full-size carts under the worktop
+    ovens = [g['s0'] + length * (k + 0.75) / 2.5 for k in range(2)]       # two ovens in the upper units
+    oven_y, oven_z, oven_w, oven_h = -(iz + 0.05 - 0.006), 0.95, 0.36, 0.30
+    coffee = (g['s0'] + 0.22, -(iz + recess_depth - 0.13), g['worktop_y'] + 0.19)  # in the worktop recess, at the back
+
     def steel(bm):
-        length = g['s1'] - g['s0']
-        for k in range(4):                                      # four full-size carts under the worktop
-            s = g['s0'] + length * (k + 0.5) / 4
-            h = g['worktop_y'] - 0.04 - (FLOOR_Z + 0.02)
-            _add_box(bm, (length / 4 - 0.03, 0.012, h), Vector((X(s), -(iz - 0.006), FLOOR_Z + 0.02 + h / 2)), 0.004, 1)
-            _add_box(bm, (0.12, 0.02, 0.02), Vector((X(s), -(iz - 0.02), g['worktop_y'] - 0.10)), 0.006, 1)
-        for k in range(2):                                      # ovens / coffee makers in the upper units
-            s = g['s0'] + length * (k + 0.75) / 2.5
-            _add_box(bm, (0.36, 0.012, 0.30), Vector((X(s), -(iz + 0.05 - 0.006), 0.95)), 0.004, 1)
+        for s in carts:
+            _add_box(bm, (cart_w, 0.012, cart_h), Vector((X(s), -(iz - 0.006), cart_z)), 0.004, 1)
+            for dz in (cart_h / 2 - 0.012, -(cart_h / 2 - 0.012)):         # the door's raised frame
+                _add_box(bm, (cart_w - 0.01, 0.008, 0.016), Vector((X(s), -(iz - 0.014), cart_z + dz)), 0.003, 1)
+            for dx in (cart_w / 2 - 0.012, -(cart_w / 2 - 0.012)):
+                _add_box(bm, (0.016, 0.008, cart_h - 0.04), Vector((X(s) + dx, -(iz - 0.014), cart_z)), 0.003, 1)
+            _add_box(bm, (0.14, 0.03, 0.022), Vector((X(s), -(iz - 0.03), g['worktop_y'] - 0.10)), 0.008, 2)  # handle
+        for s in ovens:
+            _add_box(bm, (oven_w, 0.012, oven_h), Vector((X(s), oven_y, oven_z)), 0.004, 1)
+            _add_box(bm, (oven_w - 0.08, 0.03, 0.02), Vector((X(s), oven_y + 0.03, oven_z + oven_h / 2 - 0.035)), 0.008, 2)
+        cx, cy, cz = coffee
+        _add_box(bm, (0.28, 0.24, 0.36), Vector((X(cx), cy, cz)), 0.012, 2)                                  # coffee maker
         _sharpen(bm)
+
+    def latches(bm):
+        for s in carts:                                         # a red turn latch at the top and the foot of each door
+            for dz in (cart_h / 2 - 0.06, -(cart_h / 2 - 0.06)):
+                _add_box(bm, (0.06, 0.016, 0.024), Vector((X(s), -(iz - 0.02), cart_z + dz)), 0, 0)
+        for s in ovens:
+            _add_box(bm, (0.024, 0.016, 0.06), Vector((X(s) + oven_w / 2 - 0.04, oven_y + 0.014, oven_z)), 0, 0)
+
+    def dark(bm):
+        for s in ovens:                                         # the oven's window
+            _add_box(bm, (0.24, 0.004, 0.13), Vector((X(s), oven_y + 0.008, oven_z - 0.03)), 0, 0)
+            for k in range(5):                                  # vent slats over it
+                _add_box(bm, (0.2, 0.004, 0.008), Vector((X(s), -(iz + 0.05 - 0.004), oven_z + oven_h / 2 + 0.05 + k * 0.022)), 0, 0)
+        for s in carts:                                         # the cart's number plate
+            _add_box(bm, (0.07, 0.004, 0.035), Vector((X(s), -(iz - 0.018), cart_z + cart_h / 2 - 0.11)), 0, 0)
+        cx, cy, cz = coffee
+        _add_box(bm, (0.22, 0.004, 0.2), Vector((X(cx), cy + 0.121, cz + 0.04)), 0, 0)                       # its front
 
     def worktop(bm):
         length = g['s1'] - g['s0']
         _add_box(bm, (length, recess_depth + 0.03, 0.03), Vector((X((g['s0'] + g['s1']) / 2), -(iz - 0.03 + (recess_depth + 0.03) / 2), g['worktop_y'] + 0.015)), 0.005, 1)
         _sharpen(bm)
 
-    return [_part('GalleyPanels', panels), _part('GalleySteel', steel), _part('GalleyWorktop', worktop)]
+    return [_part('GalleyPanels', panels), _part('GalleySteel', steel), _part('GalleyLatches', latches), _part('GalleyDark', dark),
+            _part('GalleyWorktop', worktop)]
 
 
 def build_curtain():
@@ -385,7 +417,8 @@ def build_cockpit_door():
         _add_box(bm, (0.03, 0.13, 0.024), Vector((x0 - 0.045, port - 0.13, FLOOR_Z + 1.05)), 0.008, 1)       # lever
         bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.014, radius2=0.012, depth=0.02,
                               matrix=Matrix.Translation((x0 - 0.03, yc, FLOOR_Z + 1.55)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
-        _add_box(bm, (0.006, 0.24, 0.06), Vector((x0 - 0.027, yc, FLOOR_Z + 1.74)), 0.002, 1)                # placard
+        p = COCKPIT_PLACARD                                                             # placard (lettered on the site)
+        _add_box(bm, (0.006, p['w'], p['h']), Vector((x0 - 0.027, yc, p['y'])), 0.002, 1)
         gx = X(d['station'] + 0.12)                                                     # keypad on the galley wall
         _add_box(bm, (0.075, 0.018, 0.12), Vector((gx, -(GALLEY['inner_z'] - 0.009), FLOOR_Z + 1.25)), 0.004, 1)
         _sharpen(bm)
