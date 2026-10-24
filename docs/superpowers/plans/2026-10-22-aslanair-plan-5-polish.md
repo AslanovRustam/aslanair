@@ -61,6 +61,12 @@ Found while executing Plan 4c; fold each into the task that owns it, with a test
 
 - Seen from outside on the way out (post 0.45), faint dark jagged fringes trace the hull's window openings; they were there before the window bezels (compared with the bezels hidden) — find their source.
 - The sky images (`public/images/sky/`, credits in its CREDITS.md) are re-made with `node tools/encode-sky.mjs <eso0932a.jpg> <indianocean_amo_2013070_lrg.jpg>` from the originals; the footer's ESO credit (CC BY 4.0) shows only while the night sky is on screen and is hidden on phones, where How it's made carries it — keep both when the copy changes (Task 7).
+- From Plan 4c's final review (minors, left for this plan):
+  - Each sky image arrives with one long frame: `skyTexture.ts` uploads the 4096×2048 panorama with `initTexture` on the main thread at an arbitrary moment, and its fetch competes with the loader's GLBs. Decode off the thread (`ImageBitmapLoader`, mind its flipY), start the fetch after `ready`, and upload at a quiet moment (Task 1 or Task 6).
+  - `puffLayout` clamps an edge cluster's puffs to ±box/2, piling them on a plane; the shader wraps by cluster, so keep cluster centres within ±(box/2 − spread) instead (the field's faded edge hides it today).
+  - Disposal on remount/HMR only: stand-ins whose image never arrives, the puff atlas, CloudSea's geometry, CurtainPass's quad and trail materials; the curtain clone's NightLights glow texture (64×64) uploads at the first curtain rather than under the loader.
+  - Test gaps: the door-glow e2e also passes against the old quad; 'the first curtain compiles no shader' covers only a pre → pre jump with no phase change (add a seat → Destinations and a Change seat run).
+  - Overlay subscribes to the whole store (`useExperience((s) => s)`) and re-renders every scroll frame (older than 4c; belongs with the per-frame work above).
 
 ---
 
