@@ -32,6 +32,14 @@ body {
 /* the dark on the root only: a body background would paint over layers set behind the canvas (z-index < 0) */
 html {
   background: var(--bg);
+  /* the scrollbar's room stays when Lenis stops the page (sitting down, the curtain): the stage and the shell never
+     jump sideways and the canvas never resizes */
+  scrollbar-gutter: stable;
+}
+
+/* Lenis stops the page with overflow: clip, which scrollbar-gutter ignores; hidden holds it just as still */
+html.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: hidden;
 }
 
 :focus-visible {

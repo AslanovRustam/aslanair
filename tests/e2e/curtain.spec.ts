@@ -263,3 +263,17 @@ test('scrolling stays held through the whole curtain, even when the jump changes
   await page.waitForTimeout(300);
   expect(Math.abs((await progress(page)) - landed), 'the page moved under the curtain').toBeLessThan(0.002);
 });
+
+// Headless Chromium draws no scrollbar, so the layout can't shift here; this holds the CSS that keeps the scrollbar's
+// room on a desktop with classic scrollbars (checked headed: the canvas stays 1425 px wide through a curtain).
+test('the page keeps its scrollbar room while the curtain stops it', async ({ page }) => {
+  await open(page);
+  const root = () => page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    return { gutter: s.scrollbarGutter, overflow: s.overflow };
+  });
+  expect((await root()).gutter).toBe('stable');
+  await rail(page).getByRole('button', { name: /Transfer/ }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
+  expect(await root()).toEqual({ gutter: 'stable', overflow: 'hidden' });
+});
