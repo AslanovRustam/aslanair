@@ -317,32 +317,11 @@ test('ready: the promise lights up word by word, all of it by the end, with opac
   expect(props.every((p) => p === 'transform' || p === 'opacity' || p === 'visibility'), props.join(',')).toBe(true);
 });
 
-test('ready: door 1L glows warm in its doorway as it comes ajar', async ({ page }) => {
-  await open(page);
-  await wheelTo(page, pre('ready', 0.5));
-  await showAt(page, 'ready', 0.9);
-  await page.addStyleTag({ content: 'body > *:not(.stage), nextjs-portal { visibility: hidden !important; }' });
-  await page.waitForTimeout(300);
-  // the door's rectangle on screen, from its outline in the aircraft's frame
-  const door = await page.evaluate(() => {
-    const { scene, camera } = (window as unknown as PageWindow).__aslan;
-    const plane = scene.getObjectByName('Aircraft')!;
-    plane.updateWorldMatrix(true, false);
-    const V = scene.position.constructor;
-    const xs: number[] = [];
-    const ys: number[] = [];
-    for (const [x, y] of [[13.49, -0.4], [14.31, -0.4], [13.49, 1.45], [14.31, 1.45]]) {
-      const p = new V(x, y, -1.79).applyMatrix4(plane.matrixWorld).project(camera);
-      xs.push(((p.x + 1) / 2) * innerWidth);
-      ys.push(((1 - p.y) / 2) * innerHeight);
-    }
-    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
-  });
-  const pad = { x: (door.x1 - door.x0) * 0.8, y: (door.y1 - door.y0) * 0.5 };
-  const clip = { x: door.x0 - pad.x, y: door.y0 - pad.y, width: door.x1 - door.x0 + 2 * pad.x, height: door.y1 - door.y0 + 2 * pad.y };
-  const png = (await page.screenshot({ clip })).toString('base64');
-  const r = await page.evaluate(
-    async ([src, inner]) => {
+/** Mean luminance of a screenshot's pixels around given points (a 5 × 5 patch each), and the light's centroid in a box. */
+async function doorLight(page: Page, ring: { x: number; y: number }[], grown: { x: number; y: number }[], box: { x: number; y: number; width: number; height: number }) {
+  const png = (await page.screenshot({ clip: box })).toString('base64');
+  return page.evaluate(
+    async ([src, ringPts, grownPts, origin]) => {
       const img = new Image();
       img.src = `data:image/png;base64,${src}`;
       await img.decode();
@@ -351,21 +330,70 @@ test('ready: door 1L glows warm in its doorway as it comes ajar', async ({ page 
       const ctx = c.getContext('2d')!;
       ctx.drawImage(img, 0, 0);
       const d = ctx.getImageData(0, 0, c.width, c.height).data;
-      let [inSum, inN, outSum, outN] = [0, 0, 0, 0];
+      const lum = (x: number, y: number) => {
+        const i = (Math.round(y) * c.width + Math.round(x)) * 4;
+        return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      };
+      const patch = (pts: { x: number; y: number }[]) => {
+        let [sum, n] = [0, 0];
+        for (const p of pts)
+          for (let dy = -2; dy <= 2; dy++)
+            for (let dx = -2; dx <= 2; dx++) {
+              const [x, y] = [p.x - origin.x + dx, p.y - origin.y + dy];
+              if (x >= 0 && y >= 0 && x < c.width && y < c.height) [sum, n] = [sum + lum(x, y), n + 1];
+            }
+        return sum / Math.max(1, n);
+      };
+      // the light: what stands out over the box's median
+      const all: number[] = [];
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) all.push(lum(x, y));
+      const median = [...all].sort((p, q) => p - q)[Math.floor(all.length / 2)];
+      let [wx, wy, w] = [0, 0, 0];
       for (let y = 0; y < c.height; y++)
         for (let x = 0; x < c.width; x++) {
-          const i = (y * c.width + x) * 4;
-          const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-          const inside = x >= inner.x && x < inner.x + inner.w && y >= inner.y && y < inner.y + inner.h;
-          if (inside) [inSum, inN] = [inSum + l, inN + 1];
-          else [outSum, outN] = [outSum + l, outN + 1];
+          const e = Math.max(0, all[y * c.width + x] - median);
+          [wx, wy, w] = [wx + e * x, wy + e * y, w + e];
         }
-      return { door: inSum / inN, around: outSum / outN };
+      return { ring: patch(ringPts), grown: patch(grownPts), centroid: { x: origin.x + wx / w, y: origin.y + wy / w } };
     },
-    [png, { x: pad.x, y: pad.y, w: door.x1 - door.x0, h: door.y1 - door.y0 }] as const,
+    [png, ring, grown, { x: box.x, y: box.y }] as const,
   );
-  console.log('doorway glow', JSON.stringify(r));
-  expect(r.door - r.around).toBeGreaterThanOrEqual(20);
+}
+
+test("door 1L's warm light hugs its outline from every angle of the approach", async ({ page }) => {
+  await open(page);
+  await wheelTo(page, pre('ready', 0.5));
+  // the scene alone: the page's words, the grid behind the see-through canvas and the dev badge would count as light
+  await page.addStyleTag({ content: 'body > *:not(.stage), nextjs-portal, [data-testid="grid"] { visibility: hidden !important; }' });
+  for (const [id, t] of [['ready', 0.9], ['door', 0.08], ['door', 0.16]] as const) {
+    await showAt(page, id as 'ready', t);
+    await page.waitForTimeout(400);
+    // the door's outline on the skin: its painted seam, projected to the screen
+    const seam = await page.evaluate(() => {
+      const { scene, camera } = (window as unknown as PageWindow).__aslan;
+      const ring = scene.getObjectByName('Door1LSeam')!;
+      ring.updateWorldMatrix(true, false);
+      const pos = ring.geometry!.attributes.position;
+      const V = scene.position.constructor;
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i < pos.count; i += 2) {
+        const p = new V(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(ring.matrixWorld).project(camera);
+        pts.push({ x: ((p.x + 1) / 2) * innerWidth, y: ((1 - p.y) / 2) * innerHeight });
+      }
+      return pts;
+    });
+    const xs = seam.map((p) => p.x);
+    const ys = seam.map((p) => p.y);
+    const centre = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+    const size = { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    // ~0.35 m outside the outline: 40 % further from the door's centre than the seam
+    const grown = seam.map((p) => ({ x: centre.x + (p.x - centre.x) * 1.4, y: centre.y + (p.y - centre.y) * 1.4 }));
+    const box = { x: Math.round(centre.x - size.w), y: Math.round(centre.y - size.h * 0.9), width: Math.round(size.w * 2), height: Math.round(size.h * 1.8) };
+    const r = await doorLight(page, seam, grown, box);
+    console.log(`door light at ${id} ${t}`, JSON.stringify({ ring: r.ring.toFixed(1), grown: r.grown.toFixed(1), centroid: r.centroid, centre }));
+    expect(r.ring - r.grown, `${id} ${t}: the light hugs the outline`).toBeGreaterThanOrEqual(15);
+    expect(Math.abs(r.centroid.x - centre.x), `${id} ${t}: centred on the door`).toBeLessThanOrEqual(0.12 * size.w);
+  }
 });
 
 type PassWindow = {

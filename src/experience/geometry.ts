@@ -38,7 +38,7 @@ export function sideOf(letter: SeatLetter): -1 | 1 {
   return SEAT_Z[letter] < 0 ? -1 : 1;
 }
 
-export const WINDOW = { y: 0.62, firstStation: 6.55, pitch: 0.533, lastStation: 29.0, w: 0.23, h: 0.33 } as const;
+export const WINDOW = { y: 0.62, firstStation: 6.55, pitch: 0.533, lastStation: 29.0, w: 0.23, h: 0.33, r: 0.09 } as const;
 
 export function windowStations(): number[] {
   const out: number[] = [];
@@ -73,6 +73,8 @@ export const DOOR_1L = {
   y: 0.525, // centre: sill −0.40 + height / 2
   width: 0.82,
   height: 1.85,
+  /** The rounded corners' radius. */
+  radius: 0.15,
   side: -1,
   hinge: [14.31, 0.525, -1.7932] as [number, number, number],
   open: { outward: 0.35, forward: 1.0 },

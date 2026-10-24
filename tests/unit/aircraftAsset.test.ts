@@ -27,6 +27,11 @@ describe('aircraft asset ↔ site constants', () => {
     expect(meta.window).toMatchObject({ y: WINDOW.y, firstStation: WINDOW.firstStation, pitch: WINDOW.pitch, lastStation: WINDOW.lastStation });
   });
 
+  test('the rounded corners of door 1L and the windows match geometry.ts (the door light and the bezels follow them)', () => {
+    expect(meta.door1L.radius).toBeCloseTo(DOOR_1L.radius, 6);
+    expect(meta.window.r).toBeCloseTo(WINDOW.r, 6);
+  });
+
   test('night lights sit at the wing tips, the tail and on the fuselage, matching geometry.ts', () => {
     expect(Object.keys(meta.lights).sort()).toEqual(Object.keys(NIGHT_LIGHTS).sort());
     for (const [name, at] of Object.entries(NIGHT_LIGHTS)) {

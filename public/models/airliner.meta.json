@@ -2831,6 +2831,7 @@
       "outward": 0.35
     },
     "panelMaxHalfWidth": 1.9603,
+    "radius": 0.15,
     "sillY": -0.4,
     "station": 4.9,
     "width": 0.82
@@ -2886,6 +2887,7 @@
     "h": 0.33,
     "lastStation": 29.0,
     "pitch": 0.533,
+    "r": 0.09,
     "w": 0.23,
     "y": 0.62
   }
