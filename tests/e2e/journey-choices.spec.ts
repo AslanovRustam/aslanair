@@ -205,18 +205,80 @@ for (const viewport of [
     const margin = 8; // the plane's slow idle sway
     const plane = { x: b.x0 * viewport.width - margin, y: b.y0 * viewport.height - margin, width: (b.x1 - b.x0) * viewport.width + 2 * margin, height: (b.y1 - b.y0) * viewport.height + 2 * margin };
     const cards = await page.getByRole('radio').evaluateAll((els) =>
-      els.map((e) => ({ ...(e.getBoundingClientRect().toJSON() as { x: number; y: number; width: number; height: number }), clipped: e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1 })),
+      els.map((e) => {
+        const name = e.querySelector('[data-part="strip-name"]')!.getBoundingClientRect();
+        const box = e.getBoundingClientRect();
+        return {
+          ...(box.toJSON() as { x: number; y: number; width: number; height: number }),
+          open: e.getAttribute('aria-checked') === 'true',
+          clipped: e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1,
+          nameInside: name.left >= box.left - 1 && name.right <= box.right + 1 && name.top >= box.top - 1 && name.bottom <= box.bottom + 1,
+        };
+      }),
     );
     const footer = 44;
     for (const [i, c] of cards.entries()) {
       expect(overlaps(c, plane), `card ${i} vs plane`).toBe(false);
       expect(c.x >= 0 && c.x + c.width <= viewport.width && c.y + c.height <= viewport.height - footer, `card ${i} on screen`).toBe(true);
-      expect(c.height, `card ${i} tall enough to tap`).toBeGreaterThanOrEqual(44);
-      expect(c.clipped, `card ${i} text in full`).toBe(false);
+      expect(Math.min(c.width, c.height), `card ${i} big enough to tap`).toBeGreaterThanOrEqual(44);
+      if (c.open) expect(c.clipped, `the open card ${i} reads in full`).toBe(false);
+      else expect(c.nameInside, `strip ${i} shows its whole name`).toBe(true);
       for (let j = i + 1; j < cards.length; j++) expect(overlaps(c, cards[j]), `cards ${i}/${j}`).toBe(false);
     }
   });
 }
+
+const width = (page: Page, name: RegExp) => page.getByRole('radio', { name }).evaluate((e) => e.getBoundingClientRect().width);
+
+test('hovering a strip opens it; leaving shows the chosen one again', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await toTransfer(page);
+  await page.waitForTimeout(700);
+  await page.getByRole('radio', { name: /From home/ }).hover();
+  await page.waitForTimeout(700);
+  expect(await width(page, /From home/)).toBeGreaterThan(2 * (await width(page, /From your hotel/)));
+  await page.mouse.move(1000, 760);
+  await page.waitForTimeout(700);
+  const own = await width(page, /On my own/);
+  for (const other of [/From home/, /From your hotel/, /Airport express/]) expect(own).toBeGreaterThan(await width(page, other));
+});
+
+test('the chosen card shows its price, its times and Selected', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await toTransfer(page);
+  await page.waitForTimeout(700);
+  const home = page.getByRole('radio', { name: /From home/ });
+  await home.click();
+  await page.mouse.move(1000, 760);
+  await page.waitForTimeout(700);
+  // tonight's pick, Lisbon, departs 22:40
+  for (const text of ['$24', '19:40', '20:40', '22:40']) await expect(home).toContainText(text);
+  await expect(page.getByText('Selected ✓', { exact: true })).toBeVisible();
+  const own = page.getByRole('radio', { name: /On my own/ });
+  await own.click();
+  await page.mouse.move(1000, 760);
+  await page.waitForTimeout(700);
+  await expect(own).toContainText('Free');
+  await expect(own).toContainText('22:00');
+});
+
+test.describe('transfer on a phone', () => {
+  test.use({ viewport: { width: 412, height: 915 }, hasTouch: true });
+
+  test('the cards stack in order and the chosen one is the tallest', async ({ page }) => {
+    await toTransfer(page);
+    await page.waitForTimeout(700);
+    const boxes = () => page.getByRole('radio').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as { y: number; height: number }));
+    const before = await boxes();
+    for (let i = 1; i < before.length; i++) expect(before[i].y).toBeGreaterThan(before[i - 1].y);
+    await page.getByRole('radio', { name: /From your hotel/ }).tap();
+    await page.waitForTimeout(700);
+    expect(await transfer(page)).toBe('hotel');
+    const after = await boxes();
+    expect(after[1].height).toBe(Math.max(...after.map((b) => b.height)));
+    expect(after[1].height).toBeGreaterThan(after[0].height * 2);
+  });
+});
 
 /** Puts the scroll position straight into the store (exact, unlike the wheel) and lets two frames draw it. */
 async function showAt(page: Page, id: 'ready', t: number) {

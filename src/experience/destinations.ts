@@ -45,18 +45,51 @@ export const SUGGESTED = 'LIS';
 
 export type TransferId = 'home' | 'hotel' | 'express' | 'own';
 
-/** Ways to the airport, free; the pick-up counts back from departure (none when the visitor gets there alone). */
-export const TRANSFERS: { id: TransferId; minutesBefore: number | null }[] = [
-  { id: 'home', minutesBefore: 180 },
-  { id: 'hotel', minutesBefore: 150 },
-  { id: 'express', minutesBefore: 120 },
-  { id: 'own', minutesBefore: null },
+/**
+ * Ways to the airport (spec r4 §6): the pick-up counts back from departure and the ride takes `rideMinutes` (none when
+ * the visitor gets there alone); each has its price, shown on its card only — no total anywhere.
+ */
+export const TRANSFERS: { id: TransferId; minutesBefore: number | null; rideMinutes: number | null; priceUsd: number }[] = [
+  { id: 'home', minutesBefore: 180, rideMinutes: 60, priceUsd: 24 },
+  { id: 'hotel', minutesBefore: 150, rideMinutes: 45, priceUsd: 18 },
+  { id: 'express', minutesBefore: 120, rideMinutes: 40, priceUsd: 9 },
+  { id: 'own', minutesBefore: null, rideMinutes: null, priceUsd: 0 },
 ];
+
+/** Check-in closes this many minutes before departure. */
+export const CHECK_IN_CLOSES = 40;
 
 export const DEFAULT_TRANSFER: TransferId = 'own';
 
 export function destination(code: string): Destination | undefined {
   return DESTINATIONS.find((d) => d.code === code);
+}
+
+export type TimelineKind = 'pickup' | 'airport' | 'own' | 'checkin' | 'departs';
+
+/**
+ * The visitor's evening for a transfer: pick-up, at the airport, departure; on their own, no pick-up — they make
+ * their way, check-in closes, departure.
+ */
+export function transferTimeline(departs: string, id: TransferId): { kind: TimelineKind; time: string | null }[] {
+  const t = TRANSFERS.find((x) => x.id === id)!;
+  if (t.minutesBefore === null || t.rideMinutes === null) {
+    return [
+      { kind: 'own', time: null },
+      { kind: 'checkin', time: pickupTime(departs, CHECK_IN_CLOSES) },
+      { kind: 'departs', time: departs },
+    ];
+  }
+  return [
+    { kind: 'pickup', time: pickupTime(departs, t.minutesBefore) },
+    { kind: 'airport', time: pickupTime(departs, t.minutesBefore - t.rideMinutes) },
+    { kind: 'departs', time: departs },
+  ];
+}
+
+/** The card's big time: the pick-up, or check-in closing on your own. */
+export function transferHeadline(departs: string, id: TransferId): string {
+  return transferTimeline(departs, id).find((s) => s.time !== null)!.time!;
 }
 
 /** 'HH:MM' that many minutes before `departs`, wrapping past midnight. */

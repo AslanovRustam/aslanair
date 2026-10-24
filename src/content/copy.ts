@@ -71,7 +71,7 @@ export const copy = {
   },
   transfer: {
     title: 'How will you get to the airport?', // pinned
-    lead: 'Free with every ticket. Times count back from your departure.',
+    lead: 'Times count back from your departure.',
     options: { home: 'From home', hotel: 'From your hotel', express: 'Airport express', own: 'On my own' },
     lines: {
       home: 'A car at your door, three hours before take-off.',
@@ -79,8 +79,10 @@ export const copy = {
       express: 'A reserved seat on the airport train.',
       own: 'Make your own way; check-in closes 40 minutes before.',
     },
-    pickup: (time: string) => `Pick-up ${time}`,
-    noPickup: 'No pick-up',
+    price: (usd: number) => (usd === 0 ? 'Free' : `$${usd}`),
+    timeline: { pickup: 'Pick-up', airport: 'At the airport', own: 'On your own', checkin: 'Check-in closes', departs: 'Departs' },
+    selected: 'Selected ✓',
+    choose: 'Choose ↗',
   },
   ready: {
     title: 'Ready to choose your seat?',

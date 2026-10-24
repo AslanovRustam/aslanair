@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DEFAULT_TRANSFER, DESTINATIONS, HOME, pickupTime, SUGGESTED, TRANSFERS } from '@/experience/destinations';
+import { DEFAULT_TRANSFER, DESTINATIONS, HOME, pickupTime, SUGGESTED, transferHeadline, transferTimeline, TRANSFERS } from '@/experience/destinations';
 
 const minutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -53,5 +53,33 @@ describe('transfers', () => {
     expect(pickupTime('22:40', 180)).toBe('19:40');
     expect(pickupTime('00:30', 180)).toBe('21:30');
     expect(pickupTime('01:05', 65)).toBe('00:00');
+  });
+});
+
+describe('transfer prices and the evening', () => {
+  test('a car from home is $24, from the hotel $18, the express $9, and on your own is free', () => {
+    expect(Object.fromEntries(TRANSFERS.map((t) => [t.id, t.priceUsd]))).toEqual({ home: 24, hotel: 18, express: 9, own: 0 });
+  });
+
+  test('with a ride the evening runs pick-up, the airport, departure', () => {
+    expect(transferTimeline('22:40', 'home')).toEqual([
+      { kind: 'pickup', time: '19:40' },
+      { kind: 'airport', time: '20:40' },
+      { kind: 'departs', time: '22:40' },
+    ]);
+    expect(transferTimeline('00:20', 'express').map((s) => s.time)).toEqual(['22:20', '23:00', '00:20']);
+  });
+
+  test('on your own there is no pick-up: you make your way, check-in closes 40 minutes before', () => {
+    expect(transferTimeline('22:40', 'own')).toEqual([
+      { kind: 'own', time: null },
+      { kind: 'checkin', time: '22:00' },
+      { kind: 'departs', time: '22:40' },
+    ]);
+  });
+
+  test('the headline time is the pick-up, or check-in closing on your own', () => {
+    expect(transferHeadline('22:40', 'hotel')).toBe('20:10');
+    expect(transferHeadline('22:40', 'own')).toBe('22:00');
   });
 });
