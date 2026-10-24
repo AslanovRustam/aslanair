@@ -35,6 +35,9 @@ describe('the night sky images', () => {
     const items = copy.outro.howItsMade.items.join('\n');
     expect(items).toContain('ESO/S. Brunier');
     expect(items).toContain('CC BY 4.0');
+    // CC BY 4.0 asks a changed work to say so
+    expect(items).toContain('ESO/S. Brunier (CC BY 4.0), adapted');
+    expect(copy.footer.sky.line).toMatch(/adapted/);
     expect(items).toContain('Jeff Schmaltz');
   });
 });

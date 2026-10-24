@@ -39,10 +39,12 @@ function placardFace(): CanvasTexture {
   ctx.fillStyle = '#f2efe8';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  // a wider system font is squeezed to the plate rather than cut off at its edges
+  const fit = canvas.width * 0.92;
   ctx.font = '800 92px system-ui, sans-serif';
-  ctx.fillText(lines[0], canvas.width / 2, canvas.height * 0.38);
+  ctx.fillText(lines[0], canvas.width / 2, canvas.height * 0.38, fit);
   ctx.font = '600 50px system-ui, sans-serif';
-  ctx.fillText(lines[1], canvas.width / 2, canvas.height * 0.78);
+  ctx.fillText(lines[1], canvas.width / 2, canvas.height * 0.78, fit);
   const tex = new CanvasTexture(canvas);
   tex.colorSpace = SRGBColorSpace;
   tex.anisotropy = 8;

@@ -127,7 +127,7 @@ export const copy = {
         'The airliner is built from code — a Python script drives Blender.',
         "The sky is ESO's Milky Way panorama; the clouds are a NASA photograph of a cloud deck and moonlit sprites, live in WebGL.",
         'Every seat is a real 3D object you can pick.',
-        'Image credits: the Milky Way panorama is ESO/S. Brunier (CC BY 4.0); the cloud deck is a NASA image courtesy Jeff Schmaltz, LANCE MODIS Rapid Response.',
+        'Image credits: the Milky Way panorama is ESO/S. Brunier (CC BY 4.0), adapted; the cloud deck is a NASA image courtesy Jeff Schmaltz, LANCE MODIS Rapid Response, adapted.',
       ],
     },
   },
@@ -143,7 +143,7 @@ export const copy = {
     disclaimer: 'AslanAir is a fictional airline — a concept project.',
     /** Shown while the night sky is on screen: its panorama's credit and licence (CC BY 4.0 asks for both). */
     sky: {
-      line: 'Milky Way: ESO/S. Brunier',
+      line: 'Milky Way: ESO/S. Brunier, adapted',
       href: 'https://www.eso.org/public/images/eso0932a/',
       licence: 'CC BY 4.0',
       licenceHref: 'https://creativecommons.org/licenses/by/4.0/',
