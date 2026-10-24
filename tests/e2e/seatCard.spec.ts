@@ -144,7 +144,7 @@ test('touch on a browser whose click is a plain MouseEvent still takes two taps'
   const tap = (x: number, y: number) =>
     page.evaluate(
       ([cx, cy]) => {
-        const canvas = document.querySelector('canvas')!;
+        const canvas = document.querySelector('.stage canvas')!;
         const at = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, isPrimary: true, pointerId: 7 };
         canvas.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'touch' }));
         canvas.dispatchEvent(new PointerEvent('pointerup', { ...at, pointerType: 'touch' }));

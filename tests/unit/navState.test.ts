@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { trackProgress } from '@/experience/chapters';
-import { navItems, railItems } from '@/experience/navState';
+import { navItems, railItems, transitionLabel } from '@/experience/navState';
 
 const item = <T extends { id: string }>(items: T[], id: string) => items.find((i) => i.id === id)!;
 
@@ -76,5 +76,20 @@ describe('chapter rail', () => {
     const after = railItems('confirmed', 'exit');
     for (const id of ['flight', 'destinations', 'transfer', 'boarding', 'cabin']) expect(item(after, id)).toMatchObject({ enabled: false });
     expect(item(after, 'takeoff')).toMatchObject({ enabled: true, active: true, target: { track: 'post', progress: trackProgress('post', 'exit', 0) } });
+  });
+});
+
+describe('the label of a chapter jump', () => {
+  test('a jump names its chapter with the rail number, and knows the heading to focus', () => {
+    expect(transitionLabel('destinations', 'browse')).toEqual({ number: '02', name: 'Destinations', heading: 'destinations' });
+    expect(transitionLabel('boarding', 'browse')).toMatchObject({ number: '04', heading: 'ready' });
+    expect(transitionLabel('cta', 'browse')).toMatchObject({ number: '05', name: 'Cabin', heading: 'aisle' });
+    expect(transitionLabel('change', 'confirmed')).toMatchObject({ number: '05', heading: 'aisle' });
+    expect(transitionLabel('restart', 'thanks')).toMatchObject({ number: '01', name: 'Flight', heading: 'sky' });
+  });
+
+  test('your seat lands on the aisle before a seat is confirmed, on the pass after', () => {
+    expect(transitionLabel('seat', 'browse')).toMatchObject({ number: '06', heading: 'aisle' });
+    expect(transitionLabel('pass', 'confirmed')).toMatchObject({ number: '06', heading: 'pass' });
   });
 });

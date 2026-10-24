@@ -91,6 +91,26 @@ test('the night flight holds 45 fps — the journey, the door, the cabin, the se
   await measure('aisle');
   await setProgress(page, 1);
   await measure('aisle-end');
+  // the curtain: from the aisle's end to Destinations, every frame from the click until the curtain has lifted
+  const curtain = page.evaluate(
+    () =>
+      new Promise<{ median: number; mean: number }>((resolve) => {
+        const deltas: number[] = [];
+        let last = performance.now();
+        let started = false;
+        const tick = (t: number) => {
+          deltas.push(t - last);
+          last = t;
+          const on = !!document.documentElement.dataset.curtain;
+          started ||= on;
+          if (started && !on) resolve({ median: [...deltas].sort((a, b) => a - b)[Math.floor(deltas.length / 2)], mean: deltas.reduce((s, d) => s + d, 0) / deltas.length });
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  await page.getByRole('navigation', { name: 'Chapters' }).getByRole('button', { name: /Destinations/ }).click();
+  report['curtain'] = await curtain;
   await page.evaluate(() => {
     const s = (window as unknown as StoreWindow).__aslan.store.getState();
     s.seats.find((x) => x.id === '14F')!.status = 'free';

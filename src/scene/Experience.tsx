@@ -10,6 +10,7 @@ import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
+import Curtain from '@/ui/Curtain';
 import Destinations from '@/ui/Destinations';
 import GridBackdrop from '@/ui/GridBackdrop';
 import Ready from '@/ui/Ready';
@@ -29,6 +30,7 @@ import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
+import CurtainPass from './CurtainPass';
 import Globe from './globe/Globe';
 import GlobeLabels from './globe/GlobeLabels';
 import GlobeSpin from './globe/GlobeSpin';
@@ -51,7 +53,7 @@ function hasWebGL2(): boolean {
 
 /**
  * Feeds the loader: drei's loading progress, then `ready` once every part has compiled and shown (the cabin, the
- * aircraft, the globe) and two frames have drawn them (under the loader) — by then nothing is left to stall the
+ * aircraft, the globe, the curtain) and two frames have drawn them (under the loader) — by then nothing is left to stall the
  * first screen or the journey.
  */
 function LoadTracker({ parts }: { parts: RefObject<boolean>[] }) {
@@ -95,6 +97,10 @@ export default function Experience() {
   const onGlobeShown = useCallback(() => {
     globeShown.current = true;
   }, []);
+  const curtainCompiled = useRef(false);
+  const onCurtainCompiled = useCallback(() => {
+    curtainCompiled.current = true;
+  }, []);
 
   useEffect(() => installTestHooks(), []);
   useEffect(() => {
@@ -119,7 +125,7 @@ export default function Experience() {
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
           <SceneTestHook />
-          <LoadTracker parts={[cabinShown, aircraftCompiled, globeShown]} />
+          <LoadTracker parts={[cabinShown, aircraftCompiled, globeShown, curtainCompiled]} />
           <CameraRig />
           <SkyAndClouds />
           <Suspense fallback={null}>
@@ -127,6 +133,7 @@ export default function Experience() {
               <CabinFurnishing onShown={onCabinShown} />
               <SeatCard />
             </Aircraft>
+            <CurtainPass onCompiled={onCurtainCompiled} />
           </Suspense>
           <CompileAsync onShown={onGlobeShown}>
             <Globe />
@@ -142,6 +149,7 @@ export default function Experience() {
       <Transfer />
       <Ready />
       <Overlay />
+      <Curtain />
       <Shell />
       <Outro />
     </>

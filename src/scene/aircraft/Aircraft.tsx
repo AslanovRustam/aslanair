@@ -34,12 +34,12 @@ import { experienceStore, trackOf } from '@/experience/store';
 import { pointInsideFuselage } from '@/experience/worldState';
 import NightLights from './NightLights';
 
-const MODEL_URL = '/models/airliner.glb';
+export const MODEL_URL = '/models/airliner.glb';
 /** The cabin shell, floor and skirting: inside the hull, so they never cast sun shadows. */
 const INTERIOR = /^Cabin/;
 /** Night look: the fin's livery lit by its floodlight, and the cabin's warm light seen through the windows. */
 const FIN_FLOODLIGHT = 0.35;
-const WINDOW_GLOW = { color: '#ffcf8a', intensity: 0.6 };
+export const WINDOW_GLOW = { color: '#ffcf8a', intensity: 0.6 };
 /** Waiting for the transfer it sways on its own, this far either way over this long (s): slow, still at the ends. */
 const SWAY = { angle: (3 * Math.PI) / 180, period: 12 };
 /**

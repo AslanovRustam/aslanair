@@ -52,6 +52,17 @@ html {
   pointer-events: none;
 }
 
+/* While a chapter jump runs under the curtain (transition.ts sets data-curtain), the chapters' words and controls
+   step aside — the site's frame stays — and are hidden outright while the screen is covered. */
+html[data-curtain] .chapter-ui {
+  opacity: 0 !important;
+  transition: opacity 0.25s ease !important;
+}
+
+html[data-curtain='covered'] .chapter-ui {
+  visibility: hidden !important;
+}
+
 .fallback {
   max-width: 36rem;
   margin: 30vh auto 0;

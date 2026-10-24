@@ -41,8 +41,10 @@ test('see-through glass lets the sun into the cabin; the hull still casts shadow
   await page.waitForTimeout(300);
   const shadows = await page.evaluate(() => {
     type Node = { name: string; isMesh?: boolean; castShadow: boolean; material?: { transparent: boolean } };
+    type Scene = { getObjectByName(n: string): { traverse(f: (o: Node) => void): void } };
     const out: Record<string, boolean> = {};
-    (window as unknown as { __aslan: { scene: { traverse(f: (o: Node) => void): void } } }).__aslan.scene.traverse((o) => {
+    // the aircraft itself (the curtain's clone of it flies on its own layer, never in the sun's shadow pass)
+    (window as unknown as { __aslan: { scene: Scene } }).__aslan.scene.getObjectByName('Aircraft')!.traverse((o) => {
       if (o.isMesh && (o.material!.transparent || o.name.startsWith('Fuselage'))) out[o.name] = o.castShadow;
     });
     return out;

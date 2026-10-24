@@ -136,7 +136,8 @@ test('resizing at the top keeps the live plane where the picture puts it', async
   await page.goto('/');
   await waitForStore(page);
   await isReady(page);
-  await page.addStyleTag({ content: 'nextjs-portal, [data-testid="hero"] { display: none !important; }' });
+  // the plane alone: the hero's words and the grid's lines behind it would count as plane
+  await page.addStyleTag({ content: 'nextjs-portal, [data-testid="hero"], [data-testid="grid"] { display: none !important; }' });
   await page.setViewportSize({ width: 1180, height: 860 });
   // framing, not lights: the blinking beacon's halo would come and go above the hull
   await page.evaluate(() => {

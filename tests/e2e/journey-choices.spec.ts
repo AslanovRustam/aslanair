@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
-import { TRACKS } from '@/experience/chapters';
 import { DESTINATIONS } from '@/experience/destinations';
 import { GLOBE } from '@/experience/globe';
 import { aircraftStage, projectedBox } from '@/experience/stage';
@@ -417,52 +416,33 @@ test('the pass carries the route, the flight and the transfer; once confirmed th
   await expect(page.getByTestId('hero')).toBeVisible();
 });
 
-/** The plane's outline in its own frame (as in stage.ts), to follow it on screen frame by frame. */
-const OUTLINE = [
-  [18.8, -0.2, 0], [-19, 0.9, 0], [-15.6, 7.8, 0], [-4, 2.3, -17.84], [-4, 2.3, 17.84],
-  [-16.5, 1.1, -6.21], [-16.5, 1.1, 6.21], [4.5, -3.48, -5.75], [4.5, -3.48, 5.75], [0, 2.1, 0], [0, -2.04, 0],
-];
-
-/** Starts recording, every frame: the scroll position and the plane's visible box on screen (cut to the frame). */
+/** Starts recording, every frame: the scroll position and the curtain's stage. */
 const record = (page: Page) =>
-  page.evaluate((outline) => {
-    type W = PageWindow & { __frames: { p: number; box: number[] | null }[]; __recording: boolean };
+  page.evaluate(() => {
+    type W = PageWindow & { __frames: { p: number; curtain: string }[]; __recording: boolean };
     const w = window as unknown as W;
     w.__frames = [];
     w.__recording = true;
-    const { scene, camera, store } = w.__aslan;
-    const plane = scene.getObjectByName('Aircraft')!;
-    const V = scene.position.constructor;
     const tick = () => {
-      plane.updateWorldMatrix(true, false);
-      const pts = outline.map(([x, y, z]) => new V(x, y, z).applyMatrix4(plane.matrixWorld).project(camera));
-      const front = pts.filter((q) => q.z < 1);
-      let box: number[] | null = null;
-      if (front.length === pts.length) {
-        const xs = front.map((q) => Math.min(1, Math.max(0, (q.x + 1) / 2)));
-        const ys = front.map((q) => Math.min(1, Math.max(0, (1 - q.y) / 2)));
-        const b = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-        if (b[2] > b[0] && b[3] > b[1]) box = b;
-      }
-      w.__frames.push({ p: store.getState().progress, box });
+      w.__frames.push({ p: w.__aslan.store.getState().progress, curtain: document.documentElement.dataset.curtain ?? '' });
       if (w.__recording) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
-  }, OUTLINE);
+  });
 
 const stopRecording = (page: Page) =>
   page.evaluate(() => {
-    const w = window as unknown as { __frames: { p: number; box: number[] | null }[]; __recording: boolean };
+    const w = window as unknown as { __frames: { p: number; curtain: string }[]; __recording: boolean };
     w.__recording = false;
     return w.__frames;
   });
 
-test('a header jump from the aisle to Destinations and back moves the plane on screen without a jump', async ({ page }) => {
+test('a header jump to Destinations and back happens under the curtain', async ({ page }) => {
   await open(page);
   const header = page.getByRole('navigation', { name: 'Sections' });
   await header.getByRole('button', { name: 'Cabin' }).click();
   await expect.poll(() => progress(page), { timeout: 10_000 }).toBeGreaterThan(pre('aisle', 0) - 0.001);
-  await page.waitForTimeout(800);
+  await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 5000 });
   for (const [to, until] of [
     ['Destinations', () => progress(page).then((p) => Math.abs(p - pre('destinations', 0.4)) < 0.002)],
     ['Cabin', () => progress(page).then((p) => p >= pre('aisle', 0) - 0.001)],
@@ -470,26 +450,16 @@ test('a header jump from the aisle to Destinations and back moves the plane on s
     await record(page);
     await header.getByRole('button', { name: to }).click();
     await expect.poll(until, { timeout: 15_000 }).toBe(true);
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 5000 });
     const frames = await stopRecording(page);
-    // outside the cabin only: inside it the plane's outline surrounds the camera
-    const outside = (p: number) => p < pre('door', 0.3);
-    // a fast scroll moves it far in a frame; a jump would move it far for little scroll: judge the move per vh
-    // scrolled (at least one), as the unit tests do — 2.73 %/vh — with room for the frame sampling
-    const trackVh = TRACKS.pre.reduce((sum, c) => sum + c.heightVh, 0);
-    let worst = 0;
-    let at = '';
-    let shown = 0;
+    // the visitor never sees the page move: every jump of the scroll is behind the closed curtain
+    let jumps = 0;
     for (let i = 1; i < frames.length; i++) {
-      const [a, b] = [frames[i - 1], frames[i]];
-      if (!outside(a.p) || !outside(b.p) || !a.box || !b.box) continue;
-      shown++;
-      const moved = Math.max(...a.box.map((v, k) => Math.abs(v - b.box![k]))) / Math.max(1, Math.abs(b.p - a.p) * trackVh);
-      if (moved > worst) [worst, at] = [moved, `${a.p.toFixed(4)} → ${b.p.toFixed(4)}: ${a.box.map((v) => v.toFixed(2))} → ${b.box.map((v) => v.toFixed(2))}`];
+      if (Math.abs(frames[i].p - frames[i - 1].p) <= 0.005) continue;
+      jumps++;
+      expect(frames[i].curtain, `${to}: frame ${i}, ${frames[i - 1].p.toFixed(3)} → ${frames[i].p.toFixed(3)}`).toBe('covered');
     }
-    console.log(`${to}: ${frames.length} frames, worst ${(worst * 100).toFixed(2)} %/vh at ${at}`);
-    expect(shown, `${to}: the plane was on screen on the way`).toBeGreaterThan(5);
-    expect(worst, `${to}: largest move per vh scrolled`).toBeLessThan(0.06);
+    expect(jumps, `${to}: it jumped`).toBeGreaterThan(0);
   }
 });
 

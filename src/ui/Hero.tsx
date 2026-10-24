@@ -92,7 +92,7 @@ export default function Hero() {
       <div className={styles.back} style={{ visibility: gone ? 'hidden' : 'visible' }}>
         <Title text={t.title} scatter={scatter} />
       </div>
-      <div className={styles.front}>
+      <div className={`${styles.front} chapter-ui`}>
         <ScrollCue label={t.scroll} className={styles.scroll} />
       </div>
     </section>

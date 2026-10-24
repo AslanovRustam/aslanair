@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
-import { navItems, railItems, type NavTarget } from '@/experience/navState';
+import { navItems, railItems, transitionLabel, type NavTarget, type TransitionId } from '@/experience/navState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import HowItsMade, { AuthorCredit, onOpenHowItsMade } from './HowItsMade';
 import styles from './shell.module.css';
+import { transitionTo } from './transition';
 
 /** The fin's sun over the horizon: a disc cut by two bands. */
 function Emblem() {
@@ -54,7 +55,12 @@ export default function Shell() {
     return () => window.removeEventListener('keydown', onKey);
   }, [menu]);
 
-  const go = (target: NavTarget, from: HTMLElement) => {
+  /**
+   * A header or rail click, or the call to action. How it's made opens its panel; a jump to another chapter passes
+   * under the curtain (spec r4 §7) — except take-off, which keeps its flight to the window, and the chapter the
+   * visitor is already in, which just scrolls there.
+   */
+  const go = (id: TransitionId | 'made' | 'takeoff', target: NavTarget, active: boolean, from: HTMLElement) => {
     if (target === 'panel') {
       setMenu(false);
       setOpener(from);
@@ -63,10 +69,14 @@ export default function Shell() {
     if (!target) return;
     setMenu(false);
     if (target === 'stay') return;
-    const s = experienceStore.getState();
-    if (s.phase === 'seated' && target.track === 'pre') s.standUp();
-    // after the stand-up has re-rendered the track
-    requestAnimationFrame(() => scrollToProgress(target.progress, false));
+    const jump = (immediate: boolean) => () => {
+      const s = experienceStore.getState();
+      if (s.phase === 'seated' && target.track === 'pre') s.standUp();
+      // after the stand-up has re-rendered the track
+      requestAnimationFrame(() => scrollToProgress(target.progress, immediate));
+    };
+    if (id === 'takeoff' || id === 'made' || active) jump(false)();
+    else transitionTo(transitionLabel(id, phase), jump(true));
   };
 
   const links = (className: string) =>
@@ -77,7 +87,7 @@ export default function Shell() {
           className={className}
           disabled={!item.enabled}
           aria-current={item.active ? 'location' : undefined}
-          onClick={(e) => go(item.target, e.currentTarget)}
+          onClick={(e) => go(item.id, item.target, item.active, e.currentTarget)}
         >
           {item.label}
         </button>
@@ -98,7 +108,7 @@ export default function Shell() {
           {/* the sound toggle lands here (Plan 5) */}
           <span className={styles.slot} data-slot="sound" />
           {phase === 'browse' && (
-            <button type="button" className={styles.cta} onClick={(e) => go(aisle, e.currentTarget)}>
+            <button type="button" className={styles.cta} onClick={(e) => go('cta', aisle, false, e.currentTarget)}>
               {copy.nav.cta}
             </button>
           )}
@@ -117,7 +127,7 @@ export default function Shell() {
                 className={styles.railItem}
                 disabled={!item.enabled}
                 aria-current={item.active ? 'step' : undefined}
-                onClick={(e) => go(item.target, e.currentTarget)}
+                onClick={(e) => go(item.id, item.target, item.active, e.currentTarget)}
               >
                 <span className={styles.num}>{item.number}</span>
                 <span>{item.label}</span>
@@ -139,7 +149,7 @@ export default function Shell() {
           </button>
           <ul className={styles.sheetList}>{links(styles.sheetLink)}</ul>
           {phase === 'browse' && (
-            <button type="button" className={styles.cta} onClick={(e) => go(aisle, e.currentTarget)}>
+            <button type="button" className={styles.cta} onClick={(e) => go('cta', aisle, false, e.currentTarget)}>
               {copy.nav.cta}
             </button>
           )}

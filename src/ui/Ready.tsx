@@ -30,7 +30,7 @@ export default function Ready() {
   const lit = t === null ? 0 : (t - LIGHTS.from) / (LIGHTS.to - LIGHTS.from);
 
   return (
-    <section className={styles.ready} data-testid="ready" data-shown={shown} aria-hidden={!shown}>
+    <section className={`${styles.ready} chapter-ui`} data-testid="ready" data-shown={shown} aria-hidden={!shown}>
       <div className={styles.words}>
         <RevealText as="h2" className={styles.title} data-heading="ready" text={copy.ready.title} />
         <p className={styles.promise} style={{ '--lit': lit } as CSSProperties}>

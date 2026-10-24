@@ -26,7 +26,7 @@ export default function Destinations() {
   const t = copy.destinations;
 
   return (
-    <section className={styles.destinations} data-shown={shown} aria-hidden={!shown} aria-labelledby="destinations-title">
+    <section className={`${styles.destinations} chapter-ui`} data-shown={shown} aria-hidden={!shown} aria-labelledby="destinations-title">
       <div className={styles.side}>
         <RevealText as="h2" id="destinations-title" className={styles.title} data-heading="destinations" text={t.title} />
         <RevealText as="p" className={styles.lead} text={t.lead} base={220} />

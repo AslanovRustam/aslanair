@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { cloudScale } from '@/experience/cloudDetail';
+import { CURTAIN_LAYER } from '@/experience/curtain';
 import { experienceStore } from '@/experience/store';
 import { worldMode } from '@/experience/worldState';
 import { bakeNoise3D } from './noise3d';
@@ -136,6 +137,12 @@ export default function SkyAndClouds({ background = true }: { background?: boole
   const sized = useRef('');
   const moon = useRef<THREE.DirectionalLight>(null);
   const fill = useRef<THREE.AmbientLight>(null);
+
+  // the curtain's plane is drawn on its own layer with these lights, so its programs are the aircraft's own
+  useEffect(() => {
+    moon.current?.layers.enable(CURTAIN_LAYER);
+    fill.current?.layers.enable(CURTAIN_LAYER);
+  }, []);
 
   useEffect(
     () => () => {

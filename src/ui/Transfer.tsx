@@ -76,7 +76,7 @@ export default function Transfer() {
   };
 
   return (
-    <section className={styles.transfer} data-shown={shown} aria-hidden={!shown}>
+    <section className={`${styles.transfer} chapter-ui`} data-shown={shown} aria-hidden={!shown}>
       <div className={styles.side}>
         <RevealText as="h2" id="transfer-title" className={styles.title} data-heading="transfer" text={t.title} />
         <RevealText as="p" className={styles.lead} text={t.lead} base={220} />

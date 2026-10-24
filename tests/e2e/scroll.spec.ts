@@ -86,7 +86,7 @@ test('resize keeps rendering', async ({ page }) => {
   await page.goto('/');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.setViewportSize({ width: 1440, height: 800 });
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('.stage canvas')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

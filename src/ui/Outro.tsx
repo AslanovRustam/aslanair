@@ -3,11 +3,13 @@
 import type { FormEvent } from 'react';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
+import { transitionLabel } from '@/experience/navState';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import GridBackdrop from './GridBackdrop';
 import RevealText from './RevealText';
 import { openHowItsMade } from './HowItsMade';
+import { transitionTo } from './transition';
 import styles from './ui.module.css';
 
 /**
@@ -27,15 +29,17 @@ export default function Outro() {
     submitForm();
   };
 
-  const onRestart = () => {
-    restart();
-    scrollToProgress(0, true);
-  };
+  // back to the top under the curtain
+  const onRestart = () =>
+    transitionTo(transitionLabel('restart', phase), () => {
+      restart();
+      scrollToProgress(0, true);
+    });
 
   const t = copy.outro;
   return (
     // data-lenis-prevent: let the wheel scroll this page natively when it overflows a short window.
-    <section className={styles.outro} aria-label="Booking" data-lenis-prevent>
+    <section className={`${styles.outro} chapter-ui`} aria-label="Booking" data-lenis-prevent>
       <GridBackdrop surface />
       <div className={styles.outroColumn}>
         <RevealText as="h2" className={styles.outroTitle} data-reveal="on" text={t.title} />

@@ -19,6 +19,14 @@ function currentPose(aspect: number): CameraPose {
   return poseOnPreTrack(s.progress, aspect);
 }
 
+/** Whether the camera last frame was on its pose (riding it), not gliding after a phase change. */
+let onPose = true;
+
+/** True while the camera rides its pose: the curtain lifts only once it has caught up after a jump. */
+export function cameraSettled(): boolean {
+  return onPose;
+}
+
 /**
  * Puts the camera on the pose the store implies. The scroll is already smoothed (Lenis), so on a track the camera
  * rides the pose exactly: the intro picture, the 3D plane and the night switch all follow the same scroll position,
@@ -57,6 +65,7 @@ export default function CameraRig() {
         Math.abs(l.fov - pose.fov) < SETTLED.fov &&
         Math.abs(l.lift - (pose.lift ?? 0)) < 1e-3;
     }
+    onPose = riding.current;
     cam.lookAt(target);
     applyLens(cam, { position: cam.position, target, fov: l.fov, lift: l.lift }, width, height);
   }, -2);

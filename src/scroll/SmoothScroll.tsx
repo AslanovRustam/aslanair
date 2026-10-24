@@ -24,6 +24,12 @@ export function scrollToProgress(p: number, immediate: boolean): void {
   lenis.scrollTo(trigger.start + (trigger.end - trigger.start) * p, { immediate, force: true });
 }
 
+/** Holds the visitor's own scrolling still (while the curtain runs); scrollToProgress still moves the page. */
+export function lockScroll(on: boolean): void {
+  if (on) lenis?.stop();
+  else lenis?.start();
+}
+
 export default function SmoothScroll() {
   const track = useExperience((s) => trackOf(s.phase));
   const wrapper = useRef<HTMLDivElement>(null);

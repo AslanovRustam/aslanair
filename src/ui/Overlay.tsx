@@ -2,12 +2,14 @@
 
 import { copy } from '@/content/copy';
 import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
+import { transitionLabel } from '@/experience/navState';
 import { chapterAt } from '@/experience/chapters';
 import { seatLabel } from '@/experience/seats';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import RevealText from './RevealText';
 import ScrollCue from './ScrollCue';
+import { transitionTo } from './transition';
 import styles from './ui.module.css';
 
 /** How close to the window stop (post-track progress) the take-off call shows. */
@@ -26,7 +28,7 @@ export default function Overlay() {
   const atWindow = useExperience((s) => s.phase === 'confirmed' && Math.abs(s.progress - WINDOW_ON_EXIT) < AT_WINDOW);
 
   return (
-    <div className={styles.overlay}>
+    <div className={`${styles.overlay} chapter-ui`}>
       {caption && (
         <div className={styles.caption} key={chapter} data-reveal="on">
           <RevealText as="h1" data-heading={chapter} text={caption.title} />
@@ -60,7 +62,7 @@ export default function Overlay() {
       )}
       {onPass && (
         <div className={`${styles.bar} ${styles.barButtons}`}>
-          <button type="button" className={styles.ghost} onClick={changeSeat}>
+          <button type="button" className={styles.ghost} onClick={() => transitionTo(transitionLabel('change', phase), changeSeat)}>
             {copy.pass.change}
           </button>
           <button type="button" className={styles.button} onClick={() => scrollToProgress(WINDOW_ON_EXIT, false)}>

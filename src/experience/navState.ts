@@ -86,3 +86,33 @@ export function railItems(phase: Phase, chapter: ChapterId): (NavItem<RailId> & 
       ];
   return items.map((it, i) => ({ ...it, number: String(i + 1).padStart(2, '0') }));
 }
+
+/** What a chapter jump says on the curtain — the rail's number and name — and the heading it focuses after. */
+export type TransitionLabel = { number: string; name: string; heading: ChapterId };
+
+/** A click that jumps somewhere: a header or rail item (not How it's made, not take-off), the call to action, Start
+ * again or Change seat. */
+export type TransitionId = Exclude<HeaderId | RailId, 'made' | 'takeoff'> | 'cta' | 'restart' | 'change';
+
+/** The curtain's label for a jump (spec r4 §7), in the rail's words. */
+export function transitionLabel(id: TransitionId, phase: Phase): TransitionLabel {
+  const t = copy.rail;
+  switch (id) {
+    case 'flight':
+    case 'restart':
+      return { number: '01', name: t.flight, heading: 'sky' };
+    case 'destinations':
+      return { number: '02', name: t.destinations, heading: 'destinations' };
+    case 'transfer':
+      return { number: '03', name: t.transfer, heading: 'transfer' };
+    case 'boarding':
+      return { number: '04', name: t.boarding, heading: 'ready' };
+    case 'cabin':
+    case 'cta':
+    case 'change':
+      return { number: '05', name: t.cabin, heading: 'aisle' };
+    case 'seat':
+    case 'pass':
+      return { number: '06', name: t.seat, heading: confirmed(phase) ? 'pass' : 'aisle' };
+  }
+}
