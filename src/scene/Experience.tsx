@@ -12,7 +12,6 @@ import SmoothScroll from '@/scroll/SmoothScroll';
 import Outro from '@/ui/Outro';
 import Destinations from '@/ui/Destinations';
 import Ready from '@/ui/Ready';
-import Ribbons from '@/ui/Ribbons';
 import Transfer from '@/ui/Transfer';
 import Hero from '@/ui/Hero';
 import Overlay from '@/ui/Overlay';
@@ -140,7 +139,6 @@ export default function Experience() {
       <Destinations />
       <Transfer />
       <Ready />
-      <Ribbons />
       <Overlay />
       <Shell />
       <Outro />

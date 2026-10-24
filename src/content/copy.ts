@@ -14,15 +14,6 @@ export const copy = {
   },
   hero: {
     title: 'Night flight',
-    notes: {
-      home: { label: 'Flying from', value: 'Odesa · ODS' },
-      network: { label: 'Across 5 continents', value: (count: number) => `${count} destinations` },
-      fares: { label: 'Fares from', value: (usd: number) => `$${usd}` },
-    },
-    lead: {
-      title: 'Board a fictional night flight.',
-      body: 'AslanAir flies from Odesa every night. Choose where to, then walk the aisle in real-time 3D and pick your seat.',
-    },
     scroll: 'Scroll to board',
   },
   nav: {
@@ -97,10 +88,6 @@ export const copy = {
       'Tonight’s cabin has 180 seats, three by three. Walk the aisle, sit wherever you like and look out of its window before you decide.',
     scroll: 'Scroll to board',
   },
-  ribbons: {
-    phrases: (home: string, count: number) => ['Night flight', `${home} → ${count} destinations`, 'Boarding tonight'],
-    route: (home: string, code: string) => `${home} → ${code}`,
-  },
   takeOff: {
     title: 'Ready for take-off.',
     cue: 'Scroll to fly out',
@@ -139,7 +126,6 @@ export const copy = {
         'Clouds are raymarched in a shader, live, every frame.',
         'Every seat is a real 3D object you can pick.',
       ],
-      author: 'Concept & code: [Author name] · [Portfolio link]',
     },
   },
   cabin: {
@@ -148,6 +134,7 @@ export const copy = {
     exitSign: 'EXIT',
     exitSignArrows: '← EXIT →',
   },
+  author: { line: 'Concept & code: Aslanov Rustam', link: 'GitHub', href: 'https://github.com/AslanovRustam' },
   footer: {
     disclaimer: 'AslanAir is a fictional airline — a concept project.',
   },

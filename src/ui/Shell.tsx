@@ -6,7 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { navItems, railItems, type NavTarget } from '@/experience/navState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
-import HowItsMade, { onOpenHowItsMade } from './HowItsMade';
+import HowItsMade, { AuthorCredit, onOpenHowItsMade } from './HowItsMade';
 import styles from './shell.module.css';
 
 /** The fin's sun over the horizon: a disc cut by two bands. */
@@ -129,10 +129,7 @@ export default function Shell() {
 
       <footer className={styles.footer}>
         <p>{copy.footer.disclaimer}</p>
-        <p className={styles.author}>{copy.outro.howItsMade.author}</p>
-        <button type="button" className={styles.footerLink} onClick={(e) => setOpener(e.currentTarget)}>
-          {copy.nav.made}
-        </button>
+        <AuthorCredit className={styles.author} />
       </footer>
 
       {menu && (

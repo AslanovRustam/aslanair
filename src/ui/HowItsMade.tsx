@@ -6,6 +6,19 @@ import styles from './shell.module.css';
 
 const OPEN = 'aslanair:how-its-made';
 
+/** "Concept & code: Aslanov Rustam · GitHub" — the author's line, the link opening in a new tab. */
+export function AuthorCredit({ className }: { className?: string }) {
+  const { line, link, href } = copy.author;
+  return (
+    <p className={className}>
+      {line} ·{' '}
+      <a className={styles.authorLink} href={href} target="_blank" rel="noopener noreferrer">
+        {link}
+      </a>
+    </p>
+  );
+}
+
 /** Opens the panel from anywhere on the page (the outro's short block); focus returns to `from` when it closes. */
 export function openHowItsMade(from: HTMLElement) {
   window.dispatchEvent(new CustomEvent<HTMLElement>(OPEN, { detail: from }));
@@ -58,7 +71,7 @@ export default function HowItsMade({ open, onClose }: { open: boolean; onClose: 
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className={styles.drawerAuthor}>{t.author}</p>
+        <AuthorCredit className={styles.drawerAuthor} />
       </section>
     </div>
   );

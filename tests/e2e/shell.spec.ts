@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DESTINATIONS } from '@/experience/destinations';
-import { INTRO } from '@/experience/introState';
-import { heroPictureBox, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
+import { pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -69,17 +67,30 @@ test('after confirming a seat the cabin is out of reach and the call to action i
   await expect(page.getByRole('button', { name: 'Choose your seat' })).toBeHidden();
 });
 
-test("How it's made opens from the header and the footer and closes with Escape", async ({ page }) => {
+test("How it's made opens from the header and closes with Escape", async ({ page }) => {
   await open(page);
-  for (const where of ['banner', 'contentinfo'] as const) {
-    const opener = page.getByRole(where).getByRole('button', { name: "How it's made" });
-    await opener.click();
-    const dialog = page.getByRole('dialog', { name: "How it's made" });
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
-    await expect(opener).toBeFocused();
-  }
+  const opener = page.getByRole('banner').getByRole('button', { name: "How it's made" });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: "How it's made" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test('the footer credits Aslanov Rustam and links to GitHub in a new tab', async ({ page }) => {
+  await open(page);
+  const footer = page.getByRole('contentinfo');
+  await expect(footer).toContainText('Concept & code: Aslanov Rustam');
+  const github = footer.getByRole('link', { name: 'GitHub' });
+  await expect(github).toHaveAttribute('href', 'https://github.com/AslanovRustam');
+  await expect(github).toHaveAttribute('target', '_blank');
+  await expect(github).toHaveAttribute('rel', /noopener/);
+  await expect(footer.getByRole('button', { name: "How it's made" })).toHaveCount(0);
+  await page.getByRole('banner').getByRole('button', { name: "How it's made" }).click();
+  const dialog = page.getByRole('dialog', { name: "How it's made" });
+  await expect(dialog).toContainText('Concept & code: Aslanov Rustam');
+  await expect(dialog.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/AslanovRustam');
 });
 
 test('on a phone the navigation folds into a menu and nothing overflows', async ({ page }) => {
@@ -95,12 +106,12 @@ test('on a phone the navigation folds into a menu and nothing overflows', async 
 const heroOpacity = (page: Page) =>
   page.getByTestId('hero').evaluate((el) => Number(getComputedStyle(el).opacity));
 
-test('the hero shows the title, three facts about AslanAir and the scroll hint, then gives way on scroll', async ({ page }) => {
+test('the hero shows only the title and the scroll hint, then gives way on scroll', async ({ page }) => {
   await open(page);
   const hero = page.getByTestId('hero');
   await expect(hero.getByRole('heading', { name: 'Night flight', exact: true })).toBeVisible();
-  const lowest = Math.min(...DESTINATIONS.map((d) => d.fareUsd));
-  for (const note of ['Odesa · ODS', '14 destinations', '5 continents', `$${lowest}`]) await expect(hero).toContainText(note);
+  await expect(hero.locator('[data-testid="hero-note"], [data-testid="hero-leader"]')).toHaveCount(0);
+  await expect(hero).not.toContainText('Board a fictional night flight');
   await expect(hero.getByText('Scroll to board')).toBeVisible();
   expect(await heroOpacity(page)).toBeGreaterThan(0.95);
   await page.mouse.wheel(0, 600);
@@ -146,91 +157,6 @@ test('the title flies apart letter by letter on scroll and gathers again on the 
   const back = await read();
   for (const [i, l] of back.entries()) expect(identity(l.transform) && l.opacity === 1, `letter ${i} back in place: ${l.transform}`).toBe(true);
   await expect(title).toBeVisible();
-});
-
-type Box = { x: number; y: number; width: number; height: number };
-const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-
-for (const viewport of [
-  { width: 1440, height: 800 },
-  { width: 2100, height: 900 },
-  { width: 1024, height: 768 },
-]) {
-  test(`at ${viewport.width}×${viewport.height} each hero note points at the plane and keeps clear of it and the title`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await openHero(page);
-    const img = heroPictureBox(page);
-    const { plane } = INTRO.picture;
-    const planeBox = {
-      x: img.x + plane.left * img.width,
-      y: img.y + plane.top * img.height,
-      width: (plane.right - plane.left) * img.width,
-      height: (plane.bottom - plane.top) * img.height,
-    };
-    const ends = await page.getByTestId('hero-leader').evaluateAll((lines) =>
-      lines.map((l) => {
-        const line = l as SVGLineElement;
-        const p = new DOMPoint(line.x2.baseVal.value, line.y2.baseVal.value).matrixTransform(line.getScreenCTM()!);
-        return { x: p.x, y: p.y };
-      }),
-    );
-    expect(ends).toHaveLength(3);
-    for (const [i, e] of ends.entries()) expect(overlaps({ ...e, width: 1, height: 1 }, planeBox), `leader ${i} ends on the plane`).toBe(true);
-    const notes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as Box));
-    const title = (await page.getByTestId('hero').getByRole('heading').boundingBox())!;
-    const rail = (await page.getByRole('navigation', { name: 'Chapters' }).boundingBox())!;
-    for (const [i, n] of notes.entries()) {
-      expect(overlaps(n, planeBox), `note ${i} vs plane`).toBe(false);
-      expect(overlaps(n, title), `note ${i} vs title`).toBe(false);
-      expect(overlaps(n, rail), `note ${i} vs chapter rail`).toBe(false);
-      expect(n.x >= 0 && n.x + n.width <= viewport.width, `note ${i} on screen`).toBe(true);
-    }
-  });
-}
-
-for (const viewport of [
-  { width: 768, height: 1024 },
-  { width: 960, height: 800 },
-]) {
-  test(`at ${viewport.width}×${viewport.height} the hero notes line up under the plane, all on screen and clear of everything`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await openHero(page);
-    const notes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as Box));
-    const hero = page.getByTestId('hero');
-    const others = {
-      title: (await hero.getByRole('heading').boundingBox())!,
-      plane: heroPictureBox(page),
-      rail: (await page.getByRole('navigation', { name: 'Chapters' }).boundingBox())!,
-      lead: (await hero.getByText('Board a fictional night flight.').boundingBox())!,
-    };
-    const { plane } = INTRO.picture;
-    const img = others.plane;
-    others.plane = { x: img.x + plane.left * img.width, y: img.y + plane.top * img.height, width: (plane.right - plane.left) * img.width, height: (plane.bottom - plane.top) * img.height };
-    expect(notes).toHaveLength(3);
-    for (const [i, n] of notes.entries()) {
-      expect(n.x >= 0 && n.x + n.width <= viewport.width && n.y + n.height <= viewport.height, `note ${i} on screen`).toBe(true);
-      for (const [name, b] of Object.entries(others)) expect(overlaps(n, b), `note ${i} vs ${name}`).toBe(false);
-      for (let j = i + 1; j < notes.length; j++) expect(overlaps(n, notes[j]), `notes ${i}/${j}`).toBe(false);
-    }
-    const lead = (await hero.locator('p', { hasText: 'Board a fictional night flight.' }).boundingBox())!;
-    const scroll = (await hero.getByText('Scroll to board').boundingBox())!;
-    expect(overlaps(lead, scroll), 'lead vs scroll hint').toBe(false);
-  });
-}
-
-test('on a phone the hero notes stack and nothing overflows', async ({ page }) => {
-  await page.setViewportSize({ width: 412, height: 915 });
-  await open(page);
-  const boxes = await page.getByTestId('hero-note').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-  const title = (await page.getByTestId('hero').getByRole('heading').boundingBox())!;
-  const overlap = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
-    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-  expect(boxes).toHaveLength(3);
-  for (let i = 0; i < boxes.length; i++) {
-    expect(overlap(boxes[i], title), `note ${i} vs title`).toBe(false);
-    for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i], boxes[j]), `notes ${i}/${j}`).toBe(false);
-  }
-  expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('while seated, choosing Your seat keeps the seat', async ({ page }) => {

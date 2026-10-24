@@ -228,8 +228,6 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await shoot('first-screen', { judgeOn: planeAt(pre('sky', 0.45)) });
   await setProgress(page, pre('sky', 0.9));
   await shoot('globe-rising', { night: true, judgeOn: globeAt(pre('sky', 0.9)) });
-  await setProgress(page, pre('destinations', 0));
-  await shoot('ribbons', { settle: 1200 });
   await setProgress(page, pre('destinations', 0.5));
   await shoot('destinations', { night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
   await pick(page, 'GIG');
