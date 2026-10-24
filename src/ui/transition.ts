@@ -1,7 +1,6 @@
 import { curtainFrame, reducedCurtainFrame } from '@/experience/curtain';
 import { curtainStore } from '@/experience/curtainStore';
 import type { TransitionLabel } from '@/experience/navState';
-import { experienceStore } from '@/experience/store';
 import { cameraSettled } from '@/scene/CameraRig';
 import { lockScroll } from '@/scroll/SmoothScroll';
 
@@ -42,7 +41,7 @@ export function transitionTo(to: TransitionLabel, jump: () => void): void {
     if (frame.done) {
       s.finish();
       delete root.dataset.curtain;
-      if (experienceStore.getState().phase !== 'seated') lockScroll(false);
+      lockScroll(false);
       const heading = document.querySelector<HTMLElement>(`[data-heading="${to.heading}"]`);
       if (heading) {
         if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;

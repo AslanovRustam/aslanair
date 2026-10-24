@@ -239,3 +239,27 @@ test('a chapter reached under the curtain is lit as when scrolled to: the hull s
   console.log('cabin luminance', { viaCurtain, viaScroll });
   expect(Math.abs(viaCurtain - viaScroll)).toBeLessThan(3);
 });
+
+test('scrolling stays held through the whole curtain, even when the jump changes track', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as CurtainWindow).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.07);
+  });
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Change seat' }).first().click();
+  await page.waitForFunction(() => document.documentElement.dataset.curtain === 'reveal', null, { timeout: 5000 });
+  const landed = await progress(page);
+  await page.mouse.move(720, 400);
+  // the visitor keeps scrolling while the chapter is revealed
+  while (await page.evaluate(() => !!document.documentElement.dataset.curtain)) {
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(60);
+  }
+  await page.waitForTimeout(300);
+  expect(Math.abs((await progress(page)) - landed), 'the page moved under the curtain').toBeLessThan(0.002);
+});

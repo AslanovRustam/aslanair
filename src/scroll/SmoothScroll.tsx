@@ -24,10 +24,20 @@ export function scrollToProgress(p: number, immediate: boolean): void {
   lenis.scrollTo(trigger.start + (trigger.end - trigger.start) * p, { immediate, force: true });
 }
 
-/** Holds the visitor's own scrolling still (while the curtain runs); scrollToProgress still moves the page. */
+/** True while the curtain holds the visitor's scrolling still: standing up or a track swap under it must not let go. */
+let held = false;
+
+/** Lets the visitor scroll again, unless the curtain holds it. */
+function resume(): void {
+  if (!held) lenis?.start();
+}
+
+/** Holds the visitor's own scrolling still (while the curtain runs); scrollToProgress still moves the page. Let go
+ * in the seat, it stays frozen as sitting keeps it until the visitor stands up. */
 export function lockScroll(on: boolean): void {
+  held = on;
   if (on) lenis?.stop();
-  else lenis?.start();
+  else if (experienceStore.getState().phase !== 'seated') resume();
 }
 
 export default function SmoothScroll() {
@@ -73,7 +83,7 @@ export default function SmoothScroll() {
         if (s.phase === prev.phase) return;
         if (s.phase === 'seated') lenis?.stop();
         else if (prev.phase === 'seated' && s.phase === 'browse') {
-          lenis?.start();
+          resume();
           scrollToProgress(s.progress, true);
         }
       }),
@@ -98,7 +108,7 @@ export default function SmoothScroll() {
     if (phase !== 'seated') {
       scrollToProgress(target, true);
       setProgress(target);
-      lenis?.start();
+      resume();
     }
     swapping = false;
     return () => {
