@@ -155,7 +155,7 @@ export default function BoardingPass3D() {
   const holder = useRef<THREE.Group>(null);
   const flipper = useRef<THREE.Group>(null);
   const offset = useMemo(() => new THREE.Vector3(), []);
-  const geometry = useMemo(cardGeometry, []);
+  const geometry = useMemo(() => cardGeometry(), []);
   const destinationId = useExperience((s) => s.destinationId);
   const transferId = useExperience((s) => s.transferId);
   const data = useMemo(

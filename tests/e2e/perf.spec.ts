@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { Vector3 } from 'three';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
+import { CURTAIN } from '@/experience/curtain';
 import { GLOBE } from '@/experience/globe';
 import { INTRO } from '@/experience/introState';
 import { aircraftStage, projectedBox } from '@/experience/stage';
@@ -18,6 +19,7 @@ type StoreWindow = Window & {
         seats: { id: string; status: string }[];
         setProgress(p: number): void;
         pickDestination(code: string, now: number): boolean;
+        chooseTransfer(id: string): boolean;
         restart(): void;
         sit(id: string): boolean;
         confirm(): void;
@@ -244,6 +246,9 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
 
   await shoot('hero', { judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
+  await setProgress(page, pre('sky', 0.25));
+  await page.mouse.move(300, 620); // the grid's glow follows the pointer
+  await shoot('grid', { judgeOn: planeAt(pre('sky', 0.25)) });
   await setProgress(page, pre('sky', 0.45));
   await shoot('first-screen', { judgeOn: planeAt(pre('sky', 0.45)) });
   await setProgress(page, pre('sky', 0.9));
@@ -254,12 +259,18 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await shoot('destinations-flight', { settle: 800, night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
   await setProgress(page, pre('transfer', 0.75));
   await shoot('transfer', { judgeOn: planeAt(pre('transfer', 0.75)) });
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().chooseTransfer('home'));
+  await shoot('transfer-open', { judgeOn: planeAt(pre('transfer', 0.75)) });
   await setProgress(page, pre('ready', 0.7));
   await shoot('ready', { judgeOn: planeAt(pre('ready', 0.7)) });
   for (const [name, p] of [['door', pre('door', 0.64)], ['entry', ENTRY], ['aisle', pre('aisle', 0.27)], ['aisle-end', 1]] as const) {
     await setProgress(page, p);
     await shoot(name);
   }
+  // the curtain mid-flight: from the aisle's end to Destinations, the plane crossing the covered screen
+  await page.getByRole('navigation', { name: 'Chapters' }).getByRole('button', { name: /Destinations/ }).click();
+  await page.waitForFunction(() => !!document.documentElement.dataset.curtain);
+  await shoot('curtain', { settle: (CURTAIN.cover + CURTAIN.flight / 2) * 1000 });
   for (const id of ['1A', '14F', '30A']) {
     await sit(id);
     await shoot(`seat-${id}`);
@@ -272,5 +283,5 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await setProgress(page, 0.9);
   await shoot('outro');
   console.log(report.join('\n'));
-  expect(shots).toHaveLength(18);
+  expect(shots).toHaveLength(21);
 });
