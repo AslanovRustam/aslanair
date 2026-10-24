@@ -21,6 +21,8 @@ type CurtainWindow = Window & {
   };
   __frames: { t: number; p: number; curtain: string; plane: boolean; planeY: number | null; cam: [number, number, number] }[];
   __recording: boolean;
+  /** When the page saw the last click (its event time, the performance clock). */
+  __clickedAt?: number;
 };
 
 async function open(page: Page) {
@@ -38,6 +40,7 @@ const record = (page: Page) =>
     const w = window as unknown as CurtainWindow;
     w.__frames = [];
     w.__recording = true;
+    document.addEventListener('click', (e) => (w.__clickedAt = e.timeStamp), { capture: true, once: true });
     const tick = () => {
       if (!w.__recording) return;
       const { scene, camera, store } = w.__aslan;
@@ -67,14 +70,16 @@ const rail = (page: Page) => page.getByRole('navigation', { name: 'Chapters' });
 test('a rail click covers the screen, flies the plane across and reveals the chapter', async ({ page }) => {
   await open(page);
   await record(page);
-  const clicked = await page.evaluate(() => performance.now());
   await rail(page).getByRole('button', { name: /Transfer/ }).click();
   await expect(page.getByTestId('curtain-label')).toHaveText('03 Transfer');
   await curtainGone(page);
   await page.waitForTimeout(100);
   const frames = await stop(page);
   const first = frames.find((f) => f.curtain);
+  console.log('stages', [...new Set(frames.map((f) => f.curtain))].join(','), frames.length);
   expect(first?.curtain).toBe('cover');
+  // from the click as the page saw it (Playwright's own checks before clicking are not the site's delay)
+  const clicked = await page.evaluate(() => (window as unknown as CurtainWindow).__clickedAt!);
   expect(first!.t - clicked).toBeLessThan(300);
   expect(frames.some((f) => f.curtain === 'covered')).toBe(true);
   const flying = frames.filter((f) => f.curtain === 'covered' && f.planeY !== null);
