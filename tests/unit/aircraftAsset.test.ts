@@ -14,7 +14,7 @@ import {
   WINDOW,
 } from '@/experience/geometry';
 import { glbImageSizes, glbNodeNames, glbParentsOf, glbPrimitiveSize } from './glb';
-import { linerHalfWidthAt } from './linerProfile';
+import { linerHalfWidthAt } from '@/experience/linerProfile';
 
 const GLB = 'public/models/airliner.glb';
 const meta = JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8'));

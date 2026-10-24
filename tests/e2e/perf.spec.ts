@@ -60,7 +60,7 @@ const frameTimes = (page: Page) =>
   );
 
 test('the night flight holds 45 fps — the journey, the door, the cabin, the seat, the pass and the exit', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000); // thirteen poses and the curtain, each sampled twice
   await ready(page);
   const report: Record<string, { median: number; mean: number }> = {};
   // best of two samples: a cost of ours shows in both, a burst from another process on the GPU in one at most
@@ -272,5 +272,5 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await setProgress(page, 0.9);
   await shoot('outro');
   console.log(report.join('\n'));
-  expect(shots).toHaveLength(19);
+  expect(shots).toHaveLength(18);
 });

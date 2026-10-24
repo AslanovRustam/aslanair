@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { AFT_GALLEY, BIN, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT } from '@/experience/cabinLayout';
 import { ROWS, rowStation, SEAT_FOOTPRINT } from '@/experience/geometry';
 import { glbNodeNames } from './glb';
-import { linerHalfWidthAt } from './linerProfile';
+import { linerHalfWidthAt } from '@/experience/linerProfile';
 
 const KIT = 'public/models/cabin-kit.glb';
 const kit = JSON.parse(readFileSync('public/models/cabin-kit.meta.json', 'utf8'));

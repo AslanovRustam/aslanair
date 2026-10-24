@@ -482,3 +482,22 @@ test('the galley is equipment, not blank mirrors', async ({ page }) => {
   expect(s.red, 'red turn latches').toBeGreaterThanOrEqual(30);
   expect(s.sd, 'detail, not flat panels').toBeGreaterThanOrEqual(18);
 });
+
+test('from a window seat the window has a smooth bezel', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await page.waitForTimeout(2500);
+  const bezel = await page.evaluate(() => {
+    type Mesh = { visible: boolean; layers: { mask: number }; material: { alphaToCoverage: boolean } };
+    const m = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): Mesh | undefined } } }).__aslan.scene.getObjectByName('WindowBezels');
+    return m ? { visible: m.visible, layer0: (m.layers.mask & 1) === 1, alphaToCoverage: m.material.alphaToCoverage } : null;
+  });
+  expect(bezel).toEqual({ visible: true, layer0: true, alphaToCoverage: true });
+});

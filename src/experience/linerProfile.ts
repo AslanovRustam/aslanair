@@ -1,6 +1,6 @@
-// Test util: the cabin liner's half-width from the airliner meta's grid (stations × heights), bilinear.
+// The cabin liner's half-width from the airliner meta's grid (stations × heights), bilinear.
 
-interface LinerMeta {
+export interface LinerMeta {
   cabin: { liner: { stations: number[]; heights: number[]; halfWidth: number[][] } };
 }
 

@@ -26,6 +26,7 @@ import FloorDetails from './cabin/FloorDetails';
 import ReadingLights from './cabin/ReadingLights';
 import SeatCard from './cabin/SeatCard';
 import TailZone from './cabin/TailZone';
+import WindowBezels from './cabin/WindowBezels';
 import Seats from './cabin/Seats';
 import CameraRig from './CameraRig';
 import CaptureMode from './CaptureMode';
@@ -78,6 +79,7 @@ function CabinFurnishing({ onShown }: { onShown?: () => void }) {
       <ReadingLights />
       <EntryZone />
       <TailZone />
+      <WindowBezels />
     </CompileAsync>
   );
 }
