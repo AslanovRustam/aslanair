@@ -16,7 +16,7 @@ export default defineConfig({
   // starve each other and time out ordinary 5 s expectations.
   workers: 2,
   use: {
-    baseURL: 'http://localhost:3100',
+    baseURL: 'http://localhost:3200',
     viewport: { width: 1440, height: 800 },
   },
   projects: [
@@ -35,8 +35,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- -p 3100',
-    port: 3100,
+    command: 'npm run dev -- -p 3200',
+    port: 3200,
     reuseExistingServer: true,
     timeout: 120_000,
   },
