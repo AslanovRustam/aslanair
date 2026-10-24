@@ -56,10 +56,22 @@ describe('the curtain transition', () => {
 
   test('with reduced motion it is a short fade with no plane', () => {
     for (let t = 0; t <= 1; t += 0.05) expect(reducedCurtainFrame(t, 0).plane).toBeNull();
-    expect(reducedCurtainFrame(0, 0.5).opacity).toBe(0);
-    expect(reducedCurtainFrame(CURTAIN.fade + 0.01, 0.5)).toMatchObject({ stage: 'covered', opacity: 1 });
-    expect(reducedCurtainFrame(0.5 + CURTAIN.fade / 2, 0.5).opacity).toBeCloseTo(0.5, 6);
-    expect(reducedCurtainFrame(0.5 + CURTAIN.fade + 0.01, 0.5).done).toBe(true);
+    expect(reducedCurtainFrame(0, 1).opacity).toBe(0);
+    expect(reducedCurtainFrame(CURTAIN.fade + 0.01, 1)).toMatchObject({ stage: 'covered', opacity: 1 });
+    expect(reducedCurtainFrame(1 + CURTAIN.fade / 2, 1).opacity).toBeCloseTo(0.5, 6);
+    expect(reducedCurtainFrame(1 + CURTAIN.fade + 0.01, 1).done).toBe(true);
     expect(reducedCurtainFrame(1, null).done).toBe(false);
+  });
+
+  test('with reduced motion the chapter name stays long enough to read, however soon the chapter is ready', () => {
+    // the label fades in over 0.25 s once covered (curtain.module.css)
+    expect(CURTAIN.hold).toBeGreaterThanOrEqual(0.4);
+    const covered = (ready: number) => {
+      let n = 0;
+      for (let t = 0; t <= 3; t += 0.001) if (reducedCurtainFrame(t, ready).stage === 'covered') n++;
+      return n / 1000;
+    };
+    expect(covered(0.05)).toBeCloseTo(CURTAIN.hold, 2);
+    expect(covered(1.5)).toBeCloseTo(1.5 - CURTAIN.fade, 2);
   });
 });

@@ -277,3 +277,31 @@ test('the page keeps its scrollbar room while the curtain stops it', async ({ pa
   await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
   expect(await root()).toEqual({ gutter: 'stable', overflow: 'hidden' });
 });
+
+test('in the aisle, Choose your seat leads where the visitor already is: no curtain', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as CurtainWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.4)));
+  await page.waitForTimeout(1200);
+  await record(page);
+  await page.getByRole('banner').getByRole('button', { name: 'Choose your seat' }).click();
+  await page.waitForTimeout(1500);
+  const frames = await stop(page);
+  expect(frames.filter((f) => f.curtain)).toHaveLength(0);
+});
+
+test('while the curtain runs, the frame waits: How it\'s made does not open under it', async ({ page }) => {
+  await open(page);
+  await rail(page).getByRole('button', { name: /Transfer/ }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
+  await page.getByRole('banner').getByRole('button', { name: "How it's made" }).click();
+  await curtainGone(page);
+  await expect(page.getByRole('dialog', { name: "How it's made" })).toHaveCount(0);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).pointerEvents)).not.toBe('none');
+});
+
+test('under the curtain the 3D scene takes no pointer', async ({ page }) => {
+  await open(page);
+  await rail(page).getByRole('button', { name: /Transfer/ }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).pointerEvents)).toBe('none');
+});

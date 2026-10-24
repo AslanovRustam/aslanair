@@ -8,6 +8,9 @@ import { lockScroll } from '@/scroll/SmoothScroll';
  * rig has had a few frames to see the jump (a phase change sets it gliding). */
 const SETTLE_FRAMES = 2;
 const SEE_JUMP_FRAMES = 3;
+/** Seconds after the jump the curtain waits for the chapter at most: a camera that never settles must not hold the
+ * page covered and its scroll locked. */
+const MAX_WAIT = 3;
 
 /**
  * A chapter jump behind the curtain (spec r4 §7): the curtain covers the screen, `jump` runs at the first covered
@@ -22,6 +25,7 @@ export function transitionTo(to: TransitionLabel, jump: () => void): void {
   const frameAt = matchMedia('(prefers-reduced-motion: reduce)').matches ? reducedCurtainFrame : curtainFrame;
   const root = document.documentElement;
   let jumped = false;
+  let jumpedAt = 0;
   let sinceJump = 0;
   let settled = 0;
 
@@ -30,13 +34,19 @@ export function transitionTo(to: TransitionLabel, jump: () => void): void {
     const now = performance.now() / 1000;
     if (jumped && s.readyAt === null && ++sinceJump > SEE_JUMP_FRAMES) {
       settled = cameraSettled() ? settled + 1 : 0;
-      if (settled >= SETTLE_FRAMES) s.markReady(now);
+      if (settled >= SETTLE_FRAMES || now - jumpedAt > MAX_WAIT) s.markReady(now);
     }
     const ready = curtainStore.getState().readyAt;
     const frame = frameAt(now - s.startedAt, ready === null ? null : ready - s.startedAt);
     if (frame.stage === 'covered' && !jumped) {
       jumped = true;
-      jump();
+      jumpedAt = now;
+      // a jump that throws is reported, and the curtain still lifts
+      try {
+        jump();
+      } catch (error) {
+        reportError(error);
+      }
     }
     if (frame.done) {
       s.finish();

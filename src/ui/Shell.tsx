@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
+import { curtainStore } from '@/experience/curtainStore';
 import { navItems, railItems, transitionLabel, type NavTarget, type TransitionId } from '@/experience/navState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { worldMode } from '@/experience/worldState';
@@ -60,9 +61,10 @@ export default function Shell() {
   /**
    * A header or rail click, or the call to action. How it's made opens its panel; a jump to another chapter passes
    * under the curtain (spec r4 §7) — except take-off, which keeps its flight to the window, and the chapter the
-   * visitor is already in, which just scrolls there.
+   * visitor is already in, which just scrolls there. While a jump runs under the curtain the frame's links wait.
    */
   const go = (id: TransitionId | 'made' | 'takeoff', target: NavTarget, active: boolean, from: HTMLElement) => {
+    if (curtainStore.getState().stage !== 'idle') return;
     if (target === 'panel') {
       setMenu(false);
       setOpener(from);
@@ -77,7 +79,9 @@ export default function Shell() {
       // after the stand-up has re-rendered the track
       requestAnimationFrame(() => scrollToProgress(target.progress, immediate));
     };
-    if (id === 'takeoff' || id === 'made' || active) jump(false)();
+    // in the aisle, Your seat and the call to action lead where the visitor already is
+    const here = active || (phase === 'browse' && chapter === 'aisle' && target === aisle);
+    if (id === 'takeoff' || id === 'made' || here) jump(false)();
     else transitionTo(transitionLabel(id, phase), jump(true));
   };
 

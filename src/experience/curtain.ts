@@ -3,9 +3,10 @@ import { MathUtils } from 'three';
 /**
  * The chapter transition (spec r4 §7, after demo.promo's Liquid): a curtain with a bulging "liquid" edge rises over
  * the screen — a terracotta layer leading, the night's dark following — our plane flies down across it while the
- * page jumps underneath, and once the chapter is ready the curtain leaves upward. Seconds.
+ * page jumps underneath, and once the chapter is ready the curtain leaves upward. Seconds. Under reduced motion the
+ * dark fades in and out over `fade` and holds at least `hold`, so the chapter's name (fading in over 0.25 s) reads.
  */
-export const CURTAIN = { cover: 0.45, accentLead: 0.08, flight: 0.75, reveal: 0.5, fade: 0.15 } as const;
+export const CURTAIN = { cover: 0.45, accentLead: 0.08, flight: 0.75, reveal: 0.5, fade: 0.15, hold: 0.45 } as const;
 
 /** The camera layer that holds only the curtain's plane (and the lights) while the screen is covered. */
 export const CURTAIN_LAYER = 7;
@@ -79,8 +80,8 @@ export function curtainFrame(elapsed: number, readyAt: number | null): CurtainFr
 
 /** Under reduced motion: no edge, no plane — the dark fades in, holds until the chapter is ready and fades out. */
 export function reducedCurtainFrame(elapsed: number, readyAt: number | null): CurtainFrame {
-  const { fade } = CURTAIN;
-  const revealAt = readyAt === null ? Infinity : Math.max(fade, readyAt);
+  const { fade, hold } = CURTAIN;
+  const revealAt = readyAt === null ? Infinity : Math.max(fade + hold, readyAt);
   const full = { top: 1, bottom: 0 };
   const stage: CurtainStage = elapsed < fade ? 'cover' : elapsed < revealAt ? 'covered' : 'reveal';
   const opacity = stage === 'cover' ? elapsed / fade : stage === 'covered' ? 1 : 1 - along(elapsed - revealAt, 0, fade);

@@ -71,6 +71,11 @@ html[data-curtain='covered'] .chapter-ui {
   visibility: hidden !important;
 }
 
+/* nor does the 3D scene under it take the pointer: no seat or globe is picked through the curtain */
+html[data-curtain] .stage {
+  pointer-events: none;
+}
+
 .fallback {
   max-width: 36rem;
   margin: 30vh auto 0;
