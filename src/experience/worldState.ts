@@ -38,3 +38,11 @@ export type WorldMode = 'showcase' | 'night';
 export function worldMode(phase: Phase, progress: number): WorldMode {
   return cameraInsideCabin(phase, progress) ? 'night' : 'showcase';
 }
+
+/**
+ * Whether the night sky, its clouds and its stars are drawn: aboard, and also under the loader (unseen behind it), so
+ * their programs are compiled before the door flight first needs them.
+ */
+export function nightSkyDrawn(phase: Phase, progress: number, ready: boolean): boolean {
+  return worldMode(phase, progress) === 'night' || !ready;
+}

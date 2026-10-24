@@ -5,6 +5,7 @@ import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
 import { navItems, railItems, transitionLabel, type NavTarget, type TransitionId } from '@/experience/navState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
+import { worldMode } from '@/experience/worldState';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import HowItsMade, { AuthorCredit, onOpenHowItsMade } from './HowItsMade';
 import styles from './shell.module.css';
@@ -33,6 +34,7 @@ function Emblem() {
 export default function Shell() {
   const phase = useExperience((s) => s.phase);
   const chapter = useExperience((s) => chapterAt(trackOf(s.phase), s.progress).id);
+  const night = useExperience((s) => worldMode(s.phase, s.progress) === 'night');
   const [opener, setOpener] = useState<HTMLElement | null>(null);
   const [menu, setMenu] = useState(false);
   const nav = navItems(phase, chapter);
@@ -139,6 +141,17 @@ export default function Shell() {
 
       <footer className={styles.footer}>
         <p>{copy.footer.disclaimer}</p>
+        {night && (
+          <p className={styles.skyCredit}>
+            <a className={styles.authorLink} href={copy.footer.sky.href} target="_blank" rel="noopener noreferrer">
+              {copy.footer.sky.line}
+            </a>{' '}
+            ·{' '}
+            <a className={styles.authorLink} href={copy.footer.sky.licenceHref} target="_blank" rel="noopener noreferrer">
+              {copy.footer.sky.licence}
+            </a>
+          </p>
+        )}
         <AuthorCredit className={styles.author} />
       </footer>
 

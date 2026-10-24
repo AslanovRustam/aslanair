@@ -382,7 +382,8 @@
   .nav,
   .rail,
   .actions .cta,
-  .footer .author {
+  .footer .author,
+  .footer .skyCredit {
     display: none;
   }
 

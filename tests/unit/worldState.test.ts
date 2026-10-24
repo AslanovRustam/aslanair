@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { trackProgress } from '@/experience/chapters';
 import { exitControlPoints } from '@/experience/cameraPoses';
 import { CABIN_WALL_Z } from '@/experience/geometry';
-import { cameraInsideCabin, LINER_INSET, pointInsideCabin, pointInsideFuselage, worldMode } from '@/experience/worldState';
+import { cameraInsideCabin, LINER_INSET, nightSkyDrawn, pointInsideCabin, pointInsideFuselage, worldMode } from '@/experience/worldState';
 
 describe('world mode', () => {
   test('showcase until the camera is inside, night from then on', () => {
@@ -39,5 +39,14 @@ describe('inside the fuselage', () => {
   test('ends just past the skin', () => {
     expect(pointInsideFuselage(5, 0.6, CABIN_WALL_Z + LINER_INSET + 0.2)).toBe(false);
     expect(LINER_INSET).toBe(JSON.parse(readFileSync('public/models/airliner.meta.json', 'utf8')).linerInset);
+  });
+});
+
+describe('the night sky is drawn', () => {
+  test('aboard, and unseen under the loader so its programs are ready before the door flight', () => {
+    expect(nightSkyDrawn('browse', trackProgress('pre', 'sky', 0.5), true)).toBe(false);
+    expect(nightSkyDrawn('browse', trackProgress('pre', 'sky', 0.5), false)).toBe(true);
+    expect(nightSkyDrawn('browse', trackProgress('pre', 'door', 0.9), true)).toBe(true);
+    expect(nightSkyDrawn('confirmed', trackProgress('post', 'outro', 0.5), true)).toBe(true);
   });
 });

@@ -284,3 +284,37 @@ test('out of the window the stars are crisp points, not soft blobs', async ({ pa
   const median = stars[Math.floor(stars.length / 2)];
   expect(median, `median star size ${median} px (${stars.join(',')})`).toBeLessThanOrEqual(12);
 });
+
+test('the sky is the star panorama', async ({ page }) => {
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true');
+  const width = await page.waitForFunction(
+    () => {
+      type Backdrop = { material: { uniforms: { uStars: { value: { image?: { width?: number } } } } } };
+      const backdrop = (window as unknown as StoreWindow).__aslan.scene!.getObjectByName('NightBackdrop') as Backdrop | undefined;
+      const w = backdrop?.material.uniforms.uStars.value.image?.width ?? 0;
+      return w > 1 ? w : false;
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  expect(await width.jsonValue()).toBe(4096);
+});
+
+test('the loader never waits for the sky images', async ({ page }) => {
+  // the images are held back for good: the journey must start and the window must show a sky without them
+  await page.route('**/images/sky/*', () => {});
+  await ready(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    const s = (window as unknown as StoreWindow).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+  });
+  await page.waitForTimeout(3000);
+  const s = await boxStats(page, { x: 560, y: 300, width: 240, height: 260 }); // through the window
+  console.log('window without images', JSON.stringify(s));
+  expect(s.mean, 'never black').toBeGreaterThan(6);
+  expect(s.b).toBeGreaterThan(s.r);
+});

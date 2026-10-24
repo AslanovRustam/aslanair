@@ -3,12 +3,14 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { cloudScale } from '@/experience/cloudDetail';
+import { SKY_IMAGES } from '@/experience/clouds';
 import { CURTAIN_LAYER } from '@/experience/curtain';
 import { experienceStore } from '@/experience/store';
-import { worldMode } from '@/experience/worldState';
-import { bakeNoise3D } from './noise3d';
-import { BACKDROP_FRAGMENT, BACKDROP_VERTEX, BLUR_FRAGMENT, CLOUD_FRAGMENT, ENV_FRAGMENT, ENV_VERTEX, FULLSCREEN_VERTEX } from './shaders';
+import { nightSkyDrawn, worldMode } from '@/experience/worldState';
+import CloudPuffs from './CloudPuffs';
+import CloudSea from './CloudSea';
+import { BACKDROP_FRAGMENT, BACKDROP_VERTEX, ENV_FRAGMENT, ENV_VERTEX } from './shaders';
+import { loadSkyTexture, standIn, swapTexture } from './skyTexture';
 
 /** The moon: 32° up, behind-left of the hero camera, ahead of the nose — it lights the side the visitor sees. */
 export const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(85));
@@ -22,98 +24,60 @@ const MOONLIGHT = {
   fillColor: '#8ea2cc',
 };
 
-/** Clouds are raymarched at a fraction of the drawing buffer (see cloudScale), then blurred — a little: the backdrop
- * sharpens them back at full resolution. */
-const BLUR_SPREAD = 0.45;
-const SHARPEN = 0.7;
-const NOISE_SIZE = 64;
+/** How bright the Milky Way panorama is added over the night gradient. */
+const STAR_EXPOSURE = 0.3;
 
-function noiseTexture(): THREE.Data3DTexture {
-  const tex = new THREE.Data3DTexture(bakeNoise3D(NOISE_SIZE, 1337), NOISE_SIZE, NOISE_SIZE, NOISE_SIZE);
-  tex.format = THREE.RedFormat;
-  tex.type = THREE.UnsignedByteType;
-  tex.minFilter = tex.magFilter = THREE.LinearFilter;
-  tex.wrapS = tex.wrapT = tex.wrapR = THREE.RepeatWrapping;
-  tex.unpackAlignment = 1;
-  tex.needsUpdate = true;
-  return tex;
+/**
+ * World direction → the panorama's galactic frame: the galactic centre `CORE_AT` (ahead, up and out to starboard,
+ * where the window seats and the way out look), the band through it tilted `BAND_TILT` from the horizon.
+ */
+const CORE_AT = new THREE.Vector3(0.25, 0.35, 1).normalize();
+const BAND_TILT = THREE.MathUtils.degToRad(50);
+function galacticFrame(): THREE.Matrix3 {
+  const across = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), CORE_AT).normalize();
+  const upward = new THREE.Vector3().crossVectors(CORE_AT, across);
+  const band = across.multiplyScalar(Math.cos(BAND_TILT)).addScaledVector(upward, Math.sin(BAND_TILT));
+  const pole = new THREE.Vector3().crossVectors(band, CORE_AT).normalize();
+  const third = new THREE.Vector3().crossVectors(CORE_AT, pole);
+  // rows: the frame's axes in world terms, so M · d gives d in the frame
+  return new THREE.Matrix3().set(CORE_AT.x, CORE_AT.y, CORE_AT.z, pole.x, pole.y, pole.z, third.x, third.y, third.z);
 }
 
-function fullscreen(material: THREE.ShaderMaterial): THREE.Scene {
-  const scene = new THREE.Scene();
-  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
-  return scene;
-}
-
-function createPipeline() {
-  const options = { type: THREE.HalfFloatType, depthBuffer: false };
-  const raw = new THREE.WebGLRenderTarget(2, 2, options);
-  const tmp = new THREE.WebGLRenderTarget(2, 2, options);
-  const out = new THREE.WebGLRenderTarget(2, 2, options);
-  const uniforms = {
-    uNoise: { value: noiseTexture() },
-    uCam: { value: new THREE.Vector3() },
-    uMoon: { value: MOON_DIRECTION },
-    uInvProj: { value: new THREE.Matrix4() },
-    uInvView: { value: new THREE.Matrix4() },
-    uTime: { value: 0 },
-  };
-  const cloudScene = fullscreen(
-    new THREE.ShaderMaterial({ uniforms, vertexShader: FULLSCREEN_VERTEX, fragmentShader: CLOUD_FRAGMENT, depthTest: false, depthWrite: false }),
-  );
-  const blur = new THREE.ShaderMaterial({
-    uniforms: { uTex: { value: null }, uDir: { value: new THREE.Vector2() } },
-    vertexShader: FULLSCREEN_VERTEX,
-    fragmentShader: BLUR_FRAGMENT,
-    depthTest: false,
-    depthWrite: false,
-  });
-  // the night background at full resolution, drawn first behind everything: clouds, then the moon and stars as points
-  const backdrop = new THREE.Mesh(
-    new THREE.PlaneGeometry(2, 2),
-    new THREE.ShaderMaterial({
-      uniforms: {
-        uClouds: { value: out.texture },
-        uTexel: { value: new THREE.Vector2() },
-        uSharpen: { value: SHARPEN },
-        uPixel: { value: 0.001 },
-        uTime: uniforms.uTime,
-        uMoon: uniforms.uMoon,
-        uInvProj: uniforms.uInvProj,
-        uInvView: uniforms.uInvView,
-      },
-      vertexShader: BACKDROP_VERTEX,
-      fragmentShader: BACKDROP_FRAGMENT,
-      depthTest: false,
-      depthWrite: false,
-    }),
-  );
-  backdrop.name = 'NightBackdrop';
-  backdrop.frustumCulled = false;
-  backdrop.renderOrder = -1000;
-  backdrop.visible = false;
-  return {
-    raw,
-    tmp,
-    out,
-    uniforms,
-    cloudScene,
-    blur,
-    blurScene: fullscreen(blur),
-    backdrop,
-    quadCamera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
-  };
+/** The stars sampled up close (the panorama is magnified at every field of view): no mipmaps, so no seam where the
+ * longitude wraps. */
+function starsTexture(t: THREE.Texture) {
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.generateMipmaps = false;
+  t.minFilter = THREE.LinearFilter;
+  t.wrapS = THREE.RepeatWrapping;
 }
 
 /** `background={false}`: no sky behind the scene at all — the capture tool photographs the plane on transparency. */
 export default function SkyAndClouds({ background = true }: { background?: boolean }) {
   const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
+  const get = useThree((s) => s.get);
   const size = useThree((s) => s.size);
   const dpr = useThree((s) => s.viewport.dpr);
-  const pipe = useMemo(createPipeline, []);
+  const backdrop = useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>>(null);
+  const moon = useRef<THREE.DirectionalLight>(null);
+  const fill = useRef<THREE.AmbientLight>(null);
+  const uniforms = useMemo(
+    () => ({
+      uStars: { value: standIn([0, 0, 0, 255]) as THREE.Texture },
+      uStarExposure: { value: STAR_EXPOSURE },
+      uGalactic: { value: galacticFrame() },
+      uMoon: { value: MOON_DIRECTION },
+      uPixel: { value: 0.001 },
+      uTime: { value: 0 },
+      uCamY: { value: 0 },
+      uInvProj: { value: new THREE.Matrix4() },
+      uInvView: { value: new THREE.Matrix4() },
+    }),
+    [],
+  );
 
   useEffect(() => {
+    const { scene } = get();
     const env = new THREE.Scene();
     env.add(
       new THREE.Mesh(
@@ -131,12 +95,12 @@ export default function SkyAndClouds({ background = true }: { background?: boole
       scene.environment = null;
       envTarget.dispose();
     };
-  }, [gl, scene, pipe]);
+  }, [gl, get]);
 
-  // The cloud targets follow the canvas size and the current cloudScale; resized only when either changes.
-  const sized = useRef('');
-  const moon = useRef<THREE.DirectionalLight>(null);
-  const fill = useRef<THREE.AmbientLight>(null);
+  useEffect(() => {
+    if (!background) return;
+    return loadSkyTexture(gl, SKY_IMAGES.stars, starsTexture, (t) => swapTexture(backdrop.current!.material.uniforms.uStars, t));
+  }, [gl, background]);
 
   // the curtain's plane is drawn on its own layer with these lights, so its programs are the aircraft's own
   useEffect(() => {
@@ -144,89 +108,59 @@ export default function SkyAndClouds({ background = true }: { background?: boole
     fill.current?.layers.enable(CURTAIN_LAYER);
   }, []);
 
-  useEffect(
-    () => () => {
-      pipe.raw.dispose();
-      pipe.tmp.dispose();
-      pipe.out.dispose();
-      pipe.uniforms.uNoise.value.dispose();
-    },
-    [pipe],
-  );
-
   // Negative priority: runs before R3F's own render without taking the render loop over.
   useFrame((state) => {
     const { camera, clock } = state;
     const s = experienceStore.getState();
-    const showcase = worldMode(s.phase, s.progress) === 'showcase';
-    const look = showcase ? MOONLIGHT.showcase : MOONLIGHT.night;
+    const look = worldMode(s.phase, s.progress) === 'showcase' ? MOONLIGHT.showcase : MOONLIGHT.night;
     if (moon.current && fill.current) {
       moon.current.intensity = look.intensity;
       fill.current.intensity = look.fill;
     }
-    // showcase: the plain dark of the site (the page behind a see-through canvas) and no cloud pass at all — except under the loader, where the night
-    // pipeline runs unseen so its shaders and targets are ready before the door flight first needs them
-    if ((showcase && s.ready) || !background) {
-      // see-through: the page's own dark shows, and the hero's title can sit behind the plane
-      scene.background = null;
-      pipe.backdrop.visible = false;
-      return;
-    }
-    scene.background = null;
-    pipe.backdrop.visible = true;
-    const scale = cloudScale(s.phase, s.progress);
-    const w = Math.max(2, Math.round(size.width * dpr * scale));
-    const h = Math.max(2, Math.round(size.height * dpr * scale));
-    if (sized.current !== `${w}x${h}`) {
-      sized.current = `${w}x${h}`;
-      pipe.raw.setSize(w, h);
-      pipe.tmp.setSize(w, h);
-      pipe.out.setSize(w, h);
-    }
+    const sky = backdrop.current;
+    if (!sky) return;
+    // showcase: the plain dark of the site (the page behind a see-through canvas), the hero's title behind the plane
+    sky.visible = background && nightSkyDrawn(s.phase, s.progress, s.ready);
+    if (!sky.visible) return;
     camera.updateMatrixWorld();
-    const u = pipe.uniforms;
+    const u = sky.material.uniforms;
     u.uTime.value = clock.elapsedTime;
-    u.uCam.value.copy(camera.position);
+    u.uCamY.value = camera.position.y;
     u.uInvProj.value.copy(camera.projectionMatrixInverse);
     u.uInvView.value.copy(camera.matrixWorld);
-    const b = pipe.backdrop.material.uniforms;
-    b.uTexel.value.set(1 / w, 1 / h);
     // radians across one drawing-buffer pixel, for stars a pixel wide
-    b.uPixel.value = (2 * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2)) / (size.height * dpr);
-
-    const previous = gl.getRenderTarget();
-    gl.setRenderTarget(pipe.raw);
-    gl.render(pipe.cloudScene, pipe.quadCamera);
-    pipe.blur.uniforms.uTex.value = pipe.raw.texture;
-    pipe.blur.uniforms.uDir.value.set(BLUR_SPREAD / pipe.raw.width, 0);
-    gl.setRenderTarget(pipe.tmp);
-    gl.render(pipe.blurScene, pipe.quadCamera);
-    pipe.blur.uniforms.uTex.value = pipe.tmp.texture;
-    pipe.blur.uniforms.uDir.value.set(0, BLUR_SPREAD / pipe.raw.height);
-    gl.setRenderTarget(pipe.out);
-    gl.render(pipe.blurScene, pipe.quadCamera);
-    gl.setRenderTarget(previous);
+    u.uPixel.value = (2 * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2)) / (size.height * dpr);
   }, -1);
 
   return (
     <>
-      <primitive object={pipe.backdrop} />
+      {/* the night background at full resolution, drawn first behind everything */}
+      <mesh ref={backdrop} name="NightBackdrop" frustumCulled={false} renderOrder={-1000} visible={false}>
+        <planeGeometry args={[2, 2]} />
+        <shaderMaterial args={[{ uniforms, vertexShader: BACKDROP_VERTEX, fragmentShader: BACKDROP_FRAGMENT, depthTest: false, depthWrite: false }]} />
+      </mesh>
+      {background && (
+        <>
+          <CloudSea moon={MOON_DIRECTION} />
+          <CloudPuffs moon={MOON_DIRECTION} />
+        </>
+      )}
       <ambientLight ref={fill} color={MOONLIGHT.fillColor} intensity={MOONLIGHT.showcase.fill} />
       <directionalLight
-      ref={moon}
-      color={MOONLIGHT.color}
-      intensity={MOONLIGHT.showcase.intensity}
-      position={MOON_DIRECTION.clone().multiplyScalar(80).toArray()}
-      castShadow
-      shadow-mapSize={[2048, 2048]}
-      shadow-camera-left={-26}
-      shadow-camera-right={26}
-      shadow-camera-top={26}
-      shadow-camera-bottom={-26}
-      shadow-camera-near={1}
-      shadow-camera-far={200}
-      shadow-bias={-0.0003}
-      shadow-normalBias={0.04}
+        ref={moon}
+        color={MOONLIGHT.color}
+        intensity={MOONLIGHT.showcase.intensity}
+        position={MOON_DIRECTION.clone().multiplyScalar(80).toArray()}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-26}
+        shadow-camera-right={26}
+        shadow-camera-top={26}
+        shadow-camera-bottom={-26}
+        shadow-camera-near={1}
+        shadow-camera-far={200}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.04}
       />
     </>
   );

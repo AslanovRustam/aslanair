@@ -94,6 +94,16 @@ test('the footer credits Aslanov Rustam and links to GitHub in a new tab', async
   await expect(dialog.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/AslanovRustam');
 });
 
+test('while the night sky shows, the footer credits its panorama and licence', async ({ page }) => {
+  await open(page);
+  const footer = page.getByRole('contentinfo');
+  const panorama = footer.getByRole('link', { name: /ESO\/S\. Brunier/ });
+  await expect(panorama).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
+  await expect(panorama).toHaveAttribute('href', 'https://www.eso.org/public/images/eso0932a/');
+  await expect(footer.getByRole('link', { name: 'CC BY 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+});
+
 test('on a phone the navigation folds into a menu and nothing overflows', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 });
   await open(page);
