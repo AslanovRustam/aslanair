@@ -53,7 +53,8 @@ export default function GridBackdrop({ surface = false }: { surface?: boolean })
       el.style.setProperty('--mx', `${x}px`);
       el.style.setProperty('--my', `${y}px`);
       el.dataset.glow = 'on';
-      if (touch || reduced) return;
+      // no trail under reduced motion, nor while the backdrop is hidden (the cabin, the way out)
+      if (touch || reduced || el.style.visibility === 'hidden') return;
       const [col, row] = cellOf(x, y);
       lit.set(`${col},${row}`, { col, row, at: performance.now() });
       if (!frame) frame = requestAnimationFrame(draw);
