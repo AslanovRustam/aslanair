@@ -166,7 +166,7 @@ export default function CurtainPass({ onCompiled }: { onCompiled?: () => void })
     };
   }, [gl, camera, root, onCompiled]);
 
-  useFrame(({ camera: cam, scene }) => {
+  useFrame(({ camera: cam, scene, gl: renderer }) => {
     const f = curtainStore.getState().frame;
     const stage = f?.stage ?? 'idle';
     const covered = stage === 'covered';
@@ -186,6 +186,9 @@ export default function CurtainPass({ onCompiled }: { onCompiled?: () => void })
     } else if (!covered && saved.current !== null) {
       cam.layers.mask = saved.current;
       saved.current = null;
+      // the shadow pass draws only what the camera's layers see: a redraw asked for under the curtain (the jump moves
+      // the aircraft) drew an empty map, and the aircraft may now stand still — draw it again with the hull in view
+      renderer.shadowMap.needsUpdate = true;
     }
     if (covered) scene.background = DARK;
     else if (scene.background === DARK) scene.background = null;

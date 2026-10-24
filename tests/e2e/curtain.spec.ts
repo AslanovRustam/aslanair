@@ -203,3 +203,39 @@ test('the first curtain compiles no shader', async ({ page }) => {
   await curtainGone(page);
   expect(await programs()).toBe(before);
 });
+
+/** Mean luminance of a screen box (0–255). */
+async function meanLuminance(page: Page, box: { x: number; y: number; width: number; height: number }) {
+  const png = (await page.screenshot({ clip: box })).toString('base64');
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    [c.width, c.height] = [img.width, img.height];
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    return sum / (d.length / 4);
+  }, png);
+}
+
+test('a chapter reached under the curtain is lit as when scrolled to: the hull still shades the cabin', async ({ page }) => {
+  // the aisle carpet: the moon reaches it only through an empty shadow map (about +10 there)
+  const cabin = { x: 650, y: 600, width: 140, height: 140 };
+  await open(page);
+  await page.getByRole('banner').getByRole('button', { name: 'Choose your seat' }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
+  await curtainGone(page);
+  await page.waitForTimeout(1500);
+  const landed = await progress(page);
+  const viaCurtain = await meanLuminance(page, cabin);
+  await open(page);
+  await page.evaluate((p) => (window as unknown as CurtainWindow).__aslan.store.getState().setProgress(p), landed);
+  await page.waitForTimeout(2500);
+  const viaScroll = await meanLuminance(page, cabin);
+  console.log('cabin luminance', { viaCurtain, viaScroll });
+  expect(Math.abs(viaCurtain - viaScroll)).toBeLessThan(3);
+});
