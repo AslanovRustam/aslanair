@@ -5,6 +5,7 @@ import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
 import { useExperience } from '@/experience/store';
 import styles from './ready.module.css';
+import RevealText, { useShown } from './RevealText';
 import ScrollCue from './ScrollCue';
 
 /** The words show over this stretch of the chapter; the promise lights up over the second. */
@@ -24,14 +25,14 @@ export default function Ready() {
     const at = chapterAt('pre', s.progress);
     return at.id === 'ready' ? Math.round(at.t * 1000) / 1000 : null;
   });
-  const shown = t !== null && t >= SHOWN.from && t <= SHOWN.to;
+  const shown = useShown('ready', SHOWN);
   // 0 … 1 across the words: each word lights over the next two words' worth
   const lit = t === null ? 0 : (t - LIGHTS.from) / (LIGHTS.to - LIGHTS.from);
 
   return (
     <section className={styles.ready} data-testid="ready" data-shown={shown} aria-hidden={!shown}>
       <div className={styles.words}>
-        <h2 className={styles.title}>{copy.ready.title}</h2>
+        <RevealText as="h2" className={styles.title} data-heading="ready" text={copy.ready.title} />
         <p className={styles.promise} style={{ '--lit': lit } as CSSProperties}>
           {WORDS.map((word, i) => (
             <Fragment key={i}>

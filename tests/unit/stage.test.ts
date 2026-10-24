@@ -1,7 +1,7 @@
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
-import { chapterAt, trackProgress, TRACKS } from '@/experience/chapters';
+import { trackProgress, TRACKS } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
 import { GLOBE, globeFade, globeTurnFor, nextFlight, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
 import { aircraftStage, ON_GLOBE_SCALE, projectedBox, type ScreenBox, type Stage } from '@/experience/stage';

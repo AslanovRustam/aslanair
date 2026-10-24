@@ -39,7 +39,7 @@ function Title({ text, scatter }: { text: string; scatter: number }) {
   const count = text.replace(/\s/g, '').length;
   let n = 0;
   return (
-    <h1 className={styles.title} style={{ '--scatter': scatter } as CSSProperties}>
+    <h1 className={styles.title} data-heading="sky" style={{ '--scatter': scatter } as CSSProperties}>
       <span className={styles.srOnly}>{text}</span>
       {text.split(' ').map((word, w) => (
         <span key={w}>

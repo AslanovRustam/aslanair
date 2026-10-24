@@ -6,6 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import GridBackdrop from './GridBackdrop';
+import RevealText from './RevealText';
 import { openHowItsMade } from './HowItsMade';
 import styles from './ui.module.css';
 
@@ -37,7 +38,7 @@ export default function Outro() {
     <section className={styles.outro} aria-label="Booking" data-lenis-prevent>
       <GridBackdrop surface />
       <div className={styles.outroColumn}>
-        <h2 className={styles.outroTitle}>{t.title}</h2>
+        <RevealText as="h2" className={styles.outroTitle} data-reveal="on" text={t.title} />
         {phase === 'thanks' ? (
           <div className={styles.thanks}>
             <p className={styles.outroLead}>{t.thanks}</p>

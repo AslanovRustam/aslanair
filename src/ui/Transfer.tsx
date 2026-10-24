@@ -2,9 +2,9 @@
 
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { copy } from '@/content/copy';
-import { chapterAt } from '@/experience/chapters';
 import { destination, pickupTime, TRANSFERS, type TransferId } from '@/experience/destinations';
 import { experienceStore, useExperience } from '@/experience/store';
+import RevealText, { useShown } from './RevealText';
 import styles from './transfer.module.css';
 
 /** The choices show over this stretch of the chapter: once the plane has flown in and the camera has settled. */
@@ -45,11 +45,7 @@ const ICONS: Record<TransferId, ReactNode> = {
  * choose), each with its pick-up time counted back from the chosen flight's departure. The plane waits beside them.
  */
 export default function Transfer() {
-  const shown = useExperience((s) => {
-    if (s.phase !== 'browse') return false;
-    const { id, t } = chapterAt('pre', s.progress);
-    return id === 'transfer' && t >= SHOWN.from && t <= SHOWN.to;
-  });
+  const shown = useShown('transfer', SHOWN);
   const chosen = useExperience((s) => s.transferId);
   const departs = useExperience((s) => destination(s.destinationId)?.departs ?? '00:00');
   const options = useRef<(HTMLButtonElement | null)[]>([]);
@@ -73,10 +69,8 @@ export default function Transfer() {
   return (
     <section className={styles.transfer} data-shown={shown} aria-hidden={!shown}>
       <div className={styles.side}>
-        <h2 id="transfer-title" className={styles.title}>
-          {t.title}
-        </h2>
-        <p className={styles.lead}>{t.lead}</p>
+        <RevealText as="h2" id="transfer-title" className={styles.title} data-heading="transfer" text={t.title} />
+        <RevealText as="p" className={styles.lead} text={t.lead} base={220} />
         <div className={styles.options} role="radiogroup" aria-labelledby="transfer-title">
           {TRANSFERS.map((o, i) => (
             <button

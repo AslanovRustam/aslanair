@@ -1,10 +1,10 @@
 'use client';
 
 import { copy } from '@/content/copy';
-import { chapterAt } from '@/experience/chapters';
 import { DESTINATIONS, destination } from '@/experience/destinations';
 import { experienceStore, useExperience } from '@/experience/store';
 import styles from './destinations.module.css';
+import RevealText, { stagger, useShown } from './RevealText';
 import { globeLabels } from './globeLabels';
 
 /** The chapter's words and controls show over this stretch of it: once the plane has come over the horizon, until
@@ -20,11 +20,7 @@ const hover = (code: string | null) => experienceStore.getState().hoverDestinati
  * card. A pick flies the plane there (Globe, Aircraft).
  */
 export default function Destinations() {
-  const shown = useExperience((s) => {
-    if (s.phase !== 'browse') return false;
-    const { id, t } = chapterAt('pre', s.progress);
-    return id === 'destinations' && t >= SHOWN.from && t <= SHOWN.to;
-  });
+  const shown = useShown('destinations', SHOWN);
   const chosenId = useExperience((s) => s.destinationId);
   const chosen = destination(chosenId)!;
   const t = copy.destinations;
@@ -32,10 +28,8 @@ export default function Destinations() {
   return (
     <section className={styles.destinations} data-shown={shown} aria-hidden={!shown} aria-labelledby="destinations-title">
       <div className={styles.side}>
-        <h2 id="destinations-title" className={styles.title}>
-          {t.title}
-        </h2>
-        <p className={styles.lead}>{t.lead}</p>
+        <RevealText as="h2" id="destinations-title" className={styles.title} data-heading="destinations" text={t.title} />
+        <RevealText as="p" className={styles.lead} text={t.lead} base={220} />
         <div className={styles.board} data-testid="departures" role="group" aria-label={t.board}>
           <p className={styles.boardHead} aria-hidden="true">
             <span>{t.columns.code}</span>
@@ -44,8 +38,8 @@ export default function Destinations() {
             <span>{t.columns.fare}</span>
           </p>
           <ul className={styles.rows}>
-            {DESTINATIONS.map((d) => (
-              <li key={d.code}>
+            {DESTINATIONS.map((d, i) => (
+              <li key={d.code} {...stagger(Math.min(i, 8))}>
                 <button
                   type="button"
                   className={styles.row}
@@ -97,7 +91,7 @@ export default function Destinations() {
         ))}
       </div>
 
-      <aside className={styles.card} data-testid="flight-card" aria-live="polite">
+      <aside {...stagger(9)} className={`${styles.card} ${stagger(9).className}`} data-testid="flight-card" aria-live="polite">
         <p className={styles.cardLabel}>{t.card}</p>
         {/* the flight number never breaks across lines */}
         <p className={styles.cardRoute}>{`${chosen.city} · ${chosen.code} · ${chosen.flight.replace(' ', ' ')}`}</p>

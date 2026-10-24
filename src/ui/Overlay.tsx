@@ -6,6 +6,7 @@ import { chapterAt } from '@/experience/chapters';
 import { seatLabel } from '@/experience/seats';
 import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
+import RevealText from './RevealText';
 import ScrollCue from './ScrollCue';
 import styles from './ui.module.css';
 
@@ -27,15 +28,15 @@ export default function Overlay() {
   return (
     <div className={styles.overlay}>
       {caption && (
-        <div className={styles.caption} key={chapter}>
-          <h1>{caption.title}</h1>
-          <p>{caption.body}</p>
+        <div className={styles.caption} key={chapter} data-reveal="on">
+          <RevealText as="h1" data-heading={chapter} text={caption.title} />
+          <RevealText as="p" text={caption.body} base={250} />
         </div>
       )}
       {onPass && (
-        <div className={styles.caption} key="pass">
-          <h1>{copy.pass.title}</h1>
-          <p>{copy.pass.flipHint}</p>
+        <div className={styles.caption} key="pass" data-reveal="on">
+          <RevealText as="h1" data-heading="pass" text={copy.pass.title} />
+          <RevealText as="p" text={copy.pass.flipHint} base={250} />
         </div>
       )}
       {browsing && chapter === 'aisle' && (
@@ -69,8 +70,8 @@ export default function Overlay() {
       )}
       {atWindow && (
         <>
-          <div className={styles.caption} key="take-off">
-            <h1>{copy.takeOff.title}</h1>
+          <div className={styles.caption} key="take-off" data-reveal="on">
+            <RevealText as="h1" text={copy.takeOff.title} />
           </div>
           <ScrollCue label={copy.takeOff.cue} />
         </>
