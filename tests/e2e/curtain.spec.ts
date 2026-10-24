@@ -254,14 +254,25 @@ test('scrolling stays held through the whole curtain, even when the jump changes
   await page.getByRole('button', { name: 'Change seat' }).first().click();
   await page.waitForFunction(() => document.documentElement.dataset.curtain === 'reveal', null, { timeout: 5000 });
   const landed = await progress(page);
+  // where the page stands the moment the curtain lets go (a wheel after that may scroll, and should)
+  await page.evaluate(() => {
+    const w = window as unknown as CurtainWindow & { __atEnd?: number };
+    const observer = new MutationObserver(() => {
+      if (document.documentElement.dataset.curtain) return;
+      w.__atEnd = w.__aslan.store.getState().progress;
+      observer.disconnect();
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-curtain'] });
+  });
   await page.mouse.move(720, 400);
   // the visitor keeps scrolling while the chapter is revealed
   while (await page.evaluate(() => !!document.documentElement.dataset.curtain)) {
     await page.mouse.wheel(0, 300);
     await page.waitForTimeout(60);
   }
-  await page.waitForTimeout(300);
-  expect(Math.abs((await progress(page)) - landed), 'the page moved under the curtain').toBeLessThan(0.002);
+  const atEnd = await page.evaluate(() => (window as unknown as { __atEnd?: number }).__atEnd);
+  expect(atEnd, 'the curtain ended').toBeDefined();
+  expect(Math.abs(atEnd! - landed), 'the page moved under the curtain').toBeLessThan(0.002);
 });
 
 // Headless Chromium draws no scrollbar, so no layout shift can show here; this holds the CSS that leaves the page no
