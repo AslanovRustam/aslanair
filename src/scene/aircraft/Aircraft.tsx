@@ -132,6 +132,9 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
         }
       }
     });
+    // the frame callback can run before this effect and spend the first shadow redraw on a hull with no casters yet:
+    // redraw once more now that they are marked, still under the loader, so its shadow pass compiles there
+    shadowFor.current = '';
   }, [scene]);
 
   useEffect(() => {
