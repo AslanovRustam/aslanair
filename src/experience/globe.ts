@@ -68,13 +68,13 @@ export function globeTurnFor(a: LatLon, b: LatLon): Quaternion {
 }
 
 /**
- * How much of the globe shows: it rises into view as the first screen ends, stays through the destinations chapter
- * and is gone by the transfer chapter. 0 hides it.
+ * How much of the globe shows: it rises into view as the plane flies off to it in the first screen, stays through the
+ * destinations chapter and is gone by the transfer chapter. 0 hides it.
  */
 export function globeFade(phase: Phase, progress: number): number {
   if (phase !== 'browse') return 0;
   const { id, t } = chapterAt('pre', progress);
-  if (id === 'sky') return smoothstep(t, 0.55, 0.9);
+  if (id === 'sky') return smoothstep(t, 0.4, 0.75);
   if (id === 'destinations') return 1 - smoothstep(t, 0.93, 1);
   return 0;
 }

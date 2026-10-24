@@ -43,14 +43,14 @@ const { lerp, smoothstep, clamp } = MathUtils;
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
 const UP = v(0, 1, 0);
 
-// --- sky: the hero frame (the capture pose, zoomed and lens-shifted) held in place; the gaze turns down and left
-// while the plane climbs away up the frame (stage.ts), so the plane leaves at any aspect
+// --- sky: the hero frame (the capture pose, zoomed and lens-shifted) held in place; the gaze follows the plane off
+// to the globe (stage.ts) and opens out until the whole globe is in frame, the plane slipping behind it
 const SKY = {
   position: INTRO.swapPose.position,
   target: INTRO.swapPose.target,
   fov: INTRO.swapPose.fov,
-  gazeDown: MathUtils.degToRad(28),
-  gazeLeft: MathUtils.degToRad(10),
+  /** At the end of the first screen the globe shows smaller than in its chapter by this much of the lens. */
+  globeWiden: 1.25,
 };
 /** Where the door flight sets off: the camera's position and the point it looks at. */
 const DOOR_START = { position: v(34, 4.5, -30), target: v(8, 0.5, -1) };
@@ -81,17 +81,21 @@ function heroFov(aspect: number): number {
 }
 
 /**
- * The first screen. The camera is the capture camera zoomed out to the hero's picture size and lens-shifted up (the
- * loader's picture to the pixel); it stays put while its gaze turns down and to the left, from rest to rest.
+ * The first screen. The camera is the capture camera zoomed out to the hero's picture size and lens-shifted (the
+ * loader's picture to the pixel); it stays put while its gaze turns from the plane to the globe, from rest to rest,
+ * the lens opening and its shift easing out, so the plane flying off stays in frame until it slips behind the globe.
  */
 function skyPose(t: number, aspect: number): CameraPose {
-  const k = smoothstep(t, 0.05, 1);
-  const gaze = SKY.target.clone().sub(SKY.position).applyAxisAngle(UP, SKY.gazeLeft * k);
-  gaze.applyAxisAngle(gaze.clone().cross(UP).normalize(), -SKY.gazeDown * k);
-  return { position: SKY.position.clone(), target: SKY.position.clone().add(gaze), fov: heroFov(aspect), lift: HERO_PICTURE.lift };
+  const lift = HERO_PICTURE.lift * (1 - smoothstep(t, 0.05, 0.6));
+  return {
+    position: SKY.position.clone(),
+    target: SKY.target.clone().lerp(GLOBE.center, smoothstep(t, 0.05, 1)),
+    fov: lerp(heroFov(aspect), globeFov(aspect) * SKY.globeWiden, smoothstep(t, 0.2, 1)),
+    ...(lift ? { lift } : {}),
+  };
 }
 
-// --- destinations: from the same spot the camera turns to the globe and closes in, the lens shift easing out
+// --- destinations: from the same spot the camera, already on the globe, closes in on it
 const GLOBE_SHARE = { height: 0.6, width: 0.85 };
 /** Narrower than this the chapter's words go above and below the globe: it is smaller and rides higher. */
 const NARROW = { below: 1.2, height: 0.45, lift: 0.1 };
@@ -106,7 +110,7 @@ function globeFov(aspect: number): number {
 function destinationsPose(t: number, aspect: number): CameraPose {
   const from = skyPose(1, aspect);
   const k = smoothstep(t, 0, 0.35);
-  const lift = HERO_PICTURE.lift * (1 - k) + (aspect < NARROW.below ? NARROW.lift : 0) * k;
+  const lift = (from.lift ?? 0) * (1 - k) + (aspect < NARROW.below ? NARROW.lift : 0) * k;
   return {
     position: from.position,
     target: from.target.lerp(GLOBE.center, k),

@@ -12,6 +12,7 @@ import {
 } from '@/experience/cameraPoses';
 import { trackProgress, TRACKS } from '@/experience/chapters';
 import { aircraftStage, projectedBox } from '@/experience/stage';
+import { GLOBE } from '@/experience/globe';
 import { INTRO } from '@/experience/introState';
 import { COCKPIT_DOOR, EXIT_ARROWS, JUMP_SEAT } from '@/experience/cabinLayout';
 import { CABIN_WALL_Z, FLOOR_Y, ROWS, rowX, seatWindowStation, stationToX, WINDOW } from '@/experience/geometry';
@@ -24,27 +25,26 @@ describe('pre-track camera', () => {
     expect(top.lift).toBeCloseTo(INTRO.heroLift, 9);
   });
 
-  test('through the first screen the camera stays where the picture was taken, with the hero lens', () => {
+  test('through the first screen the camera stays where the picture was taken; its lens opens and its shift eases out', () => {
     const top = poseOnPreTrack(0);
+    let fov = top.fov;
     for (const t of [0.3, 0.7, 1]) {
       const pose = poseOnPreTrack(trackProgress('pre', 'sky', t));
       expect(pose.position.distanceTo(INTRO.swapPose.position), `t=${t}`).toBeLessThan(1e-9);
-      expect(pose.fov, `t=${t}`).toBeCloseTo(top.fov, 9);
-      expect(pose.lift, `t=${t}`).toBeCloseTo(INTRO.heroLift, 9);
+      expect(pose.fov, `t=${t}`).toBeGreaterThan(fov);
+      fov = pose.fov;
     }
+    expect(poseOnPreTrack(trackProgress('pre', 'sky', 0.7)).lift ?? 0).toBe(0);
   });
 
-  test('its gaze turns from rest, 28° down and 10° to the left, as the plane climbs away', () => {
+  test('its gaze turns from rest, from the plane to the globe, as the plane flies off to it', () => {
     const gaze = (t: number) => {
       const p = poseOnPreTrack(trackProgress('pre', 'sky', t));
       return p.target.clone().sub(p.position).normalize();
     };
     const [from, to] = [gaze(0), gaze(1)];
-    const pitch = (d: Vector3) => (Math.asin(d.y) * 180) / Math.PI;
-    const yaw = (d: Vector3) => (Math.atan2(d.z, d.x) * 180) / Math.PI;
-    expect(pitch(from) - pitch(to)).toBeCloseTo(28, 1);
-    // the camera looks along −x+z: turning left (towards +x+z) lowers atan2(z, x)
-    expect(yaw(from) - yaw(to)).toBeCloseTo(10, 0);
+    expect(from.angleTo(new Vector3().sub(INTRO.swapPose.position).normalize())).toBeLessThan(1e-9);
+    expect(to.angleTo(GLOBE.center.clone().sub(INTRO.swapPose.position).normalize())).toBeLessThan(1e-9);
     // from rest: the first 5 % of the chapter turns it far less than an even share
     expect(gaze(0.05).angleTo(from)).toBeLessThan((to.angleTo(from) * 0.05) / 4);
   });

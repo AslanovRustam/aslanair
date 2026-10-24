@@ -138,20 +138,23 @@ describe('the globe', () => {
   });
 
   for (const aspect of [16 / 9, 412 / 915]) {
-    test(`at ${aspect.toFixed(2)} it emerges below the climbing plane and rises as the first screen ends`, () => {
+    test(`at ${aspect.toFixed(2)} it rises into view as the plane flies off towards it, whole in frame once it is there`, () => {
       const sky = (t: number) => trackProgress('pre', 'sky', t);
-      // unseen while the plane holds the frame, all there by the end
-      expect(globeFade('browse', sky(0.55))).toBe(0);
-      expect(globeFade('browse', sky(0.7))).toBeGreaterThan(0.2);
+      // unseen while the plane fills the frame, all there before the plane reaches it (stage.ts hides it behind)
+      expect(globeFade('browse', sky(0.35))).toBe(0);
+      expect(globeFade('browse', sky(0.75))).toBe(1);
       expect(globeFade('browse', sky(1))).toBe(1);
-      const [a, b] = [globeOnScreen(sky(0.6), aspect), globeOnScreen(sky(1), aspect)];
+      const [a, b] = [globeOnScreen(sky(0.45), aspect), globeOnScreen(sky(1), aspect)];
       expect((b.y0 + b.y1) / 2, 'rising').toBeLessThan((a.y0 + a.y1) / 2 - 0.05);
-      expect(b.y0 > 0 && b.y1 < 1 && b.x0 > 0 && b.x1 < 1, 'whole in frame at the end').toBe(true);
+      for (const t of [0.75, 1]) {
+        const g = globeOnScreen(sky(t), aspect);
+        expect(g.y0 > 0 && g.y1 < 1 && g.x0 > 0 && g.x1 < 1, `whole in frame at sky ${t}`).toBe(true);
+      }
     });
   }
 
-  test('it shows from the end of the first screen to the transfer chapter, nowhere else', () => {
-    expect(globeFade('browse', trackProgress('pre', 'sky', 0.5))).toBe(0);
+  test('it shows from the second half of the first screen to the transfer chapter, nowhere else', () => {
+    expect(globeFade('browse', trackProgress('pre', 'sky', 0.35))).toBe(0);
     expect(globeFade('browse', trackProgress('pre', 'destinations', 0.5))).toBe(1);
     expect(globeFade('browse', trackProgress('pre', 'transfer', 0.2))).toBe(0);
     expect(globeFade('browse', trackProgress('pre', 'aisle', 0.5))).toBe(0);
