@@ -418,6 +418,53 @@ async function showAt(page: Page, id: 'ready', t: number) {
   );
 }
 
+test('the Ready words are larger: about 1.3 × at 1440×800 (spec r5 §6)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  await showAt(page, 'ready', 0.5);
+  const sizes = await page.getByTestId('ready').evaluate((el) => ({
+    title: parseFloat(getComputedStyle(el.querySelector('h2')!).fontSize),
+    promise: parseFloat(getComputedStyle(el.querySelector('p')!).fontSize),
+  }));
+  // before: 72 px and 33.6 px
+  expect(sizes.title).toBeGreaterThanOrEqual(1.25 * 72);
+  expect(sizes.promise).toBeGreaterThanOrEqual(1.25 * 33.6);
+});
+
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 1280, height: 720 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} the Ready words stay left of the plane while it is far`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await loaderGone(page);
+    const aspect = viewport.width / viewport.height;
+    for (const t of [0.3, 0.5]) {
+      await showAt(page, 'ready', t);
+      await page.waitForTimeout(700); // the words' entrance
+      const at = await progress(page);
+      const b = projectedBox(aircraftStage('browse', at, undefined, aspect), poseOnPreTrack(at, aspect), aspect);
+      const plane = { x: b.x0 * viewport.width, y: b.y0 * viewport.height, width: (b.x1 - b.x0) * viewport.width, height: (b.y1 - b.y0) * viewport.height };
+      const words = await page.getByTestId('ready').locator('[class*="words"]').evaluate((e) => e.getBoundingClientRect().toJSON() as Box);
+      expect(overlaps(words, plane), `ready ${t}`).toBe(false);
+    }
+  });
+}
+
+test('on a phone the Ready words fit the screen', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await open(page);
+  await loaderGone(page);
+  await showAt(page, 'ready', 0.5);
+  await page.waitForTimeout(700);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
+  const words = await page.getByTestId('ready').locator('[class*="words"]').evaluate((e) => e.getBoundingClientRect().toJSON() as Box);
+  expect(words.x).toBeGreaterThanOrEqual(0);
+  expect(words.x + words.width).toBeLessThanOrEqual(412);
+});
+
 test('ready: the promise lights up word by word, all of it by the end, with opacity alone', async ({ page }) => {
   await open(page);
   await wheelTo(page, pre('ready', 0.05));
