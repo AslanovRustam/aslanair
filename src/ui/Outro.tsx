@@ -1,7 +1,8 @@
 'use client';
 
-import type { FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { copy } from '@/content/copy';
+import { validateBooking } from '@/experience/bookingForm';
 import { chapterAt } from '@/experience/chapters';
 import { transitionLabel } from '@/experience/navState';
 import { trackOf, useExperience } from '@/experience/store';
@@ -10,6 +11,84 @@ import GridBackdrop from './GridBackdrop';
 import RevealText from './RevealText';
 import { transitionTo } from './transition';
 import styles from './ui.module.css';
+
+type Field = 'name' | 'email';
+
+/**
+ * The booking form (nothing is ever sent): Buy goes through once the name and the e-mail are right (validateBooking).
+ * What is wrong shows under its field after Buy, or as soon as the visitor leaves a field filled in wrong, and follows
+ * the typing from then on; Buy takes the visitor to the first field to put right.
+ */
+function BookingForm({ onBuy, onRestart }: { onBuy: () => void; onRestart: () => void }) {
+  const t = copy.outro;
+  const [values, setValues] = useState({ name: '', email: '' });
+  const [shown, setShown] = useState<Record<Field, boolean>>({ name: false, email: false });
+  const inputs = useRef<Record<Field, HTMLInputElement | null>>({ name: null, email: null });
+  const errors = validateBooking(values);
+  const message: Record<Field, string | undefined> = {
+    name: errors.name && (errors.name === 'required' ? t.errors.nameRequired : t.errors.nameShort),
+    email: errors.email && (errors.email === 'required' ? t.errors.emailRequired : t.errors.emailInvalid),
+  };
+
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const wrong = (['name', 'email'] as const).find((f) => errors[f]);
+    if (!wrong) return onBuy();
+    setShown({ name: true, email: true });
+    inputs.current[wrong]?.focus();
+  };
+
+  const field = (id: Field, label: string, type: string) => {
+    const error = shown[id] ? message[id] : undefined;
+    return (
+      <div className={styles.field}>
+        <label>
+          {label}
+          <input
+            ref={(el) => {
+              inputs.current[id] = el;
+            }}
+            name={id}
+            type={type}
+            autoComplete="off"
+            required
+            value={values[id]}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `booking-${id}-error` : undefined}
+            onChange={(e) => setValues((v) => ({ ...v, [id]: e.target.value }))}
+            // left filled in wrong: say so now; left empty: wait for Buy
+            onBlur={() => values[id].trim() && setShown((s) => ({ ...s, [id]: true }))}
+          />
+        </label>
+        {/* always there, its line kept: a note appearing as the field loses focus never moves Buy from under a
+            click, and a screen reader hears it */}
+        <p id={`booking-${id}-error`} className={styles.fieldError} aria-live="polite">
+          {error}
+        </p>
+      </div>
+    );
+  };
+
+  return (
+    <form className={styles.form} onSubmit={onSubmit} noValidate>
+      <p className={styles.outroLead}>{t.lead}</p>
+      {field('name', t.name, 'text')}
+      {field('email', t.email, 'email')}
+      <label className={styles.wide}>
+        {t.comment}
+        <textarea name="comment" rows={2} maxLength={500} />
+      </label>
+      <div className={styles.formActions}>
+        <button type="submit" className={styles.button}>
+          {t.buy}
+        </button>
+        <button type="button" className={styles.textButton} onClick={onRestart}>
+          {t.restart}
+        </button>
+      </div>
+    </form>
+  );
+}
 
 /**
  * Final chapter, a dark editorial page over the night sky: the farewell, a visual-only booking form (nothing is ever
@@ -22,11 +101,6 @@ export default function Outro() {
   const restart = useExperience((s) => s.restart);
 
   if (!((phase === 'confirmed' || phase === 'thanks') && chapter === 'outro')) return null;
-
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    submitForm();
-  };
 
   // back to the top under the curtain
   const onRestart = () =>
@@ -50,29 +124,7 @@ export default function Outro() {
             </button>
           </div>
         ) : (
-          <form className={styles.form} onSubmit={onSubmit}>
-            <p className={styles.outroLead}>{t.lead}</p>
-            <label>
-              {t.name}
-              <input name="name" autoComplete="off" />
-            </label>
-            <label>
-              {t.email}
-              <input name="email" type="email" autoComplete="off" />
-            </label>
-            <label className={styles.wide}>
-              {t.comment}
-              <textarea name="comment" rows={2} />
-            </label>
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.button}>
-                {t.buy}
-              </button>
-              <button type="button" className={styles.textButton} onClick={onRestart}>
-                {t.restart}
-              </button>
-            </div>
-          </form>
+          <BookingForm onBuy={submitForm} onRestart={onRestart} />
         )}
         <aside className={styles.made}>
           <p>{t.made.lead}</p>

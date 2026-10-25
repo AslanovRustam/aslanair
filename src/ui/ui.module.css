@@ -308,6 +308,27 @@
   border-bottom-color: var(--accent);
 }
 
+/* a field with its note under it when it needs putting right */
+.field {
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+}
+
+.form input[aria-invalid='true'] {
+  border-bottom-color: var(--error);
+}
+
+/* one line, its room kept whether or not it says anything */
+.fieldError {
+  min-height: 1.35em;
+  margin: 0;
+  color: var(--error);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .formActions {
   display: flex;
   align-items: center;

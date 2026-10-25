@@ -113,6 +113,13 @@ export const copy = {
     email: 'E-mail', // pinned
     comment: 'Comment', // pinned
     buy: 'Buy', // pinned
+    /** Under a field the visitor needs to put right: one short line each, in the room kept for it. */
+    errors: {
+      nameRequired: 'Please enter your name.',
+      nameShort: 'At least two letters, please.',
+      emailRequired: 'Please enter your e-mail.',
+      emailInvalid: 'Check the e-mail, e.g. name@example.com',
+    },
     thanks: 'Thank you! AslanAir is a concept, so nothing was sent — but that seat suits you.', // contains "concept" (pinned)
     restart: 'Start again', // pinned
     made: {

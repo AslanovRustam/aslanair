@@ -13,6 +13,8 @@
   --faint: rgba(242, 239, 232, 0.3);
   --line: rgba(242, 239, 232, 0.14);
   --accent: #d4683a;
+  /* a field to put right: warmer and brighter than the accent, so it never reads as the brand */
+  --error: #f07c6c;
   --navy: #1b2541;
   --font-display: var(--font-archivo), system-ui, sans-serif;
   --font-ui: var(--font-inter), system-ui, sans-serif;

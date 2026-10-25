@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { copy } from '@/content/copy';
 import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
 import { scrollToEnd, settledProgress, state, waitForStore } from './helpers';
@@ -83,6 +84,98 @@ test('chapter captions use the display face', async ({ page }) => {
   const caption = page.getByRole('heading', { name: 'Welcome aboard.' });
   await expect(caption).toBeVisible();
   expect(await caption.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Archivo');
+});
+
+test('the form asks for a name and a real e-mail before Buy goes through, saying what is wrong under each field', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  const name = page.getByLabel('Name');
+  const email = page.getByLabel('E-mail');
+  const buy = page.getByRole('button', { name: /^buy$/i });
+  await expect(buy).toBeVisible();
+
+  // empty: both asked for, the visitor taken to the first, nothing bought
+  await buy.click();
+  await expect(name).toHaveAttribute('aria-invalid', 'true');
+  await expect(name).toHaveAccessibleDescription(copy.outro.errors.nameRequired);
+  await expect(email).toHaveAccessibleDescription(copy.outro.errors.emailRequired);
+  await expect(name).toBeFocused();
+  expect((await state(page)).phase).toBe('confirmed');
+
+  // a name too short, an e-mail without its domain
+  await name.fill('A');
+  await expect(name).toHaveAccessibleDescription(copy.outro.errors.nameShort);
+  await email.fill('rustam@example');
+  await expect(email).toHaveAccessibleDescription(copy.outro.errors.emailInvalid);
+  await buy.click();
+  await expect(name).toBeFocused();
+  expect((await state(page)).phase).toBe('confirmed');
+
+  // put right, the errors go as they are typed away, and Buy goes through
+  await name.fill('Rustam');
+  await expect(name).not.toHaveAttribute('aria-invalid', 'true');
+  await email.fill('rustam@example.com');
+  await expect(email).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText(copy.outro.errors.emailInvalid)).toHaveCount(0);
+  await buy.click();
+  await expect.poll(async () => (await state(page)).phase).toBe('thanks');
+});
+
+test('leaving a field half filled in says what is wrong at once; leaving it empty waits for Buy', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  const name = page.getByLabel('Name');
+  const email = page.getByLabel('E-mail');
+  await expect(page.getByRole('button', { name: /^buy$/i })).toBeVisible();
+  await name.focus();
+  await email.focus(); // the name left empty
+  await expect(name).not.toHaveAttribute('aria-invalid', 'true');
+  await email.fill('rustam@');
+  await page.getByLabel('Comment').focus();
+  await expect(email).toHaveAttribute('aria-invalid', 'true');
+  await expect(email).toHaveAccessibleDescription(copy.outro.errors.emailInvalid);
+});
+
+test('a wrong e-mail and straight to Buy: the note that appears as the field is left never moves Buy from under the click', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  const buy = page.getByRole('button', { name: /^buy$/i });
+  await expect(buy).toBeVisible();
+  await page.waitForTimeout(1500); // the page's entrance played out
+  await page.getByLabel('E-mail').fill('rustam@example');
+  const before = (await buy.boundingBox())!.y;
+  await page.getByLabel('Comment').focus(); // the e-mail left filled in wrong: its note appears
+  await expect(page.getByLabel('E-mail')).toHaveAccessibleDescription(copy.outro.errors.emailInvalid);
+  expect((await buy.boundingBox())!.y, 'Buy has not moved').toBe(before);
+  await page.getByLabel('E-mail').focus();
+  await buy.click();
+  // the click went through: Buy asked for the name and took the visitor there
+  await expect(page.getByLabel('Name')).toBeFocused();
+  await expect(page.getByLabel('Name')).toHaveAccessibleDescription(copy.outro.errors.nameRequired);
 });
 
 test('take off, fill the form, start again', async ({ page }) => {
