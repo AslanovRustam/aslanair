@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { heroPictureBox, progress, waitForStore } from './helpers';
+import { LOADER } from '@/experience/introState';
+import { heroPictureBox, loaderGone, progress, waitForStore } from './helpers';
 
 type Frame = { t: number; x: number; y: number; w: number; h: number; opacity: number };
 
@@ -68,7 +69,12 @@ for (const viewport of [
     const full = frames.findIndex(near);
     expect(full, 'reaches the hero picture').toBeGreaterThanOrEqual(0);
     expect(frames[full].t, 'within 1.2 s of ready').toBeLessThanOrEqual(1200);
-    for (let i = 1; i < frames.length; i++) expect(Math.abs(frames[i].w - frames[i - 1].w), `step at ${frames[i].t.toFixed(0)} ms`).toBeLessThanOrEqual(0.06 * hero.width);
+    // no jump: between two frames the width changes no faster than the growth's steepest pace (its ease-out starts
+    // at about 4.5 × the mean) over the time between them — a late frame may take a bigger step, a jump cannot
+    for (let i = 1; i < frames.length; i++) {
+      const pace = (5 * (hero.width / 2) * (frames[i].t - frames[i - 1].t)) / (LOADER.grow * 1000);
+      expect(Math.abs(frames[i].w - frames[i - 1].w), `step at ${frames[i].t.toFixed(0)} ms`).toBeLessThanOrEqual(pace + 4);
+    }
     for (const f of frames.slice(0, full)) expect(f.opacity, `loader opacity at ${f.t.toFixed(0)} ms`).toBe(1);
     await expect(loader).toBeHidden({ timeout: 5000 });
     await expect(page.getByTestId('hero').getByRole('heading', { name: 'Night flight' })).toBeVisible();
@@ -133,4 +139,13 @@ test('under reduced motion the picture fades out at its small size', async ({ pa
   const frames = await handOver(page);
   for (const f of frames) expect(f.w, `width at ${f.t.toFixed(0)} ms`).toBeLessThanOrEqual(small.width + 2);
   expect(frames[frames.length - 1].t, 'gone within 1 s of ready').toBeLessThanOrEqual(1000);
+});
+
+test('the moment the loader is gone the page scrolls: no wheel is lost after the hand-over', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await loaderGone(page);
+  await page.mouse.move(720, 400);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => progress(page), { timeout: 3000 }).toBeGreaterThan(0);
 });

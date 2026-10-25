@@ -77,17 +77,31 @@ export default function SmoothScroll() {
     };
   }, []);
 
-  // While the loader hands its plane to the hero the page holds still, so the picture and the live plane meet.
+  // While the loader hands its plane to the hero the page holds still, so the picture and the live plane meet; it
+  // lets go the moment the loader is gone (a wheel then must not be lost), or a second past its time at the latest.
   useEffect(() => {
-    let release: ReturnType<typeof setTimeout> | undefined;
+    let frame = 0;
+    let latest: ReturnType<typeof setTimeout> | undefined;
+    const release = () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(latest);
+      lockScroll(false);
+    };
+    const watch = () => {
+      const loader = document.getElementById('loader');
+      if (!loader || getComputedStyle(loader).visibility === 'hidden') release();
+      else frame = requestAnimationFrame(watch);
+    };
     const unsubscribe = experienceStore.subscribe((s, prev) => {
       if (!s.ready || prev.ready) return;
       lockScroll(true);
-      release = setTimeout(() => lockScroll(false), handOverSeconds(matchMedia('(prefers-reduced-motion: reduce)').matches) * 1000);
+      frame = requestAnimationFrame(watch);
+      latest = setTimeout(release, (handOverSeconds(matchMedia('(prefers-reduced-motion: reduce)').matches) + 1) * 1000);
     });
     return () => {
       unsubscribe();
-      clearTimeout(release);
+      cancelAnimationFrame(frame);
+      clearTimeout(latest);
     };
   }, []);
 
