@@ -111,7 +111,7 @@ for (const viewport of [
     await page.addStyleTag({ content: '#loader[data-ready="true"] { opacity: 1 !important; visibility: visible !important; transition: none !important; }' });
     release();
     await isReady(page);
-    await page.waitForTimeout(1300); // the picture grows into the hero's (LOADER.grow)
+    await page.waitForTimeout(1500); // the words step aside and the picture grows into the hero's (LOADER.aside + grow)
     const box = heroPlaneBox(page);
     const picture = await page.screenshot({ clip: box });
     await page.evaluate(() => document.querySelectorAll('style').forEach((s) => s.textContent?.includes('#loader[data-ready="true"]') && s.remove()));
@@ -161,8 +161,8 @@ test('resizing at the top keeps the live plane where the picture puts it', async
 test('scrolling the first screen compiles and uploads nothing, and never stalls a frame', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  await isReady(page);
-  await page.waitForTimeout(1000);
+  // from when the visitor can scroll: the page holds still until the loader is gone
+  await loaderGone(page);
   type Gl = { info: { programs: unknown[] | null; memory: { geometries: number; textures: number } } };
   const r = await page.evaluate(async (end) => {
     const w = window as unknown as { __aslan: { gl: Gl; store: { getState(): { setProgress(p: number): void } } } };

@@ -55,17 +55,17 @@ describe('the hero frame is the capture frame, scaled and lifted', () => {
 });
 
 describe('the loader hands its plane to the hero', () => {
-  test('it shows the plane at half the hero size, grows it into place, then fades', () => {
-    expect(LOADER).toEqual({ start: 0.5, grow: 0.9, fade: 0.6 });
+  test('it shows the plane at half the hero size, lets its words step aside, grows it into place, then fades', () => {
+    expect(LOADER).toEqual({ start: 0.5, aside: 0.2, grow: 0.9, fade: 0.6 });
   });
 
   test('the hero waits for the growth, except under reduced motion', () => {
-    expect(heroEntranceDelay(false)).toBe(0.9);
+    expect(heroEntranceDelay(false)).toBeCloseTo(1.1, 9);
     expect(heroEntranceDelay(true)).toBe(0);
   });
 
   test('the page holds still until the loader is gone', () => {
-    expect(handOverSeconds(false)).toBeCloseTo(1.5, 9);
+    expect(handOverSeconds(false)).toBeCloseTo(1.7, 9);
     expect(handOverSeconds(true)).toBe(0.3);
   });
 });

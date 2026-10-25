@@ -246,7 +246,7 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await waitForStore(page);
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
   // the loader's small plane halfway through growing into the hero's (spec r5 §1)
-  await shoot('loader-grow', { settle: (LOADER.grow / 2) * 1000, dark: true });
+  await shoot('loader-grow', { settle: (LOADER.aside + LOADER.grow / 2) * 1000, dark: true });
 
   await shoot('hero',{ judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
   await setProgress(page, pre('sky', 0.25));

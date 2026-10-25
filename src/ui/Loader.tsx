@@ -12,16 +12,18 @@ const PICTURE_BOX = {
   '--picture-per-w': HERO_PICTURE.perWidth,
   '--picture-lift': HERO_PICTURE.lift,
   '--picture-start': LOADER.start,
+  '--words-aside': `${LOADER.aside}s`,
   '--picture-grow': `${LOADER.grow}s`,
   '--loader-fade': `${LOADER.fade}s`,
+  '--plane-top': INTRO.picture.plane.top,
 } as CSSProperties;
 
-
 /**
- * Server-rendered, so it paints before any script: the emblem revealed from its horizon up and the plane picture
- * fading in at half its hero size on the hero's centre; once the scene is ready it grows into the hero's picture and
- * the loader fades, the live plane in its place (SmoothScroll holds the page still meanwhile, so the two meet). The
- * real loading progress is announced to assistive tech, not drawn.
+ * Server-rendered, so it paints before any script: the plane picture fading in at half its hero size on the hero's
+ * centre, the emblem revealed from its horizon up and its words above it; once the scene is ready the emblem and its
+ * words step aside, the picture grows into the hero's and the loader fades, the live plane in its place (SmoothScroll
+ * holds the page still meanwhile, so the two meet). The real loading progress is announced to assistive tech, not
+ * drawn.
  */
 export default function Loader() {
   const progress = useExperience((s) => Math.round(s.loadProgress));

@@ -1,6 +1,7 @@
-/* The first paint: dark, the emblem revealed from its horizon up, the plane picture at half its hero size on the
-   hero's centre. Over everything until the scene is ready; then the picture grows into the hero's (LOADER, spec r5
-   §3) and only after that does the loader fade, the live plane already in its place, and the hero play its entrance. */
+/* The first paint: dark, the plane picture at half its hero size on the hero's centre, the emblem revealed from its
+   horizon up and its words above the plane. Over everything until the scene is ready; then the emblem and words step
+   aside, the picture grows into the hero's (LOADER, spec r5 §3) and only after that does the loader fade, the live
+   plane already in its place, and the hero play its entrance. */
 
 .loader {
   position: fixed;
@@ -18,8 +19,8 @@
   visibility: hidden;
   pointer-events: none;
   transition:
-    opacity var(--loader-fade) ease var(--picture-grow),
-    visibility 0s linear calc(var(--picture-grow) + var(--loader-fade));
+    opacity var(--loader-fade) ease calc(var(--words-aside) + var(--picture-grow)),
+    visibility 0s linear calc(var(--words-aside) + var(--picture-grow) + var(--loader-fade));
 }
 
 /* the same box IntroPlane gives the picture at the top of the page: full frame height scaled to the hero size,
@@ -37,19 +38,31 @@
   transition: scale var(--picture-grow) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* it grows once the emblem and its words have stepped aside */
 .loader[data-ready='true'] .picture {
   scale: 1;
+  transition-delay: var(--words-aside);
 }
 
+/* above the small plane: its foot 2rem over the plane's top (the plane is the picture's middle, `--plane-top` down
+   it); as the plane grows up into its place, the emblem and its words have already stepped aside */
 .status {
   position: absolute;
   left: 50%;
-  top: 64%;
+  top: calc(
+    50cqh - var(--picture-lift) * 100cqh - (0.5 - var(--plane-top)) * var(--picture-start) *
+      min(calc(var(--picture-h) * 100cqh), calc(var(--picture-per-w) * 100cqw))
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.1rem;
-  translate: -50% 0;
+  translate: -50% calc(-100% - 2rem);
+  transition: opacity var(--words-aside) ease;
+}
+
+.loader[data-ready='true'] .status {
+  opacity: 0;
 }
 
 /* bottom-to-top wipe: the window slides up from below while its content slides down by as much, so the emblem

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { LOADER } from '@/experience/introState';
+import { INTRO, LOADER } from '@/experience/introState';
 import { heroPictureBox, loaderGone, progress, waitForStore } from './helpers';
 
 type Frame = { t: number; x: number; y: number; w: number; h: number; opacity: number };
@@ -78,6 +78,43 @@ for (const viewport of [
     for (const f of frames.slice(0, full)) expect(f.opacity, `loader opacity at ${f.t.toFixed(0)} ms`).toBe(1);
     await expect(loader).toBeHidden({ timeout: 5000 });
     await expect(page.getByTestId('hero').getByRole('heading', { name: 'Night flight' })).toBeVisible();
+  });
+}
+
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 412, height: 915 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} the emblem and its words sit above the plane while it loads, and step aside as it grows`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.route('**/models/*.glb', async (r) => {
+      await new Promise((f) => setTimeout(f, 1500));
+      await r.continue();
+    });
+    await page.goto('/');
+    await expect(page.locator('#loader img')).toBeVisible();
+    const boxes = () =>
+      page.evaluate((top) => {
+        const loader = document.getElementById('loader')!;
+        const img = loader.querySelector('img')!.getBoundingClientRect();
+        const status = loader.querySelector(':scope > div')!;
+        const s = status.getBoundingClientRect();
+        // the plane's own top in the picture (the picture is a frame, the plane its middle part)
+        return { planeTop: img.y + top * img.height, status: { top: s.top, bottom: s.bottom }, opacity: Number(getComputedStyle(status).opacity), ready: loader.dataset.ready === 'true' };
+      }, INTRO.picture.plane.top);
+    const loading = await boxes();
+    expect(loading.ready, 'still loading').toBe(false);
+    expect(loading.status.bottom, 'above the plane').toBeLessThanOrEqual(loading.planeTop - 8);
+    expect(loading.status.top, 'on screen').toBeGreaterThanOrEqual(0);
+    // as the plane grows up into them, the emblem and its words are already gone
+    const seen: string[] = [];
+    await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+    for (let i = 0; i < 30; i++) {
+      const b = await boxes();
+      if (b.planeTop < b.status.bottom && b.opacity > 0.05) seen.push(`plane top ${b.planeTop.toFixed(0)} under words at opacity ${b.opacity.toFixed(2)}`);
+      await page.waitForTimeout(40);
+    }
+    expect(seen, 'the growing plane never runs into the words').toEqual([]);
   });
 }
 
