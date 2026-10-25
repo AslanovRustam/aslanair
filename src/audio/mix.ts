@@ -23,7 +23,7 @@ export interface SoundSnapshot {
 export type OneShot = 'ding' | 'rustle' | 'gust';
 
 // the beds sit under the music (the author could not hear it at 0.22 under a 0.7 crowd and a 0.8 cabin)
-const LEVEL = { airport: 0.5, cabin: 0.55, outside: 0.55, outro: 0.12 };
+const LEVEL = { airport: 0.3, cabin: 0.55, outside: 0.55, outro: 0.12 };
 const SILENT: Ambience = { airport: 0, cabin: 0, outside: 0 };
 const { smoothstep, lerp } = MathUtils;
 

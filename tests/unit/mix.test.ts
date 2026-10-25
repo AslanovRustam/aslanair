@@ -5,11 +5,11 @@ const snap = (s: Partial<SoundSnapshot>): SoundSnapshot => ({ phase: 'browse', c
 
 describe('the mix (the author, 2026-10-25: an airport until Ready, then a plane in flight)', () => {
   test('the airport through the journey before boarding, nothing else', () => {
-    for (const chapter of ['sky', 'destinations', 'transfer'] as const) expect(ambience('browse', chapter, 0.5)).toMatchObject({ airport: 0.5, cabin: 0, outside: 0 });
+    for (const chapter of ['sky', 'destinations', 'transfer'] as const) expect(ambience('browse', chapter, 0.5)).toMatchObject({ airport: 0.3, cabin: 0, outside: 0 });
   });
 
   test('as Ready shows, the airport gives way to the cabin in flight', () => {
-    expect(ambience('browse', 'ready', 0)).toMatchObject({ airport: 0.5, cabin: 0 });
+    expect(ambience('browse', 'ready', 0)).toMatchObject({ airport: 0.3, cabin: 0 });
     expect(ambience('browse', 'ready', 0.3)).toMatchObject({ airport: 0, cabin: 0.55 });
     const [a, b] = [ambience('browse', 'ready', 0.12), ambience('browse', 'ready', 0.13)];
     expect(Math.abs(a.cabin - b.cabin)).toBeLessThan(0.05);
