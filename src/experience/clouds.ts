@@ -2,7 +2,8 @@
  * The night's clouds (spec r4 §9): a photographed cloud sea far below, and moon-lit sprite puffs between it and the
  * plane. Metres, in the world (the aircraft cruises at y ≈ 0).
  *
- * The cloud sea: a disc `radius` across at height `y`, its photo repeating every `tile` metres.
+ * The cloud sea: a disc `radius` across at height `y`, its photo laid at `tile` metres across — shifted from place to
+ * place so it never shows as a repeat (CLOUD_SEA_FRAGMENT).
  */
 export const CLOUD_SEA = { y: -600, radius: 40_000, tile: 1800 } as const;
 

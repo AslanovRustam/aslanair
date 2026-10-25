@@ -103,18 +103,43 @@ export const CLOUD_SEA_VERTEX = /* glsl */ `
   }`;
 
 /**
- * The cloud sea: the photographed deck sampled at two scales (each drifting with the wind, `uDrift` already wrapped
- * by its mirrored period), graded to moonlight — navy-grey hollows, silver tops, a forward-scatter sheen towards the
- * moon's azimuth — and fogged into the horizon haze with distance.
+ * The cloud sea: the photographed deck sampled at two scales, each turned its own way and laid without repeating, so
+ * no rows or grid show towards the horizon; a slow noise thickens it in places and thins it in others. All of it
+ * drifts with the wind (`uWind`, metres; the fine sampling a little slower). Graded to moonlight — navy-grey hollows,
+ * silver tops, a forward-scatter sheen towards the moon's azimuth — and fogged into the horizon haze with distance.
  */
 export const CLOUD_SEA_FRAGMENT = /* glsl */ `
-  uniform sampler2D uSea; uniform vec4 uDrift; uniform float uTile; uniform vec3 uCam;
+  uniform sampler2D uSea; uniform vec2 uWind; uniform float uTile; uniform vec3 uCam;
   varying vec3 vWorld;
   ${SKY_GLSL}
+  // the two samplings' turns and the fine one's scale: neither lines up with the other, nor with the flight
+  const mat2 BROAD_TURN = mat2(0.9131, 0.4078, -0.4078, 0.9131);
+  const mat2 FINE_TURN = mat2(0.6216, -0.7833, 0.7833, 0.6216);
+  const float FINE_SCALE = 2.71;
+  const float FINE_DRIFT = 0.8;
+  float seaHash(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+  float seaNoise(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3. - 2. * f);
+    return mix(mix(seaHash(i), seaHash(i + vec2(1., 0.)), u.x), mix(seaHash(i + vec2(0., 1.)), seaHash(i + vec2(1., 1.)), u.x), u.y);
+  }
+  // the photo laid without repeating (after Inigo Quilez's "texture repetition", technique 3): a slow noise picks one
+  // of eight shifts of it, blended where the pick changes; sampled with the uv's own gradients, so no mip seams
+  float deckAt(vec2 uv){
+    float l = seaNoise(uv * 1.3) * 8.;
+    float ia = floor(l);
+    vec2 dx = dFdx(uv), dy = dFdy(uv);
+    float a = textureGrad(uSea, uv + sin(vec2(3., 7.) * ia), dx, dy).r;
+    float b = textureGrad(uSea, uv + sin(vec2(3., 7.) * (ia + 1.)), dx, dy).r;
+    return mix(a, b, smoothstep(0.2, 0.8, fract(l) - 0.1 * (a - b)));
+  }
   void main(){
-    float broad = texture2D(uSea, (vWorld.xz - uDrift.xy) / uTile).r;
-    float fine = texture2D(uSea, (vWorld.xz - uDrift.zw) / (uTile / 3.) + 0.37).r;
-    float deck = clamp(broad * 0.8 + (fine - 0.5) * 0.35, 0., 1.);
+    float broad = deckAt(BROAD_TURN * (vWorld.xz - uWind) / uTile);
+    float fine = deckAt(FINE_TURN * (vWorld.xz - uWind * FINE_DRIFT) / (uTile / FINE_SCALE) + 0.37);
+    // where the deck is thick and where it breaks up: kilometres across, drifting with it
+    vec2 slow = BROAD_TURN * (vWorld.xz - uWind);
+    float cover = seaNoise(slow / 7000. + 3.1) * 0.65 + seaNoise(FINE_TURN * slow / 2600. - 1.7) * 0.35;
+    float deck = clamp((broad * 0.8 + (fine - 0.5) * 0.35) * mix(0.45, 1.15, smoothstep(0.25, 0.75, cover)), 0., 1.);
     vec3 rd = vWorld - uCam;
     float dist = length(rd);
     rd /= dist;

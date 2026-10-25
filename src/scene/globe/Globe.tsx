@@ -118,8 +118,15 @@ void main() {
   vKind = aKind;
   vChosen = step(abs(aIndex - uChosen), 0.5);
   vHover = step(abs(aIndex - uHover), 0.5);
-  gl_PointSize = aSize * (1.0 + 0.5 * vChosen + 0.3 * vHover) * uScale / -mv.z;
-  gl_Position = projectionMatrix * mv;
+  float size = aSize * (1.0 + 0.5 * vChosen + 0.3 * vHover);
+  gl_PointSize = size * uScale / -mv.z;
+  // the marker stands square to the view while the globe curves away under it: towards the limb the surface rises
+  // into its inner half (up to half its size times the slope) and would cut it. Drawn that much nearer along its own
+  // line of sight — the same place and size on screen — the globe never cuts it; face on it barely moves, so the
+  // plane over the globe still passes in front of it
+  vec3 toEye = normalize(-mv.xyz);
+  float slope = sqrt(max(1.0 - vFacing * vFacing, 0.0)) / max(vFacing, 0.05);
+  gl_Position = projectionMatrix * vec4(mv.xyz + toEye * min(0.5 * size * slope, 12.0), 1.0);
 }`;
 
 /** Markers: a bright core in a ring; home (aKind 1) in terracotta, the destinations in warm white, the chosen one
