@@ -20,6 +20,7 @@
 - Under `prefers-reduced-motion: reduce` the camera never flies and the hero picture never flies: scroll moves between key poses through a 0.5 s veil (the hero picture gives way to the live 3D under the veil); no idle bob; hero notes and the pass fade in without stagger or slide; the loader emblem is drawn without the stroke animation.
 - All strings in `src/content/copy.ts`; the e2e-pinned labels from Plan 1 keep their wording (`Pick for me`, `Choose this seat`, `See another`, `Change seat`, `Buy`, `Start again`, `Name`, `E-mail`, `Comment`, "WebGL2", "concept").
 - The author line is filled (Plan 4c): "Concept & code: Aslanov Rustam · GitHub" (`copy.author`, linking to https://github.com/AslanovRustam) — keep it as it is.
+- The author line and the sky credit stay visible in the footer on every screen, phones included (Plan 4d): "Milky Way: ESO/S. Brunier, adapted · CC BY 4.0 · Clouds: NASA" (`copy.footer.sky`, the ESO and licence parts linked) while the night sky is on screen. There is no How it's made panel or header item any more (spec r5 §8); the outro keeps its short word (`copy.outro.made.lead`).
 - Deploying to Vercel publishes the site: it happens only after the user confirms in chat (Task 8 stops there).
 - Production build: no console errors; `/models/*` served with `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`; models ≤ 2.1 MB total transfer (airliner ≤ 1.5 MB + kit ≤ 0.6 MB, Plan 3b); `/images/*` cached the same way.
 
@@ -39,7 +40,7 @@ Found while executing and reviewing Plan 4 and deliberately left for this plan; 
 - ~~Seat view: the window outline is faceted at the seated eye~~ — resolved by Plan 4c: window bezels (`WindowBezels.tsx`, `windowBezel.ts`) draw a smooth rounded opening over the liner, no new airliner triangles. Still open: the wall reads bright and warm rather than night.
 - The moon is a front key with an ambient fill; spec r2 §9 pictures a rim light — a fresnel rim in the hull material is nearly free (needs the user's sign-off on the look).
 - ~~Six react-hooks lint errors in SkyAndClouds.tsx and BoardingPass3D.tsx~~ — fixed in Plan 4c (SkyAndClouds' five with the sky rewrite, BoardingPass3D's at the hand-over); lint is clean but for two unused-variable warnings.
-- Accessibility: the Menu sheet and the How it's made panel are `aria-modal` without a focus trap; the Menu button lacks `aria-expanded`; opening the panel from the phone menu returns focus to an unmounted button. The page has no `<main>` landmark (Task 6's test queries it).
+- Accessibility: the Menu sheet is `aria-modal` without a focus trap; the Menu button lacks `aria-expanded`. ~~The How it's made panel's focus trap; its focus returning to an unmounted button from the phone menu~~ — the panel is gone (Plan 4d). The page has no `<main>` landmark (Task 6's test queries it).
 - `?capture=plane` should only work outside production; `sharp` (used by tests/unit/planeImage.test.ts, skyImages.test.ts and tools/encode-sky.mjs) belongs in devDependencies. ~~planeImage.test should compute the picture's alpha box~~ — done in Plan 4c.
 - ~~On DPR-2 screens the 1600×900 hero picture is upscaled at the swap~~ — resolved by Plan 4c: a 3200×1800 WebP within 500 KB.
 - `planeBoxVars` in Hero.tsx uses the fixed `heroScale`, not the aspect-aware one (only below aspect 0.59 above 720 px wide).
@@ -60,7 +61,7 @@ Minor findings of Plan 4b's final review, left for this plan; fold each into the
 Found while executing Plan 4c; fold each into the task that owns it, with a test.
 
 - Seen from outside on the way out (post 0.45), faint dark jagged fringes trace the hull's window openings; they were there before the window bezels (compared with the bezels hidden) — find their source.
-- The sky images (`public/images/sky/`, credits in its CREDITS.md) are re-made with `node tools/encode-sky.mjs <eso0932a.jpg> <indianocean_amo_2013070_lrg.jpg>` from the originals; the footer's ESO credit (CC BY 4.0) shows only while the night sky is on screen and is hidden on phones, where How it's made carries it — keep both when the copy changes (Task 7).
+- The sky images (`public/images/sky/`, credits in its CREDITS.md) are re-made with `node tools/encode-sky.mjs <eso0932a.jpg> <indianocean_amo_2013070_lrg.jpg>` from the originals; the footer's sky credit (ESO/S. Brunier, adapted · CC BY 4.0 · Clouds: NASA) shows while the night sky is on screen, at every width (Plan 4d moved it out of the gone How it's made panel) — keep it when the copy changes (Task 7).
 - From Plan 4c's final review (minors, left for this plan):
   - Each sky image arrives with one long frame: `skyTexture.ts` uploads the 4096×2048 panorama with `initTexture` on the main thread at an arbitrary moment, and its fetch competes with the loader's GLBs. Decode off the thread (`ImageBitmapLoader`, mind its flipY), start the fetch after `ready`, and upload at a quiet moment (Task 1 or Task 6).
   - `puffLayout` clamps an edge cluster's puffs to ±box/2, piling them on a plane; the shader wraps by cluster, so keep cluster centres within ±(box/2 − spread) instead (the field's faded edge hides it today).
@@ -350,7 +351,7 @@ test('flights collapse to key poses; the aisle stays a walk', () => {
 Run: `npx vitest run tests/unit/reducedMotion.test.ts`, `npx playwright test tests/e2e/reduced.spec.ts`
 Expected: FAIL.
 
-Already covered by Plan 4c, with e2e (curtain.spec, grid.spec, reveal.spec): the chapter curtain is a plain fade, the grid keeps its glow and drops the trail, and the text entrances keep a short fade under reduced motion — no work here unless a gap shows.
+Already covered by Plan 4c, with e2e (curtain.spec, grid.spec, reveal.spec): the chapter curtain is a plain fade, the grid keeps its glow and drops the trail, and the text entrances keep a short fade under reduced motion — no work here unless a gap shows. Plan 4d's additions honour it too: the loader's small plane does not grow into the hero (a 0.3 s fade, loader.spec), and the transfer preview opens the cards by scroll without their transitions (transfer.module.css).
 
 - [ ] **Step 3: Implement** (CameraRig: in reduced mode it copies the pose under the veil instead of damping; the exit through the window becomes seated → veil → pull-back)
 
@@ -423,7 +424,7 @@ git commit -m "feat: phone pass — tap to sit, safe areas, no overflow"
 - Create: `src/app/icon.svg` (sun over horizon, navy/terracotta), `tools/og.mjs` (renders `public/og.png` 1200 × 630 from the hero at progress 0 via Playwright), `public/og.png`, `tests/unit/copy.test.ts`
 
 **Interfaces:**
-- Produces: a final copy pass in the spec's tone (calm, premium, no hype), including the hero, captions for every chapter, the seat card, the pass and outro texts, "How it's made" (stack; aircraft and cabin kit built by Python in Blender; the night sky ESO's Milky Way panorama and the clouds a NASA photograph and moonlit sprites, live in WebGL, with the image credits kept; the hero picture captured from the live scene; every seat a real 3D object; sound synthesised live with Web Audio), the author line as it is.
+- Produces: a final copy pass in the spec's tone (calm, premium, no hype), including the hero, captions for every chapter, the seat card, the pass and outro texts, the outro's short word on how it's made (`copy.outro.made.lead`: real-time 3D built from code, the sky and clouds live in WebGL, sound synthesised live with Web Audio — the How it's made panel went in Plan 4d), the image credits in `copy.footer.sky` as they are, the author line as it is.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -432,9 +433,9 @@ test('copy keeps the pinned labels, the disclaimer, the author line and the imag
   expect(copy.aisle.pickForMe).toBe('Pick for me');
   expect(copy.outro.thanks).toMatch(/concept/);
   expect(copy.footer.disclaimer).toMatch(/fictional/);
-  expect(copy.outro.howItsMade.items.some((i) => /Web Audio/.test(i))).toBe(true);
+  expect(copy.outro.made.lead).toMatch(/Web Audio/);
   expect(copy.author.line).toBe('Concept & code: Aslanov Rustam');
-  expect(copy.outro.howItsMade.items.join('\n')).toMatch(/ESO\/S\. Brunier.*CC BY 4\.0/);
+  expect(`${copy.footer.sky.line} · ${copy.footer.sky.licence} · ${copy.footer.sky.clouds}`).toBe('Milky Way: ESO/S. Brunier, adapted · CC BY 4.0 · Clouds: NASA');
 });
 ```
 e2e (in `smoke.spec.ts`): `<meta property="og:image">` points at `/og.png`, which returns 200; `/icon.svg` returns 200.
@@ -518,6 +519,6 @@ Ask the user in chat: deploying to Vercel publishes the site publicly and needs 
 | §4.1 ch. 5 / §4.4 / §4.8 flip by mouse or finger | Task 4 |
 | §4.8 `prefers-reduced-motion`, including the r2 intro | Task 5 |
 | §4.8 touch seat selection, phones; r2 §4 phones, §7.2 two-tap seating | Task 6 |
-| §4.5–4.6 final copy, How it's made, disclaimer | Task 7 |
+| §4.5–4.6 final copy, How it's made (the outro's short word; the panel went in Plan 4d), disclaimer | Task 7 |
 | §6 Vercel hosting | Task 8 (deploy on the user's go) |
 | §4.8 branded loader | Plan 4, Task 8 |

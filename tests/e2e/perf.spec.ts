@@ -5,7 +5,7 @@ import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress } from '@/experience/chapters';
 import { CURTAIN } from '@/experience/curtain';
 import { GLOBE } from '@/experience/globe';
-import { INTRO } from '@/experience/introState';
+import { INTRO, LOADER } from '@/experience/introState';
 import { aircraftStage, projectedBox } from '@/experience/stage';
 import { pre, waitForStore } from './helpers';
 
@@ -140,7 +140,7 @@ function onScreen(b: { x0: number; y0: number; x1: number; y1: number }) {
 }
 
 /** Where the plane stands on the 1440×800 screen at a point of the journey's first chapters (no globe flight). */
-const planeAt = (progress: number) => onScreen(projectedBox(aircraftStage('browse', progress), poseOnPreTrack(progress, 1440 / 800), 1440 / 800));
+const planeAt = (progress: number) => onScreen(projectedBox(aircraftStage('browse', progress, undefined, 1440 / 800), poseOnPreTrack(progress, 1440 / 800), 1440 / 800));
 
 /** Where the globe lies on the 1440×800 screen: the square inside its disc (the night sea and land, no sky). */
 function globeAt(progress: number) {
@@ -245,8 +245,10 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await shoot('loader', { settle: 2000, dark: true });
   await waitForStore(page);
   await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  // the loader's small plane halfway through growing into the hero's (spec r5 §1)
+  await shoot('loader-grow', { settle: (LOADER.grow / 2) * 1000, dark: true });
 
-  await shoot('hero', { judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
+  await shoot('hero',{ judgeOn: planeOnScreen(INTRO.heroScale, INTRO.heroLift) });
   await setProgress(page, pre('sky', 0.25));
   await page.mouse.move(300, 620); // the grid's glow follows the pointer
   await shoot('grid', { judgeOn: planeAt(pre('sky', 0.25)) });
@@ -259,13 +261,17 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await shoot('destinations', { night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
   await pick(page, 'GIG');
   await shoot('destinations-flight', { settle: 800, night: true, judgeOn: globeAt(pre('destinations', 0.5)) });
+  // nothing picked yet: the scroll opens the cards in turn (spec r5 §5)
+  await setProgress(page, pre('transfer', 0.45));
+  await shoot('transfer-preview', { judgeOn: planeAt(pre('transfer', 0.45)) });
   await setProgress(page, pre('transfer', 0.75));
   await shoot('transfer', { judgeOn: planeAt(pre('transfer', 0.75)) });
   await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().chooseTransfer('home'));
   await shoot('transfer-open', { judgeOn: planeAt(pre('transfer', 0.75)) });
   await setProgress(page, pre('ready', 0.7));
   await shoot('ready', { judgeOn: planeAt(pre('ready', 0.7)) });
-  for (const [name, p] of [['door', pre('door', 0.64)], ['entry', ENTRY], ['aisle', pre('aisle', 0.27)], ['aisle-end', 1]] as const) {
+  // door-open: the door swinging out along the hull (spec r5 §7)
+  for (const [name, p] of [['door-open', pre('door', 0.45)], ['door', pre('door', 0.64)],['entry', ENTRY], ['aisle', pre('aisle', 0.27)], ['aisle-end', 1]] as const) {
     await setProgress(page, p);
     await shoot(name);
   }
@@ -286,5 +292,5 @@ test('review screenshot set — never a black screen', async ({ page }) => {
   await setProgress(page, 0.9);
   await shoot('outro');
   console.log(report.join('\n'));
-  expect(shots).toHaveLength(21);
+  expect(shots).toHaveLength(24);
 });
