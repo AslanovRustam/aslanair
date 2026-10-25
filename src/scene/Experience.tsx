@@ -152,14 +152,17 @@ export default function Experience() {
       <Veil />
       <SmoothScroll />
       <SoundController />
-      <Hero />
-      <Destinations />
-      <Transfer />
-      <Ready />
-      <Overlay />
+      {/* the journey's own words and choices; the frame (header, rail, footer) and the curtain stand outside it */}
+      <main>
+        <Hero />
+        <Destinations />
+        <Transfer />
+        <Ready />
+        <Overlay />
+        <Outro />
+      </main>
       <Curtain />
       <Shell />
-      <Outro />
     </>
   );
 }

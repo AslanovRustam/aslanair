@@ -11,7 +11,8 @@ import { destination } from '@/experience/destinations';
 import { dragAngle, flipAfterDrag, isTap, passEntrance } from '@/experience/passMotion';
 import { experienceStore, useExperience } from '@/experience/store';
 
-const CARD = { w: 0.5, h: 0.24, radius: 0.02, distance: 0.8 };
+/** The card (m), how far before the eye it floats, and at most this share of the frame's width it takes. */
+const CARD = { w: 0.5, h: 0.24, radius: 0.02, distance: 0.8, fill: 0.9 };
 const TEX = { w: 1000, h: 480 };
 const INK = '#1b2541';
 const ACCENT = '#d4683a';
@@ -192,7 +193,11 @@ export default function BoardingPass3D() {
     if (!h.visible) return;
     // it comes in once the seat has locked: rising from below and turning up into place (passMotion)
     const e = s.confirmedAt === null ? passEntrance(Infinity, false) : passEntrance(performance.now() - s.confirmedAt, s.reducedMotion);
-    offset.set(0.06, -0.04 + e.offsetY, -CARD.distance).applyQuaternion(camera.quaternion);
+    // a narrow (portrait) frame holds the card at arm's length so all of it shows, centred
+    const cam = camera as THREE.PerspectiveCamera;
+    const across = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.aspect;
+    const distance = Math.max(CARD.distance, CARD.w / (CARD.fill * across));
+    offset.set(cam.aspect < 1 ? 0 : 0.06, -0.04 + e.offsetY, -distance).applyQuaternion(camera.quaternion);
     h.position.copy(camera.position).add(offset);
     h.quaternion.copy(camera.quaternion).multiply(tilt.setFromAxisAngle(X_AXIS, e.tilt));
     for (const face of faces.current) if (face) face.opacity = e.opacity;

@@ -18,14 +18,18 @@
   --navy: #1b2541;
   --font-display: var(--font-archivo), system-ui, sans-serif;
   --font-ui: var(--font-inter), system-ui, sans-serif;
-  --header-h: 4.25rem;
-  --footer-h: 2.75rem;
+  /* the frame's bars, each with the phone's safe area added (0 elsewhere): everything placed over the footer or
+     under the header clears a notch and a home bar too */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --header-h: calc(4.25rem + var(--safe-top));
+  --footer-h: calc(2.75rem + var(--safe-bottom));
 }
 
 /* on phones the footer takes two lines: the author and the sky's credits keep their place there too */
 @media (max-width: 720px) {
   :root {
-    --footer-h: 3.5rem;
+    --footer-h: calc(3.5rem + var(--safe-bottom));
   }
 }
 

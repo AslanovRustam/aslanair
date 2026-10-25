@@ -22,8 +22,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: /perf\.spec\.ts/,
+      testIgnore: /perf\.spec\.ts|mobile\.spec\.ts/,
       use: desktop,
+    },
+    {
+      // a phone (plan 5 Task 6): touch, a 412 px screen, the low tier — on the real GPU like the desktop runs
+      name: 'mobile',
+      testMatch: /mobile\.spec\.ts/,
+      use: { ...devices['Pixel 7'], channel: 'chromium', launchOptions: desktop.launchOptions },
     },
     {
       // frame-rate probe and review shots: after the main suite, alone on the GPU — and on the integrated GPU,

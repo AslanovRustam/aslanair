@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "AslanAir — choose your seat",
   description: "A concept: board a fictional airliner and pick your seat in real-time 3D.",
+};
+
+// the page reaches under a phone's notch and home bar; the frame keeps its words clear of them (env(safe-area-inset-*))
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#07080b",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

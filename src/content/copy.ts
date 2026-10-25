@@ -10,7 +10,7 @@ export const copy = {
   },
   chapters: {
     door: { title: 'Welcome aboard.', body: 'Step in — the cabin is yours to explore.' },
-    aisle: { title: 'Find your seat.', body: 'Hover a seat to see it, click to sit down.' },
+    aisle: { title: 'Find your seat.', body: 'Hover a seat to see it, click to sit down.', bodyTouch: 'Tap a seat to see it, tap again to sit down.' },
   },
   hero: {
     title: 'Night flight',

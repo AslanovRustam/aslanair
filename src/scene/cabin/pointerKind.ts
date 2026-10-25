@@ -14,6 +14,8 @@ let installed = false;
 function install() {
   if (installed || typeof window === 'undefined') return;
   installed = true;
+  // until the first pointer event, a coarse pointer (a phone, a tablet) is taken for touch
+  if (matchMedia('(pointer: coarse)').matches) kind = 'touch';
   const update = (e: PointerEvent) => {
     const next: PointerKind = e.pointerType === 'touch' ? 'touch' : 'mouse';
     if (next === kind) return;

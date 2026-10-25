@@ -6,6 +6,7 @@ import { transitionLabel } from '@/experience/navState';
 import { chapterAt } from '@/experience/chapters';
 import { seatLabel } from '@/experience/seats';
 import { trackOf, useExperience } from '@/experience/store';
+import { usePointerKind } from '@/scene/cabin/pointerKind';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import RevealText from './RevealText';
 import ScrollCue from './ScrollCue';
@@ -20,6 +21,8 @@ export default function Overlay() {
   const chapter = useExperience((s) => chapterAt(trackOf(s.phase), s.progress).id);
   const selected = useExperience((s) => s.seats.find((x) => x.id === s.selectedSeatId));
   const { autoPick, confirm, standUp, changeSeat } = useExperience((s) => s);
+  // on a phone the aisle speaks of taps
+  const pointer = usePointerKind();
 
   const browsing = phase === 'browse';
   // the sky chapter belongs to the hero
@@ -32,7 +35,7 @@ export default function Overlay() {
       {caption && (
         <div className={styles.caption} key={chapter} data-reveal="on">
           <RevealText as="h1" data-heading={chapter} text={caption.title} />
-          <RevealText as="p" text={caption.body} base={250} />
+          <RevealText as="p" text={pointer === 'touch' && 'bodyTouch' in caption ? caption.bodyTouch : caption.body} base={250} />
         </div>
       )}
       {onPass && (

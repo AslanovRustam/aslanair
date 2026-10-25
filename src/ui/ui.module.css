@@ -34,24 +34,31 @@
 }
 
 /* Seat card: its bottom tip (the end of the stem) sits on the 3D anchor above the seat. */
+/* over its seat (its stem's foot on the anchor); hung under it near the top of the screen (SeatCard) — placed with
+   translate, so the entrance can rise with transform */
 .seatCard {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transform: translate(-50%, -100%);
+  translate: -50% -100%;
   pointer-events: none;
   animation: seatCardIn 180ms ease-out both;
+}
+
+.seatCard[data-below='true'] {
+  flex-direction: column-reverse;
+  translate: -50% 0;
 }
 
 @keyframes seatCardIn {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(-100% + 10px));
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -100%);
+    transform: none;
   }
 }
 
@@ -117,10 +124,16 @@
   color: rgba(242, 239, 232, 0.55);
 }
 
+/* from the card to its seat: shifted by --stem when the card is pushed in from a side */
 .seatCardStem {
   width: 1px;
   height: 1.75rem;
+  translate: var(--stem, 0px) 0;
   background: linear-gradient(rgba(242, 239, 232, 0.85), rgba(242, 239, 232, 0.15));
+}
+
+.seatCard[data-below='true'] .seatCardStem {
+  background: linear-gradient(rgba(242, 239, 232, 0.15), rgba(242, 239, 232, 0.85));
 }
 
 .bar {

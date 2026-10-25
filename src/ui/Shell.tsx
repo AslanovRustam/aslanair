@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
 import { curtainStore } from '@/experience/curtainStore';
@@ -38,14 +38,34 @@ export default function Shell() {
   const chapter = useExperience((s) => chapterAt(trackOf(s.phase), s.progress).id);
   const night = useExperience((s) => worldMode(s.phase, s.progress) === 'night');
   const [menu, setMenu] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
   const nav = navItems(phase, chapter);
   const rail = railItems(phase, chapter);
   const aisle = nav.find((i) => i.id === 'seat')!.target;
 
+  // the open menu holds the focus (a modal dialog): it starts on Close, Tab goes round its controls, Escape shuts it,
+  // and the focus goes back to the Menu button
   useEffect(() => {
-    if (!menu) return;
+    if (!menu) {
+      if (wasOpen.current) menuButton.current?.focus();
+      wasOpen.current = false;
+      return;
+    }
+    wasOpen.current = true;
+    sheet.current?.querySelector<HTMLElement>('button')?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(false);
+      if (e.key === 'Escape') return setMenu(false);
+      const box = sheet.current;
+      if (e.key !== 'Tab' || !box) return;
+      const items = [...box.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')];
+      const [first, last] = [items[0], items[items.length - 1]];
+      const at = document.activeElement;
+      if (!box.contains(at) || (e.shiftKey ? at === first : at === last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -105,7 +125,7 @@ export default function Shell() {
               {copy.nav.cta}
             </button>
           )}
-          <button type="button" className={styles.menuButton} aria-haspopup="dialog" onClick={() => setMenu(true)}>
+          <button ref={menuButton} type="button" className={styles.menuButton} aria-haspopup="dialog" aria-expanded={menu} onClick={() => setMenu(true)}>
             {copy.nav.menu}
           </button>
         </div>
@@ -151,7 +171,7 @@ export default function Shell() {
       </footer>
 
       {menu && (
-        <div role="dialog" aria-modal="true" aria-label={copy.nav.menu} className={styles.sheet} data-lenis-prevent>
+        <div ref={sheet} role="dialog" aria-modal="true" aria-label={copy.nav.menu} className={styles.sheet} data-lenis-prevent>
           <button type="button" className={styles.close} onClick={() => setMenu(false)}>
             {copy.nav.close}
           </button>
