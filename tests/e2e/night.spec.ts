@@ -301,6 +301,23 @@ test('the sky is the star panorama', async ({ page }) => {
   expect(await width.jsonValue()).toBe(4096);
 });
 
+test('the sky images are decoded off the main thread: both arrive as image bitmaps', async ({ page }) => {
+  await ready(page);
+  const kinds = await page.waitForFunction(
+    () => {
+      type WithImage = { material: { uniforms: Record<string, { value: { image?: { width?: number } } }> } };
+      const scene = (window as unknown as StoreWindow).__aslan.scene!;
+      const stars = (scene.getObjectByName('NightBackdrop') as WithImage | undefined)?.material.uniforms.uStars.value.image;
+      const sea = (scene.getObjectByName('CloudSea') as WithImage | undefined)?.material.uniforms.uSea.value.image;
+      if (!stars || !sea || (stars.width ?? 0) <= 1 || (sea.width ?? 0) <= 1) return false;
+      return [stars.constructor.name, sea.constructor.name];
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  expect(await kinds.jsonValue()).toEqual(['ImageBitmap', 'ImageBitmap']);
+});
+
 test('the loader never waits for the sky images', async ({ page }) => {
   // the images are held back for good: the journey must start and the window must show a sky without them
   await page.route('**/images/sky/*', () => {});
