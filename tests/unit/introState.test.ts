@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { applyLens, poseOnPreTrack } from '@/experience/cameraPoses';
-import { HERO_PICTURE, heroScale, INTRO } from '@/experience/introState';
+import { HERO_PICTURE, handOverSeconds, heroEntranceDelay, heroScale, INTRO, LOADER } from '@/experience/introState';
 
 describe('the hero frame is the capture frame, scaled and lifted', () => {
   for (const [w, h] of [
@@ -51,5 +51,21 @@ describe('the hero frame is the capture frame, scaled and lifted', () => {
     const planeWidth = heroScale(w / h) * (plane.right - plane.left) * h * (INTRO.picture.width / INTRO.picture.height);
     expect(planeWidth).toBeLessThanOrEqual(0.9 * w);
     expect(heroScale(16 / 9)).toBe(INTRO.heroScale);
+  });
+});
+
+describe('the loader hands its plane to the hero', () => {
+  test('it shows the plane at half the hero size, grows it into place, then fades', () => {
+    expect(LOADER).toEqual({ start: 0.5, grow: 0.9, fade: 0.6 });
+  });
+
+  test('the hero waits for the growth, except under reduced motion', () => {
+    expect(heroEntranceDelay(false)).toBe(0.9);
+    expect(heroEntranceDelay(true)).toBe(0);
+  });
+
+  test('the page holds still until the loader is gone', () => {
+    expect(handOverSeconds(false)).toBeCloseTo(1.5, 9);
+    expect(handOverSeconds(true)).toBe(0.3);
   });
 });

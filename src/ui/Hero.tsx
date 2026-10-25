@@ -1,9 +1,10 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { MathUtils } from 'three';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
+import { heroEntranceDelay } from '@/experience/introState';
 import { useExperience } from '@/experience/store';
 import styles from './hero.module.css';
 import ScrollCue from './ScrollCue';
@@ -76,7 +77,14 @@ export default function Hero() {
     const { id, t } = chapterAt('pre', s.progress);
     return id === 'sky' ? Math.round(MathUtils.smoothstep(t, SCATTER.from, SCATTER.to) * 1000) / 1000 : 1;
   });
-  const ready = useExperience((s) => s.ready);
+  const loaded = useExperience((s) => s.ready);
+  // the entrance plays once the loader's picture has grown into the hero's (spec r5 §3)
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!loaded) return;
+    const at = setTimeout(() => setReady(true), heroEntranceDelay(matchMedia('(prefers-reduced-motion: reduce)').matches) * 1000);
+    return () => clearTimeout(at);
+  }, [loaded]);
   const t = copy.hero;
   const gone = scatter >= 1;
 

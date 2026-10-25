@@ -1,5 +1,31 @@
 import { expect, test } from '@playwright/test';
-import { heroPictureBox } from './helpers';
+import { heroPictureBox, progress, waitForStore } from './helpers';
+
+type Frame = { t: number; x: number; y: number; w: number; h: number; opacity: number };
+
+/** From the moment the scene is ready until the loader is gone: the loader picture's box and the loader's opacity,
+ * every animation frame (t in ms since ready). */
+const handOver = (page: import('@playwright/test').Page) =>
+  page.evaluate(
+    () =>
+      new Promise<Frame[]>((done) => {
+        const loader = document.getElementById('loader')!;
+        const img = loader.querySelector('img')!;
+        const out: Frame[] = [];
+        let readyAt: number | null = null;
+        const tick = (now: number) => {
+          if (loader.dataset.ready === 'true') {
+            readyAt ??= now;
+            const b = img.getBoundingClientRect();
+            const style = getComputedStyle(loader);
+            out.push({ t: now - readyAt, x: b.x, y: b.y, w: b.width, h: b.height, opacity: Number(style.opacity) });
+            if (style.visibility === 'hidden' || now - readyAt > 4000) return done(out);
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
 
 for (const viewport of [
   { width: 1440, height: 800 },
@@ -19,16 +45,32 @@ for (const viewport of [
     await expect(loader).toHaveAttribute('role', 'progressbar');
     // the hero mounts while the models are still held back: it waits behind the loader, its entrance not played
     await page.getByTestId('hero').waitFor({ state: 'attached' });
-    const waiting = await page.getByTestId('hero').evaluate((hero) => ({
-      loading: document.getElementById('loader')!.dataset.ready === 'false',
-      paused: hero.getAnimations({ subtree: true }).every((a) => a.playState === 'paused'),
-    }));
+    // the picture's box is read in the same moment, while the scene is surely still loading
+    const { box: before, ...waiting } = await page.getByTestId('hero').evaluate((hero) => {
+      const b = document.querySelector('#loader img')!.getBoundingClientRect();
+      return {
+        loading: document.getElementById('loader')!.dataset.ready === 'false',
+        paused: hero.getAnimations({ subtree: true }).every((a) => a.playState === 'paused'),
+        box: { x: b.x, y: b.y, width: b.width, height: b.height },
+      };
+    });
     expect(waiting).toEqual({ loading: true, paused: true });
     await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
-    const before = (await loader.locator('img').boundingBox())!;
-    await expect(loader).toBeHidden({ timeout: 30_000 });
-    const after = heroPictureBox(page); // where the live camera frames the plane at the top
-    for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(before[k] - after[k]), k).toBeLessThanOrEqual(2);
+    const hero = heroPictureBox(page); // where the live camera frames the plane at the top
+    // while loading: half the hero's picture, on the same centre
+    expect(Math.abs(before.width - hero.width / 2), 'width').toBeLessThanOrEqual(2);
+    expect(Math.abs(before.height - hero.height / 2), 'height').toBeLessThanOrEqual(2);
+    expect(Math.abs(before.x + before.width / 2 - (hero.x + hero.width / 2)), 'centre x').toBeLessThanOrEqual(2);
+    expect(Math.abs(before.y + before.height / 2 - (hero.y + hero.height / 2)), 'centre y').toBeLessThanOrEqual(2);
+    // once ready it grows into the hero's picture, smoothly, and only then does the loader let the live plane show
+    const frames = await handOver(page);
+    const near = (f: Frame) => Math.abs(f.w - hero.width) <= 2 && Math.abs(f.h - hero.height) <= 2 && Math.abs(f.x - hero.x) <= 2 && Math.abs(f.y - hero.y) <= 2;
+    const full = frames.findIndex(near);
+    expect(full, 'reaches the hero picture').toBeGreaterThanOrEqual(0);
+    expect(frames[full].t, 'within 1.2 s of ready').toBeLessThanOrEqual(1200);
+    for (let i = 1; i < frames.length; i++) expect(Math.abs(frames[i].w - frames[i - 1].w), `step at ${frames[i].t.toFixed(0)} ms`).toBeLessThanOrEqual(0.06 * hero.width);
+    for (const f of frames.slice(0, full)) expect(f.opacity, `loader opacity at ${f.t.toFixed(0)} ms`).toBe(1);
+    await expect(loader).toBeHidden({ timeout: 5000 });
     await expect(page.getByTestId('hero').getByRole('heading', { name: 'Night flight' })).toBeVisible();
   });
 }
@@ -68,4 +110,27 @@ test('the loader reveals the emblem bottom to top on the compositor, with no out
   expect(reveal.properties.every((p) => p === 'transform' || p === 'opacity'), reveal.properties.join(',')).toBe(true);
   // the window over the emblem starts below it and rises
   expect(reveal.from).toMatch(/translateY\(100%\)|matrix\(1, 0, 0, 1, 0, [1-9]/);
+});
+
+test('the page holds still while the loader hands over', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await page.mouse.move(720, 400);
+  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, 600);
+  await expect(page.locator('#loader')).toBeHidden({ timeout: 5000 });
+  expect(await progress(page)).toBe(0);
+});
+
+test('under reduced motion the picture fades out at its small size', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/models/*.glb', async (r) => {
+    await new Promise((f) => setTimeout(f, 1500));
+    await r.continue();
+  });
+  await page.goto('/');
+  const small = (await page.locator('#loader img').boundingBox())!;
+  const frames = await handOver(page);
+  for (const f of frames) expect(f.w, `width at ${f.t.toFixed(0)} ms`).toBeLessThanOrEqual(small.width + 2);
+  expect(frames[frames.length - 1].t, 'gone within 1 s of ready').toBeLessThanOrEqual(1000);
 });

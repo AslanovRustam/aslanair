@@ -6,6 +6,7 @@ import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { TRACKS } from '@/experience/chapters';
+import { handOverSeconds } from '@/experience/introState';
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -73,6 +74,20 @@ export default function SmoothScroll() {
       gsap.ticker.remove(tick);
       instance.destroy();
       lenis = null;
+    };
+  }, []);
+
+  // While the loader hands its plane to the hero the page holds still, so the picture and the live plane meet.
+  useEffect(() => {
+    let release: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = experienceStore.subscribe((s, prev) => {
+      if (!s.ready || prev.ready) return;
+      lockScroll(true);
+      release = setTimeout(() => lockScroll(false), handOverSeconds(matchMedia('(prefers-reduced-motion: reduce)').matches) * 1000);
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(release);
     };
   }, []);
 

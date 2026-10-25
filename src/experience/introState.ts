@@ -39,3 +39,21 @@ export const HERO_PICTURE = (() => {
 export function heroScale(aspect: number): number {
   return Math.min(HERO_PICTURE.height, HERO_PICTURE.perWidth * aspect);
 }
+
+/**
+ * The loader hands its plane to the hero (spec r5 §3): while loading it shows the picture at `start` of the hero's
+ * size, on the hero's centre; once the scene is ready the picture grows into the hero's picture over `grow` s, and
+ * only then does the loader fade over `fade` s, the live plane already in its place behind it.
+ */
+export const LOADER = { start: 0.5, grow: 0.9, fade: 0.6 } as const;
+
+/** Seconds from ready until the loader is gone: the growth and the fade, or under reduced motion one short fade
+ * (loader.module.css). The page holds still until then, so the picture and the live plane meet. */
+export function handOverSeconds(reduced: boolean): number {
+  return reduced ? 0.3 : LOADER.grow + LOADER.fade;
+}
+
+/** Seconds after the scene is ready that the hero's entrance starts: after the growth, or at once under reduced motion. */
+export function heroEntranceDelay(reduced: boolean): number {
+  return reduced ? 0 : LOADER.grow;
+}

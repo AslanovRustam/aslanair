@@ -1,5 +1,6 @@
-/* The first paint: dark, the emblem revealed from its horizon up, the plane picture at its hero place.
-   Over everything until the scene is ready, then it fades and lets the hero play its entrance. */
+/* The first paint: dark, the emblem revealed from its horizon up, the plane picture at half its hero size on the
+   hero's centre. Over everything until the scene is ready; then the picture grows into the hero's (LOADER, spec r5
+   §3) and only after that does the loader fade, the live plane already in its place, and the hero play its entrance. */
 
 .loader {
   position: fixed;
@@ -8,14 +9,17 @@
   background: var(--bg);
   container-type: size;
   transition:
-    opacity 0.6s ease,
-    visibility 0s linear 0.6s;
+    opacity var(--loader-fade) ease,
+    visibility 0s linear var(--loader-fade);
 }
 
 .loader[data-ready='true'] {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  transition:
+    opacity var(--loader-fade) ease var(--picture-grow),
+    visibility 0s linear calc(var(--picture-grow) + var(--loader-fade));
 }
 
 /* the same box IntroPlane gives the picture at the top of the page: full frame height scaled to the hero size,
@@ -28,7 +32,13 @@
   height: min(calc(var(--picture-h) * 100cqh), calc(var(--picture-per-w) * 100cqw));
   max-width: none;
   translate: -50% -50%;
+  scale: var(--picture-start);
   animation: fadeIn 0.9s ease-out 0.25s both;
+  transition: scale var(--picture-grow) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.loader[data-ready='true'] .picture {
+  scale: 1;
 }
 
 .status {
@@ -94,10 +104,21 @@
   }
 }
 
+/* reduced motion: no growth — the small picture fades out as the loader does, the live plane at its hero size */
 @media (prefers-reduced-motion: reduce) {
   .picture,
   .reveal,
   .revealInner {
     animation: none;
+  }
+
+  .loader[data-ready='true'] {
+    transition:
+      opacity 0.3s ease,
+      visibility 0s linear 0.3s;
+  }
+
+  .loader[data-ready='true'] .picture {
+    scale: var(--picture-start);
   }
 }
