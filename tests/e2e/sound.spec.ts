@@ -38,7 +38,7 @@ test('no sound before a gesture; the first gesture starts it; muting is remember
   await expect(page.getByRole('button', { name: 'Sound off' })).toBeVisible();
 });
 
-test('the recordings are fetched only once sound starts, all three, with no error', async ({ page }) => {
+test('the recordings are fetched only once sound starts, all four, with no error', async ({ page }) => {
   const asked: string[] = [];
   const errors: string[] = [];
   page.on('requestfinished', async (r) => {
@@ -51,8 +51,8 @@ test('the recordings are fetched only once sound starts, all three, with no erro
   await page.waitForTimeout(500);
   expect(asked, 'nothing before a gesture').toEqual([]);
   await page.getByRole('button', { name: /^Sound (on|off)$/ }).click();
-  await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(3);
-  expect(asked.sort()).toEqual(['/sounds/airport-crowd.mp3 200', '/sounds/boarding-announcement.mp3 200', '/sounds/cabin-cruise.mp3 200']);
+  await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(4);
+  expect(asked.sort()).toEqual(['/sounds/airport-crowd.mp3 200', '/sounds/boarding-announcement.mp3 200', '/sounds/cabin-cruise.mp3 200', '/sounds/night-music.mp3 200']);
   await page.waitForTimeout(500); // decoded
   expect(errors).toEqual([]);
 });

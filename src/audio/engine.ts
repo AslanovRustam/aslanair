@@ -6,7 +6,10 @@ export const SOUND_FILES = {
   airport: '/sounds/airport-crowd.mp3',
   cabin: '/sounds/cabin-cruise.mp3',
   announcement: '/sounds/boarding-announcement.mp3',
+  music: '/sounds/night-music.mp3',
 } as const;
+/** The light music under it all (the author, 2026-10-25), and how far it steps back while a boarding call speaks. */
+const MUSIC = { level: 0.22, under: 0.08 };
 /** The rate the synthesised sounds are rendered at: plenty for wind, a chime and paper, and quick to render. */
 const RATE = 24000;
 /** An MP3's encoder padding at either end (s), kept out of a loop. */
@@ -20,12 +23,14 @@ type Bed = keyof Ambience;
 
 /**
  * The Web Audio graph: three looping beds — the terminal's crowd and the cabin in flight (recordings), the night air
- * (synthesised) — the boarding calls, which play through the airport's bed and so leave with it, and synthesised
- * one-shots, all into a master gain. Made only inside a visitor's gesture (the browser's rule, spec §4.7).
+ * (synthesised) — the boarding calls, which play through the airport's bed and so leave with it, light music under it
+ * all, and synthesised one-shots, all into a master gain. Made only inside a visitor's gesture (the browser's rule,
+ * spec §4.7).
  */
 export class SoundEngine {
   private readonly master: GainNode;
   private readonly beds: Record<Bed, GainNode>;
+  private readonly music: GainNode;
   private readonly shots: Record<OneShot, AudioBuffer>;
   private announcement: AudioBuffer | null = null;
   private calling = false;
@@ -42,6 +47,8 @@ export class SoundEngine {
       return g;
     };
     this.beds = { airport: bed(), cabin: bed(), outside: bed() };
+    this.music = bed();
+    this.music.gain.value = MUSIC.level;
     const synth = (samples: Float32Array) => {
       const b = ctx.createBuffer(1, samples.length, RATE);
       b.copyToChannel(samples as Float32Array<ArrayBuffer>, 0);
@@ -52,12 +59,26 @@ export class SoundEngine {
     void this.load();
   }
 
+  /** Fetches the recordings, each on its own: one that fails to arrive leaves the others playing. */
   private async load() {
-    const get = async (url: string) => this.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
-    const [airport, cabin, announcement] = await Promise.all([get(SOUND_FILES.airport), get(SOUND_FILES.cabin), get(SOUND_FILES.announcement)]);
+    const get = async (url: string): Promise<AudioBuffer | null> => {
+      try {
+        const response = await fetch(url);
+        return response.ok ? await this.ctx.decodeAudioData(await response.arrayBuffer()) : null;
+      } catch {
+        return null;
+      }
+    };
+    const [airport, cabin, announcement, music] = await Promise.all([
+      get(SOUND_FILES.airport),
+      get(SOUND_FILES.cabin),
+      get(SOUND_FILES.announcement),
+      get(SOUND_FILES.music),
+    ]);
     if (this.closed) return;
-    this.loop(airport, this.beds.airport, PADDING);
-    this.loop(cabin, this.beds.cabin, PADDING);
+    if (airport) this.loop(airport, this.beds.airport, PADDING);
+    if (cabin) this.loop(cabin, this.beds.cabin, PADDING);
+    if (music) this.loop(music, this.music, PADDING);
     this.announcement = announcement;
   }
 
@@ -84,6 +105,10 @@ export class SoundEngine {
     const source = this.ctx.createBufferSource();
     source.buffer = this.announcement;
     source.connect(this.beds.airport);
+    // the music steps back while the call speaks
+    const now = this.ctx.currentTime;
+    this.music.gain.setTargetAtTime(MUSIC.under, now, 0.3);
+    this.music.gain.setTargetAtTime(MUSIC.level, now + this.announcement.duration, 0.6);
     source.onended = () => (this.calling = false);
     this.calling = true;
     source.start();
