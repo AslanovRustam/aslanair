@@ -53,7 +53,8 @@ export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] 
     item('flight', t.flight, { track: 'pre', progress: 0 }, browsing && chapter === 'sky'),
     item('destinations', t.destinations, DESTINATIONS, browsing && chapter === 'destinations'),
     item('transfer', t.transfer, TRANSFER, browsing && chapter === 'transfer'),
-    item('cabin', t.cabin, AISLE, browsing && (chapter === 'door' || chapter === 'aisle')),
+    // Ready to choose your seat leads to the cabin: marked there too, as the rail marks Boarding
+    item('cabin', t.cabin, AISLE, browsing && (chapter === 'ready' || chapter === 'door' || chapter === 'aisle')),
     phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
     item('pass', t.pass, null),
   ];

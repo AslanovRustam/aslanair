@@ -49,6 +49,8 @@ describe('header navigation', () => {
 
   test('the current place is marked', () => {
     expect(item(navItems('browse', 'sky'), 'flight').active).toBe(true);
+    // Ready to choose your seat leads to the cabin: the header marks it there too, as the rail marks Boarding
+    expect(item(navItems('browse', 'ready'), 'cabin').active).toBe(true);
     expect(item(navItems('browse', 'door'), 'cabin').active).toBe(true);
     expect(item(navItems('seated', 'aisle'), 'seat').active).toBe(true);
     expect(item(navItems('seated', 'aisle'), 'cabin').active).toBe(false);

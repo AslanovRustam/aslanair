@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- the fin's sun over the horizon: a terracotta disc cut by two bands, on the fleet's navy -->
+  <rect width="64" height="64" rx="14" fill="#1b2541"/>
+  <mask id="bands">
+    <rect width="64" height="64" fill="#fff"/>
+    <rect x="0" y="36" width="64" height="4.6" fill="#000"/>
+    <rect x="0" y="45" width="64" height="4.6" fill="#000"/>
+  </mask>
+  <circle cx="32" cy="32" r="21" fill="#d4683a" mask="url(#bands)"/>
+</svg>

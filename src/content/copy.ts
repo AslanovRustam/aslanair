@@ -2,6 +2,11 @@
 
 export const copy = {
   brand: 'AslanAir',
+  /** The page's title and description, and the card a shared link shows. */
+  meta: {
+    title: 'AslanAir — choose your seat on a night flight',
+    description: 'A concept airline: board a night flight and choose your seat in a real-time 3D cabin, from the gate to the window.',
+  },
   fallback: {
     noWebgl: 'This experience needs WebGL2. Please open it in a recent Chrome, Edge, Firefox or Safari.',
   },
@@ -125,7 +130,7 @@ export const copy = {
     thanks: 'Thank you! AslanAir is a concept, so nothing was sent — but that seat suits you.', // contains "concept" (pinned)
     restart: 'Start again', // pinned
     made: {
-      lead: 'The airliner, the cabin and every seat are real-time 3D built from code; the night sky and clouds are drawn live in WebGL.',
+      lead: 'The airliner, the cabin and every seat are real-time 3D built from code; the night sky and clouds are drawn live in WebGL, and the chimes are played by Web Audio.',
     },
   },
   cabin: {
