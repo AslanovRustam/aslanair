@@ -93,8 +93,8 @@ test('the glow fades when the pointer leaves', async ({ page }) => {
 test('inside the cabin the grid is gone', async ({ page }) => {
   await open(page);
   await page.evaluate((p) => (window as unknown as GridWindow).__aslan.store.getState().setProgress(p), await pre(page, 'aisle', 0.3));
-  await page.waitForTimeout(400);
-  expect(await page.getByTestId('grid').evaluate((el) => Number(getComputedStyle(el).opacity))).toBe(0);
+  // its fade is a 0.3 s transition: on a busy GPU the frames that run it can come late
+  await expect.poll(() => page.getByTestId('grid').evaluate((el) => Number(getComputedStyle(el).opacity)), { timeout: 2000 }).toBe(0);
   // nor does its trail keep drawing, unseen, as the pointer moves over the seats
   for (let x = 100; x <= 400; x += 20) await page.mouse.move(x, 610);
   await page.waitForTimeout(100);
