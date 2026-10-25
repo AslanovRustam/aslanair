@@ -75,7 +75,8 @@ for (const viewport of [
       const pace = (5 * (hero.width / 2) * (frames[i].t - frames[i - 1].t)) / (LOADER.grow * 1000);
       expect(Math.abs(frames[i].w - frames[i - 1].w), `step at ${frames[i].t.toFixed(0)} ms`).toBeLessThanOrEqual(pace + 4);
     }
-    for (const f of frames.slice(0, full)) expect(f.opacity, `loader opacity at ${f.t.toFixed(0)} ms`).toBe(1);
+    // whole until then (0.999: see through only for the browser, which then rasters the page under it in time)
+    for (const f of frames.slice(0, full)) expect(f.opacity, `loader opacity at ${f.t.toFixed(0)} ms`).toBeGreaterThanOrEqual(0.99);
     await expect(loader).toBeHidden({ timeout: 5000 });
     await expect(page.getByTestId('hero').getByRole('heading', { name: 'Night flight' })).toBeVisible();
   });
@@ -153,6 +154,28 @@ test('the loader reveals the emblem bottom to top on the compositor, with no out
   expect(reveal.properties.every((p) => p === 'transform' || p === 'opacity'), reveal.properties.join(',')).toBe(true);
   // the window over the emblem starts below it and rises
   expect(reveal.from).toMatch(/translateY\(100%\)|matrix\(1, 0, 0, 1, 0, [1-9]/);
+});
+
+test('the hand-over never stalls a frame: the page under the loader is ready before it fades', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  const worst = await page.evaluate(
+    () =>
+      new Promise<number>((done) => {
+        const loader = document.getElementById('loader')!;
+        let last = performance.now();
+        let worst = 0;
+        const tick = (t: number) => {
+          worst = Math.max(worst, t - last);
+          last = t;
+          if (getComputedStyle(loader).visibility === 'hidden') done(worst);
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  expect(worst, 'longest frame, ms').toBeLessThan(120);
 });
 
 test('the page holds still while the loader hands over', async ({ page }) => {

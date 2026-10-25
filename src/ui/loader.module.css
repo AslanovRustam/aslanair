@@ -9,6 +9,11 @@
   z-index: 20;
   background: var(--bg);
   container-type: size;
+  /* not quite opaque: an opaque loader hides the page under it from the browser, which then rastered all of it — the
+     huge title, the grid, the frame — in one 150–400 ms frame the moment the fade began; seen through, it is
+     rastered while the scene loads, where no one sees a frame wait */
+  opacity: 0.999;
+  will-change: opacity;
   transition:
     opacity var(--loader-fade) ease,
     visibility 0s linear var(--loader-fade);
