@@ -242,7 +242,8 @@ test('a wrong e-mail and straight to Buy: the note that appears as the field is 
 test('take off, fill the form, start again', async ({ page }) => {
   const posts: string[] = [];
   page.on('request', (r) => {
-    if (r.method() === 'POST') posts.push(r.url());
+    // the dev server's own overlay posts stack frames for any console error; the form must post nothing
+    if (r.method() === 'POST' && !new URL(r.url()).pathname.startsWith('/__nextjs')) posts.push(r.url());
   });
   await page.goto('/');
   await waitForStore(page);
