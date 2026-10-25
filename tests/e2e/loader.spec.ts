@@ -128,6 +128,24 @@ test('the page holds still while the loader hands over', async ({ page }) => {
   expect(await progress(page)).toBe(0);
 });
 
+test('a wheel while the loader is still loading moves nothing: the hand-over starts from the top (spec r5 §2)', async ({ page }) => {
+  await page.route('**/models/*.glb', async (r) => {
+    await new Promise((f) => setTimeout(f, 3000));
+    await r.continue();
+  });
+  await page.goto('/');
+  await waitForStore(page);
+  await page.mouse.move(720, 400);
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(150);
+  }
+  expect(await page.evaluate(() => document.getElementById('loader')?.dataset.ready), 'still loading').not.toBe('true');
+  expect(await progress(page), 'while loading').toBe(0);
+  await loaderGone(page);
+  expect(await progress(page), 'at the hand-over').toBe(0);
+});
+
 test('under reduced motion the picture fades out at its small size', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/models/*.glb', async (r) => {

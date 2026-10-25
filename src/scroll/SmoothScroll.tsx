@@ -77,9 +77,11 @@ export default function SmoothScroll() {
     };
   }, []);
 
-  // While the loader hands its plane to the hero the page holds still, so the picture and the live plane meet; it
-  // lets go the moment the loader is gone (a wheel then must not be lost), or a second past its time at the latest.
+  // While the loader loads and hands its plane to the hero the page holds still, so the picture and the live plane
+  // meet at the top; it lets go the moment the loader is gone (a wheel then must not be lost), or a second past the
+  // hand-over's time at the latest.
   useEffect(() => {
+    if (!experienceStore.getState().ready) lockScroll(true);
     let frame = 0;
     let latest: ReturnType<typeof setTimeout> | undefined;
     const release = () => {
