@@ -1,6 +1,6 @@
 'use client';
 
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import gsap from 'gsap';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -8,7 +8,7 @@ import { copy } from '@/content/copy';
 import { boardingPassFor, type BoardingPassData } from '@/experience/boardingPass';
 import { chapterAt } from '@/experience/chapters';
 import { destination } from '@/experience/destinations';
-import { passEntrance } from '@/experience/passMotion';
+import { dragAngle, flipAfterDrag, isTap, passEntrance } from '@/experience/passMotion';
 import { experienceStore, useExperience } from '@/experience/store';
 
 const CARD = { w: 0.5, h: 0.24, radius: 0.02, distance: 0.8 };
@@ -150,6 +150,8 @@ function cardTexture(draw: (ctx: CanvasRenderingContext2D, d: BoardingPassData) 
 }
 
 const X_AXIS = new THREE.Vector3(1, 0, 0);
+/** R3F hands its events a target that captures the pointer for the object (its types say only EventTarget). */
+type Capture = { setPointerCapture(id: number): void; releasePointerCapture(id: number): void };
 
 /** The pass floats in front of the camera during the 'pass' chapter; click turns it over. */
 export default function BoardingPass3D() {
@@ -161,6 +163,10 @@ export default function BoardingPass3D() {
   const tilt = useMemo(() => new THREE.Quaternion(), []);
   const faces = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
   const motion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)'), []);
+  /** The face the pass rests on (a multiple of π), and a drag in progress. */
+  const face = useRef(0);
+  const drag = useRef<{ pointer: number; x: number; from: number; moved: number; at: number; angle: number; speed: number } | null>(null);
+  const size = useThree((s) => s.size);
   const geometry = useMemo(() => cardGeometry(), []);
   const destinationId = useExperience((s) => s.destinationId);
   const transferId = useExperience((s) => s.transferId);
@@ -195,15 +201,55 @@ export default function BoardingPass3D() {
 
   if (!textures) return null;
 
-  const flip = () => {
+  /** Turns the pass to `to` (a face); a new face is a flip (the paper's rustle counts them). */
+  const settle = (to: number) => {
     if (!flipper.current) return;
-    gsap.to(flipper.current.rotation, { y: flipper.current.rotation.y + Math.PI, duration: 0.6, ease: 'power2.inOut' });
-    experienceStore.getState().flipPass();
+    gsap.to(flipper.current.rotation, { y: to, duration: 0.6, ease: 'power2.inOut', overwrite: true });
+    if (to !== face.current) experienceStore.getState().flipPass();
+    face.current = to;
+  };
+
+  /** The card's width on screen (px): half a turn per width dragged. */
+  const widthPx = () => (CARD.w * size.height) / (2 * CARD.distance * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2));
+
+  // the hand turns it (spec §4.4, §4.8): a drag follows the pointer and settles on the nearer face, a flick turns it
+  // on, a tap turns it over; the page underneath stays put (the canvas lets horizontal touch through: pan-y)
+  const onDown = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    const f = flipper.current;
+    if (!f) return;
+    gsap.killTweensOf(f.rotation);
+    (e.target as unknown as Capture).setPointerCapture(e.pointerId);
+    drag.current = { pointer: e.pointerId, x: e.clientX, from: f.rotation.y, moved: 0, at: performance.now(), angle: f.rotation.y, speed: 0 };
+  };
+  const onMove = (e: ThreeEvent<PointerEvent>) => {
+    const d = drag.current;
+    const f = flipper.current;
+    if (!d || !f || e.pointerId !== d.pointer) return;
+    e.stopPropagation();
+    const dx = e.clientX - d.x;
+    d.moved = Math.max(d.moved, Math.abs(dx));
+    if (isTap(d.moved)) return;
+    const angle = dragAngle(d.from, dx, widthPx());
+    const now = performance.now();
+    // rad/s, eased so one jittery event does not read as a flick
+    if (now > d.at) d.speed = 0.6 * d.speed + (0.4 * (angle - d.angle) * 1000) / (now - d.at);
+    d.at = now;
+    d.angle = angle;
+    f.rotation.y = angle;
+  };
+  const onUp = (e: ThreeEvent<PointerEvent>) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.pointer) return;
+    e.stopPropagation();
+    (e.target as unknown as Capture).releasePointerCapture(e.pointerId);
+    drag.current = null;
+    settle(isTap(d.moved) ? face.current + Math.PI : flipAfterDrag(face.current, d.angle, d.speed));
   };
 
   return (
     <group ref={holder} name="BoardingPass" visible={false}>
-      <group ref={flipper} onClick={(e) => { e.stopPropagation(); flip(); }}>
+      <group ref={flipper} name="BoardingPassFlipper" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <mesh name="BoardingPassFront" geometry={geometry} renderOrder={999}>
           <meshBasicMaterial ref={(m) => void (faces.current[0] = m)} map={textures.front} depthTest={false} transparent toneMapped={false} />
         </mesh>

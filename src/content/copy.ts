@@ -56,7 +56,7 @@ export const copy = {
   },
   pass: {
     title: 'Your boarding pass.',
-    flipHint: 'Click the pass to turn it over.',
+    flipHint: 'Drag or tap the pass to turn it over.',
     change: 'Change seat', // pinned
     takeOff: 'Take off',
   },

@@ -57,6 +57,95 @@ test('choosing the seat: the eye settles into it, then the pass rises into view'
   expect(passAt(1600) - passAt(300), 'the pass rises from below').toBeGreaterThan(0.2);
 });
 
+type CardWindow = {
+  __aslan: {
+    store: { getState(): { progress: number } };
+    camera: unknown;
+    scene: {
+      getObjectByName(n: string): {
+        rotation: { y: number };
+        matrixWorld: unknown;
+        position: { constructor: new (x: number, y: number, z: number) => { applyMatrix4(m: unknown): { project(c: unknown): { x: number; y: number } } } };
+        geometry: { computeBoundingBox(): void; boundingBox: { min: { x: number }; max: { x: number } } };
+      };
+    };
+  };
+};
+const turn = (page: Page) => page.evaluate(() => (window as unknown as CardWindow).__aslan.scene.getObjectByName('BoardingPassFlipper').rotation.y);
+const progress = (page: Page) => page.evaluate(() => (window as unknown as CardWindow).__aslan.store.getState().progress);
+
+test('dragging the pass turns it over, a tap turns it back, and the page stays put meanwhile', async ({ page }) => {
+  await seated(page);
+  await page.getByRole('button', { name: /choose this seat/i }).click();
+  await page.waitForTimeout(1800); // the lock and the entrance
+  // the card on screen: its left and right edges, through its middle
+  const card = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as CardWindow).__aslan;
+    const front = scene.getObjectByName('BoardingPassFront');
+    front.geometry.computeBoundingBox();
+    const V = front.position.constructor;
+    const { min, max } = front.geometry.boundingBox;
+    const [a, b] = [new V(min.x, 0, 0), new V(max.x, 0, 0)].map((p) => p.applyMatrix4(front.matrixWorld).project(camera));
+    return { x0: ((a.x + 1) / 2) * innerWidth, x1: ((b.x + 1) / 2) * innerWidth, y: ((1 - a.y) / 2) * innerHeight };
+  });
+  const width = Math.abs(card.x1 - card.x0);
+  const middle = (card.x0 + card.x1) / 2;
+  const at = await progress(page);
+  await page.mouse.move(middle - 0.3 * width, card.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) {
+    await page.mouse.move(middle - 0.3 * width + (i / 12) * 0.6 * width, card.y);
+    await page.waitForTimeout(16);
+  }
+  expect(await turn(page), 'it follows the pointer').toBeGreaterThan(Math.PI / 2);
+  await page.mouse.up();
+  await page.waitForTimeout(1000);
+  expect(Math.abs((await turn(page)) - Math.PI), 'turned over').toBeLessThan(0.05);
+  expect(await progress(page), 'the page did not move').toBe(at);
+  await page.mouse.click(middle, card.y);
+  await page.waitForTimeout(1000);
+  const back = (await turn(page)) % (2 * Math.PI);
+  expect(Math.min(back, 2 * Math.PI - back), 'a tap turns it back').toBeLessThan(0.05);
+});
+
+test('on a phone a finger turns the pass and the page does not scroll; a tap turns it back', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await seated(page);
+  await page.getByRole('button', { name: /choose this seat/i }).tap();
+  await page.waitForTimeout(1800);
+  const card = await page.evaluate(() => {
+    const { scene, camera } = (window as unknown as CardWindow).__aslan;
+    const front = scene.getObjectByName('BoardingPassFront');
+    front.geometry.computeBoundingBox();
+    const V = front.position.constructor;
+    const { min, max } = front.geometry.boundingBox;
+    const [a, b] = [new V(min.x, 0, 0), new V(max.x, 0, 0)].map((p) => p.applyMatrix4(front.matrixWorld).project(camera));
+    return { x0: ((a.x + 1) / 2) * innerWidth, x1: ((b.x + 1) / 2) * innerWidth, y: ((1 - a.y) / 2) * innerHeight };
+  });
+  const width = Math.abs(card.x1 - card.x0);
+  const middle = (card.x0 + card.x1) / 2;
+  const at = await progress(page);
+  const touch = await context.newCDPSession(page);
+  const finger = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number) =>
+    touch.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: Math.round(x), y: Math.round(card.y) }] });
+  await finger('touchStart', middle - 0.3 * width);
+  for (let i = 1; i <= 12; i++) {
+    await finger('touchMove', middle - 0.3 * width + (i / 12) * 0.6 * width);
+    await page.waitForTimeout(16);
+  }
+  await finger('touchEnd', 0);
+  await page.waitForTimeout(1000);
+  expect(Math.abs((await turn(page)) - Math.PI), 'turned over').toBeLessThan(0.05);
+  expect(await progress(page), 'the page did not move').toBe(at);
+  await finger('touchStart', middle);
+  await finger('touchEnd', 0);
+  await page.waitForTimeout(1000);
+  const back = (await turn(page)) % (2 * Math.PI);
+  expect(Math.min(back, 2 * Math.PI - back), 'a tap turns it back').toBeLessThan(0.05);
+  await context.close();
+});
+
 test('with reduced motion the eye stays still and the pass fades in where it rests', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await seated(page);

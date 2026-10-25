@@ -14,6 +14,27 @@ const smooth = (u: number) => u * u * (3 - 2 * u);
 const power3Out = (u: number) => 1 - (1 - u) ** 3;
 const clamp01 = (u: number) => Math.min(1, Math.max(0, u));
 
+/** Turning the pass by hand (spec §4.4, §4.8): a press that moves less than `tapPx` is a tap; a release faster than
+ * `flick` rad/s turns it on to the next face in that direction. */
+const DRAG = { tapPx: 6, flick: 6 };
+
+/** The pass's turn while dragged: from `start`, half a turn per card width the pointer moves. */
+export function dragAngle(start: number, dxPx: number, widthPx: number): number {
+  return start + (Math.PI * dxPx) / widthPx;
+}
+
+/** Where the pass settles when let go at `current`: the nearest face — or, flicked, the next face from `start` in
+ * the flick's direction. */
+export function flipAfterDrag(start: number, current: number, velocityRadPerS: number): number {
+  if (Math.abs(velocityRadPerS) > DRAG.flick) return start + Math.sign(velocityRadPerS) * Math.PI;
+  return Math.round(current / Math.PI) * Math.PI;
+}
+
+/** Whether a press that moved `px` pixels is a tap (it turns the pass over, as a click does). */
+export function isTap(px: number): boolean {
+  return px < DRAG.tapPx;
+}
+
 /** How far the eye dips `ms` after the lock: smooth in to the peak and out again; none with reduced motion. */
 export function lockPulse(ms: number, reduced: boolean): { dip: number } {
   if (reduced || ms <= 0 || ms >= LOCK.ms) return { dip: 0 };
