@@ -177,6 +177,18 @@ describe('the aircraft stage', () => {
     });
   }
 
+  // spec r5 §4, the author after 4d: the plane comes in while the camera still turns, so no empty sky lies between the
+  // globe going and the plane showing — yet it never shows over the globe
+  for (const aspect of ASPECTS) {
+    test(`at ${aspect.toFixed(2)} the plane is coming in as the globe goes, never over it`, () => {
+      expect(showing(trackProgress('pre', 'destinations', 0.95), aspect), 'in view as the globe goes').toBe(true);
+      for (let i = 0; i <= 100; i++) {
+        const p = trackProgress('pre', 'destinations', GLOBE_FADE.from + (i / 100) * (1 - GLOBE_FADE.from));
+        if (globeFade('browse', p) > 0.3) expect(inFrame(boxAt(p, aspect)), `over the globe at ${p.toFixed(4)}`).toBe(false);
+      }
+    });
+  }
+
   // spec r5 §4: as the globe goes the plane is there at once, coming in from beyond the right edge, not from above
   for (const aspect of [1440 / 800, 390 / 844]) {
     test(`at ${aspect.toFixed(2)} it flies straight in from the right as the transfer begins and is settled by 0.2`, () => {

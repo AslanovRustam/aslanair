@@ -32,10 +32,10 @@ export const ON_GLOBE_SCALE = 0.0957;
  */
 const WAITING = { up: 2, turn: degToRad(25), away: degToRad(-20), faces: 0.8 };
 /** Its flight in (spec r5 §4): at `ready` of the destinations chapter — gone over the globe's horizon, the globe
- * starting to fade — it moves unseen to just beyond the transfer frame's right edge (its box's left side at `edge` of
- * the frame's width); from `start`, as the camera's turn to that frame eases out, it comes across to a stop at
- * `settle` of the transfer chapter. */
-export const ARRIVAL = { ready: GLOBE_FADE.from, start: 0.97, settle: 0.24, edge: 1.04 } as const;
+ * starting to fade — it moves unseen to just beyond the frame's right edge (its box's left side at `edge` of the
+ * frame's width); from `start`, the globe nearly gone, it comes across to a stop at `settle` of the transfer chapter,
+ * carried by the camera while the camera still turns (seenFrom), so no empty sky lies between the two. */
+export const ARRIVAL = { ready: GLOBE_FADE.from, start: 0.87, settle: 0.24, edge: 1.04 } as const;
 
 /** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
 export interface OnGlobe {
@@ -158,12 +158,55 @@ const entryFor = (() => {
   };
 })();
 
+/** A camera at `pose` for a frame of `aspect`, its lens shifted as the scene's is. */
+function lensCamera(pose: CameraPose, aspect: number): PerspectiveCamera {
+  const camera = new PerspectiveCamera(pose.fov, aspect, 0.1, 10000);
+  camera.position.copy(pose.position);
+  camera.lookAt(pose.target);
+  applyLens(camera, pose, aspect, 1);
+  camera.updateMatrixWorld();
+  return camera;
+}
+
+/** The transfer's own camera for a frame of this aspect, where the flight in is laid out (cached per aspect). */
+const transferCamera = (() => {
+  const known = new Map<number, PerspectiveCamera>();
+  return (aspect: number): PerspectiveCamera => {
+    const key = Math.round(aspect * 1000) / 1000;
+    let camera = known.get(key);
+    if (!camera) known.set(key, (camera = lensCamera(poseOnPreTrack(trackProgress('pre', 'transfer', 0.5), key), key)));
+    return camera;
+  };
+})();
+
+/**
+ * The plane `stage` of the transfer's frame, carried by a camera still turning towards it: it keeps its place on the
+ * screen and its depth — and its heading to the camera — so it comes in steadily while the view swings round
+ * (spec r5 §4); once the turn is done, the two are one.
+ */
+function seenFrom(stage: Stage, pose: CameraPose, aspect: number): Stage {
+  const final = transferCamera(aspect);
+  const now = lensCamera(pose, aspect);
+  const depth = -stage.position.clone().applyMatrix4(final.matrixWorldInverse).z;
+  const onScreen = stage.position.clone().project(final);
+  const ray = onScreen.setZ(0.5).unproject(now).sub(now.position).normalize();
+  const position = now.position.clone().addScaledVector(ray, depth / ray.dot(now.getWorldDirection(new Vector3())));
+  const turn = now.quaternion.clone().multiply(final.quaternion.clone().invert());
+  const rotation = new Euler().setFromQuaternion(turn.multiply(new Quaternion().setFromEuler(stage.rotation)), stage.rotation.order);
+  return { position, rotation, scale: stage.scale };
+}
+
 /** At track progress `progress` across the destinations → transfer seam; `t` is the transfer chapter's own share
  * (0 before it). */
 function waiting(progress: number, t: number, aspect: number): Stage {
-  const arrived = smoothstep(progress, trackProgress('pre', 'destinations', ARRIVAL.start), trackProgress('pre', 'transfer', ARRIVAL.settle));
+  // flying in already at 1.2 × its mean pace and slowing to a stop (it sets off beyond the edge, where no start is
+  // seen): f(0) = 0, f'(0) = 1.2, f(1) = 1, f'(1) = 0 — its fastest only 1.35 × the mean
+  const u = MathUtils.clamp(MathUtils.inverseLerp(trackProgress('pre', 'destinations', ARRIVAL.start), trackProgress('pre', 'transfer', ARRIVAL.settle), progress), 0, 1);
+  const arrived = 1.2 * u + 0.6 * u ** 2 - 0.8 * u ** 3;
   const slowTurn = WAITING.turn + (WAITING.away - WAITING.turn) * smoothstep(t, 0, 1);
-  return flyingIn(entryFor(aspect), 1 - arrived, slowTurn);
+  const stage = flyingIn(entryFor(aspect), 1 - arrived, slowTurn);
+  // in the transfer chapter the camera has come round: the frame is the transfer's own
+  return t > 0 ? stage : seenFrom(stage, poseOnPreTrack(progress, aspect), aspect);
 }
 
 function overTheGlobe(at: OnGlobe): Stage {
