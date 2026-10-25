@@ -3,7 +3,7 @@ import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { DESTINATIONS } from '@/experience/destinations';
 import { GLOBE } from '@/experience/globe';
 import { aircraftStage, projectedBox } from '@/experience/stage';
-import { pre, progress, waitForStore, wheelTo } from './helpers';
+import { loaderGone, pre, progress, waitForStore, wheelTo } from './helpers';
 
 type Vec = { x: number; y: number; z: number; applyMatrix4(m: unknown): Vec; project(camera: unknown): Vec };
 type Node = {
@@ -228,6 +228,113 @@ for (const viewport of [
 }
 
 const width = (page: Page, name: RegExp) => page.getByRole('radio', { name }).evaluate((e) => e.getBoundingClientRect().width);
+
+/** Which transfer card is open (its slot's data-id). */
+const openCard = (page: Page) => page.locator('[data-open="true"][data-id]').getAttribute('data-id');
+const toTransferAt = (page: Page, t: number) =>
+  page.evaluate((p) => (window as unknown as PageWindow).__aslan.store.getState().setProgress(p), pre('transfer', t));
+const PREVIEWED = [
+  [0.25, 'home'],
+  [0.45, 'hotel'],
+  [0.6, 'express'],
+  [0.8, 'own'],
+] as const;
+
+test('scrolling through Transfer opens each card in turn without choosing it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  await page.mouse.move(1430, 790); // off the cards
+  for (const [t, id] of PREVIEWED) {
+    await toTransferAt(page, t);
+    await expect.poll(() => openCard(page), { message: `at ${t}` }).toBe(id);
+    expect(await transfer(page), 'the preview chooses nothing').toBe('own');
+  }
+});
+
+test('once a card is picked, scrolling keeps it open', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  await toTransferAt(page, 0.25);
+  await page.getByRole('radio', { name: /From your hotel/ }).click();
+  await page.mouse.move(1430, 790);
+  for (const [t] of PREVIEWED) {
+    await toTransferAt(page, t);
+    await page.waitForTimeout(150);
+    expect(await openCard(page), `at ${t}`).toBe('hotel');
+  }
+});
+
+test('a tap on a phone picks the card and stops the preview', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await open(page);
+  await loaderGone(page);
+  await toTransferAt(page, 0.25);
+  await page.getByRole('radio', { name: /Airport express/ }).tap();
+  for (const [t] of PREVIEWED) {
+    await toTransferAt(page, t);
+    await page.waitForTimeout(150);
+    expect(await openCard(page), `at ${t}`).toBe('express');
+  }
+  await context.close();
+});
+
+test('arriving by the rail mid-chapter shows that point’s card, and an earlier pick still holds', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  const rail = page.getByRole('navigation', { name: 'Chapters' });
+  await rail.getByRole('button', { name: /Transfer/ }).click();
+  await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 8000 });
+  await page.mouse.move(1430, 790);
+  await expect.poll(() => openCard(page)).toBe('own'); // the rail lands at 0.7, the preview's fourth card
+  await page.getByRole('radio', { name: /From home/ }).click();
+  await rail.getByRole('button', { name: /Destinations/ }).click();
+  await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 8000 });
+  await rail.getByRole('button', { name: /Transfer/ }).click();
+  await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 8000 });
+  await page.mouse.move(1430, 790);
+  await expect.poll(() => openCard(page)).toBe('home');
+});
+
+test('Start again brings the preview back', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  await toTransferAt(page, 0.25);
+  await page.getByRole('radio', { name: /From home/ }).click();
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void; restart(): void } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  // the real Start again: through the curtain, focus on the hero's heading after it
+  await page.getByRole('button', { name: 'Start again' }).first().click();
+  await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 8000 });
+  await page.mouse.move(1430, 790);
+  await toTransferAt(page, 0.45);
+  await expect.poll(() => openCard(page)).toBe('hotel');
+  expect(await transfer(page)).toBe('own');
+});
+
+test('no transfer card ever tilts', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await open(page);
+  await loaderGone(page);
+  await toTransferAt(page, 0.25);
+  for (const name of [/From home/, /From your hotel/, /Airport express/, /On my own/]) {
+    const card = page.getByRole('radio', { name });
+    await card.hover();
+    await page.waitForTimeout(450); // the lift's transition
+    const m = await card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform));
+    expect([Math.abs(m.b) < 1e-6, Math.abs(m.c) < 1e-6], `${name}`).toEqual([true, true]);
+  }
+});
 
 test('hovering a strip opens it; leaving shows the chosen one again', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });

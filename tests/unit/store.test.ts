@@ -96,6 +96,15 @@ describe('experience store', () => {
     expect([s().destinationId, s().transferId]).toEqual(['LIS', 'own']);
   });
 
+  test('a transfer the visitor picks is marked as picked (the scroll preview stops); Start again clears it', () => {
+    expect(s().transferPicked).toBe(false);
+    expect(s().chooseTransfer('hotel')).toBe(true);
+    expect(s().transferPicked).toBe(true);
+    s().restart();
+    expect(s().transferPicked).toBe(false);
+    expect(s().transferId).toBe('own');
+  });
+
   test('a pick flies the plane there from where it is; a refused pick flies nowhere; Start again grounds it', () => {
     expect(s().flight).toBeNull();
     expect(s().pickDestination('HND', 10)).toBe(true);

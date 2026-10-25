@@ -21,6 +21,8 @@ export interface ExperienceState {
   /** The chosen destination's code (home, Odesa, is always the origin). */
   destinationId: string;
   transferId: TransferId;
+  /** Whether the visitor has picked a transfer this visit: until then scrolling the chapter shows each in turn. */
+  transferPicked: boolean;
   /** Both choices stay open until the seat is confirmed; false (and no change) after that or for an unknown id. */
   chooseDestination(code: string): boolean;
   chooseTransfer(id: TransferId): boolean;
@@ -67,6 +69,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     soundOn: false,
     destinationId: SUGGESTED,
     transferId: DEFAULT_TRANSFER,
+    transferPicked: false,
     chooseDestination: (code) => {
       if (trackOf(get().phase) === 'post' || !destination(code)) return false;
       set({ destinationId: code });
@@ -89,7 +92,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     hoverDestination: (code) => set({ hoveredDestinationId: code }),
     chooseTransfer: (id) => {
       if (trackOf(get().phase) === 'post' || !TRANSFERS.some((t) => t.id === id)) return false;
-      set({ transferId: id });
+      set({ transferId: id, transferPicked: true });
       return true;
     },
     loadProgress: 0,
@@ -130,6 +133,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
         hoveredSeatId: null,
         destinationId: SUGGESTED,
         transferId: DEFAULT_TRANSFER,
+        transferPicked: false,
         flight: null,
         hoveredDestinationId: null,
         globeSpin: new Quaternion(),

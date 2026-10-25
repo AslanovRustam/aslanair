@@ -2,13 +2,15 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { copy } from '@/content/copy';
+import { chapterAt } from '@/experience/chapters';
 import { destination, transferHeadline, transferTimeline, TRANSFERS, type TransferId } from '@/experience/destinations';
 import { experienceStore, useExperience } from '@/experience/store';
+import { openTransfer } from '@/experience/transferOpen';
 import RevealText, { stagger, useShown } from './RevealText';
 import styles from './transfer.module.css';
 
 /** The choices show over this stretch of the chapter: once the plane has flown in and the camera has settled. */
-const SHOWN = { from: 0.55, to: 0.97 };
+const SHOWN = { from: 0.15, to: 0.97 };
 
 /** Line icons drawn for this site on a 24 × 24 grid; every stroke measures 1 (`pathLength`) so it can draw itself in. */
 const ICONS: Record<TransferId, ReactNode> = {
@@ -53,12 +55,19 @@ const canHover = () => typeof window !== 'undefined' && window.matchMedia('(hove
 export default function Transfer() {
   const shown = useShown('transfer', SHOWN);
   const chosen = useExperience((s) => s.transferId);
+  const picked = useExperience((s) => s.transferPicked);
+  // the chapter's share while browsing it, for the scroll's preview of the cards (spec r5 §5)
+  const at = useExperience((s) => {
+    if (s.phase !== 'browse') return null;
+    const { id, t } = chapterAt('pre', s.progress);
+    return id === 'transfer' ? Math.round(t * 1000) / 1000 : null;
+  });
   const departs = useExperience((s) => destination(s.destinationId)?.departs ?? '00:00');
   const [hovered, setHovered] = useState<TransferId | null>(null);
   const [focused, setFocused] = useState<TransferId | null>(null);
   const options = useRef<(HTMLButtonElement | null)[]>([]);
   const t = copy.transfer;
-  const open = hovered ?? focused ?? chosen;
+  const open = openTransfer({ t: at, picked, chosen, hovered, focused });
 
   const choose = (i: number, focus: boolean) => {
     experienceStore.getState().chooseTransfer(TRANSFERS[i].id);
@@ -90,7 +99,7 @@ export default function Transfer() {
             const price = t.price(o.priceUsd);
             const card = stagger(i);
             return (
-              <div key={o.id} className={`${styles.slot} ${card.className}`} style={card.style} data-stagger data-open={isOpen} data-chosen={isChosen}>
+              <div key={o.id} className={`${styles.slot} ${card.className}`} style={card.style} data-stagger data-id={o.id} data-open={isOpen} data-chosen={isChosen}>
                 <span className={styles.plate} aria-hidden="true">
                   {isChosen ? t.selected : t.choose}
                 </span>

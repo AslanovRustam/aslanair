@@ -156,7 +156,7 @@
   }
 
   .slot[data-open='true']:not([data-chosen='true']):hover .option {
-    transform: translateY(calc(-1 * var(--lift))) rotate(-1.5deg);
+    transform: translateY(calc(-1 * var(--lift)));
   }
 }
 
