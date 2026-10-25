@@ -22,8 +22,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: /perf\.spec\.ts|mobile\.spec\.ts/,
+      testIgnore: /perf\.spec\.ts|mobile\.spec\.ts|prod\.spec\.ts/,
       use: desktop,
+    },
+    {
+      // the production build on its own server (test hooks off): run alone, after a build
+      name: 'prod',
+      testMatch: /prod\.spec\.ts/,
+      use: { ...desktop, baseURL: 'http://localhost:3300' },
     },
     {
       // a phone (plan 5 Task 6): touch, a 412 px screen, the low tier — on the real GPU like the desktop runs

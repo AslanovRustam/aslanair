@@ -7,10 +7,6 @@ import type { CameraPose } from './cameraPoses';
  * filling about 70 % of a 16:9 frame. Times are fractions of the sky chapter.
  */
 export const INTRO = {
-  /** The picture is full frame here; the 3D plane is already behind it from `swapAt − crossfade`. */
-  swapAt: 0.8,
-  /** The picture fades out over this after the swap; the camera holds the pose until it has. */
-  crossfade: 0.06,
   /** The hero: the picture at this fraction of the frame height, lifted by this fraction of it (negative: lowered).
    * At 16:9 the plane spans two thirds of the width, its middle at the centre: it flies over the foot of the title and
    * clears the scroll cue (spec r4 §3.2). */

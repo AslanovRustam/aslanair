@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { pre, wheelTo, scanForHoveredSeat, settledProgress, waitForAircraft, waitForStore } from './helpers';
+import { pre, wheelTo, scanForHoveredSeat, waitForAircraft, waitForStore } from './helpers';
 
 type Node = { count?: number };
 type SceneWindow = Window & { __aslan: { scene?: { getObjectByName(n: string): Node | undefined } } };
