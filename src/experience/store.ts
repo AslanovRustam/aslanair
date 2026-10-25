@@ -18,7 +18,12 @@ export interface ExperienceState {
   progress: number;
   /** Aisle progress when the visitor sat down; standing up or changing seat returns here. */
   aisleReturn: number;
+  /** The visitor's sound choice: on unless they muted (kept in localStorage by SoundController). */
   soundOn: boolean;
+  setSoundOn(on: boolean): void;
+  /** How many times the pass has been turned over: the paper's rustle follows it (audio/mix.ts). */
+  passFlips: number;
+  flipPass(): void;
   /** How much the device draws (quality.ts); the QualityGovernor sets it from the device and may step it down once. */
   quality: Tier;
   setQuality(tier: Tier): void;
@@ -70,7 +75,10 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     selectedSeatId: null,
     progress: 0,
     aisleReturn: 0,
-    soundOn: false,
+    soundOn: true,
+    setSoundOn: (soundOn) => set({ soundOn }),
+    passFlips: 0,
+    flipPass: () => set({ passFlips: get().passFlips + 1 }),
     quality: 'high',
     setQuality: (quality) => set({ quality }),
     destinationId: SUGGESTED,

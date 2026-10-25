@@ -187,7 +187,9 @@ export default function BoardingPass3D() {
   if (!textures) return null;
 
   const flip = () => {
-    if (flipper.current) gsap.to(flipper.current.rotation, { y: flipper.current.rotation.y + Math.PI, duration: 0.6, ease: 'power2.inOut' });
+    if (!flipper.current) return;
+    gsap.to(flipper.current.rotation, { y: flipper.current.rotation.y + Math.PI, duration: 0.6, ease: 'power2.inOut' });
+    experienceStore.getState().flipPass();
   };
 
   return (

@@ -9,6 +9,7 @@ import { installTestHooks } from '@/dev/testHooks';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { experienceStore } from '@/experience/store';
 import SmoothScroll from '@/scroll/SmoothScroll';
+import SoundController from '@/audio/SoundController';
 import Outro from '@/ui/Outro';
 import Curtain from '@/ui/Curtain';
 import Destinations from '@/ui/Destinations';
@@ -148,6 +149,7 @@ export default function Experience() {
         </Canvas>
       </div>
       <SmoothScroll />
+      <SoundController />
       <Hero />
       <Destinations />
       <Transfer />

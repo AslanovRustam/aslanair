@@ -9,6 +9,7 @@ import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { worldMode } from '@/experience/worldState';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import { AuthorCredit } from './AuthorCredit';
+import SoundToggle from './SoundToggle';
 import styles from './shell.module.css';
 import { transitionTo } from './transition';
 
@@ -98,8 +99,7 @@ export default function Shell() {
           <ul>{links(styles.link)}</ul>
         </nav>
         <div className={styles.actions}>
-          {/* the sound toggle lands here (Plan 5) */}
-          <span className={styles.slot} data-slot="sound" />
+          <SoundToggle />
           {phase === 'browse' && (
             <button type="button" className={styles.cta} onClick={() => go('cta', aisle, false)}>
               {copy.nav.cta}

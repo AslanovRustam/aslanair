@@ -28,6 +28,8 @@ export const copy = {
     close: 'Close',
     label: 'Sections',
   },
+  /** The header's sound switch: it says what is on. */
+  sound: { on: 'Sound on', off: 'Sound off' },
   rail: {
     label: 'Chapters',
     flight: 'Flight',
