@@ -191,19 +191,19 @@ test('scrolling the first screen compiles and uploads nothing, and never stalls 
   expect(r.worst, `worst frame ${r.worst.toFixed(0)} ms`).toBeLessThan(250);
 });
 
-test('at rest the shadow map is not redrawn every frame; the door moving redraws it', async ({ page }) => {
+test('at rest the shadow map is not redrawn every frame, nor during a flight over the globe; the door moving redraws it', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
   await isReady(page);
   await showAt(page, trackProgress('pre', 'sky', 0.9));
   /** Over `frames` frames after optionally moving to `progress`: whether the map updates by itself, and how often
    * something asked for a redraw (needsUpdate is raised in the frame callbacks and cleared by the render). */
-  const watch = (progress: number | null, frames: number) =>
+  const watch = (progress: number | null, frames: number, flyTo?: string) =>
     page.evaluate(
-      ([progress, frames]) =>
+      ([progress, frames, flyTo]) =>
         new Promise<{ auto: boolean; asked: number }>((done) => {
           type Map = { autoUpdate: boolean; needsUpdate: boolean };
-          const w = window as unknown as { __aslan: { gl: { shadowMap: Map }; store: { getState(): { setProgress(p: number): void } } } };
+          const w = window as unknown as { __aslan: { gl: { shadowMap: Map }; store: { getState(): { setProgress(p: number): void; pickDestination(code: string, now: number): boolean } } } };
           const map = w.__aslan.gl.shadowMap;
           let value = map.needsUpdate;
           let asked = 0;
@@ -216,6 +216,7 @@ test('at rest the shadow map is not redrawn every frame; the door moving redraws
             },
           });
           if (progress !== null) w.__aslan.store.getState().setProgress(progress);
+          if (flyTo) w.__aslan.store.getState().pickDestination(flyTo, performance.now() / 1000);
           let n = 0;
           const tick = () => {
             if (++n < frames) return requestAnimationFrame(tick);
@@ -225,9 +226,12 @@ test('at rest the shadow map is not redrawn every frame; the door moving redraws
           };
           requestAnimationFrame(tick);
         }),
-      [progress, frames] as const,
+      [progress, frames, flyTo] as const,
     );
   expect(await watch(null, 30)).toEqual({ auto: false, asked: 0 });
+  // over the globe the plane is far outside the moon's shadow camera: its flight there never redraws the map
+  await showAt(page, trackProgress('pre', 'destinations', 0.5));
+  expect((await watch(null, 60, 'GIG')).asked, 'redraws during a flight over the globe').toBe(0);
   // the door sliding open is a moving caster
   expect((await watch(trackProgress('pre', 'door', 0.45), 20)).asked).toBeGreaterThan(0);
 });

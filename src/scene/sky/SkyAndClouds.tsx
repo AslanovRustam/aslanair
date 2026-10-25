@@ -62,15 +62,8 @@ export default function SkyAndClouds({ background = true }: { background?: boole
   const backdrop = useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>>(null);
   const moon = useRef<THREE.DirectionalLight>(null);
   const fill = useRef<THREE.AmbientLight>(null);
-  // the tier's shadow map: on a change the old map is let go and the next shadow pass draws a new one
+  // the tier's shadow map size (the frame below lets go of a map of another size)
   const shadowMapSize = useExperience((s) => TIER[s.quality].shadowMapSize);
-  useEffect(() => {
-    const light = moon.current;
-    if (!light?.shadow.map) return;
-    light.shadow.map.dispose();
-    light.shadow.map = null;
-    gl.shadowMap.needsUpdate = true;
-  }, [shadowMapSize, gl]);
   const uniforms = useMemo(
     () => ({
       uStars: { value: standIn([0, 0, 0, 255]) as THREE.Texture },
@@ -122,6 +115,12 @@ export default function SkyAndClouds({ background = true }: { background?: boole
   useFrame((state) => {
     const { camera, clock } = state;
     const s = experienceStore.getState();
+    // a new tier's shadow map size: the old map goes and the next shadow pass draws one of the new size
+    if (moon.current?.shadow.map && moon.current.shadow.map.width !== moon.current.shadow.mapSize.x) {
+      moon.current.shadow.map.dispose();
+      moon.current.shadow.map = null;
+      state.gl.shadowMap.needsUpdate = true;
+    }
     const look = worldMode(s.phase, s.progress) === 'showcase' ? MOONLIGHT.showcase : MOONLIGHT.night;
     if (moon.current && fill.current) {
       moon.current.intensity = look.intensity;

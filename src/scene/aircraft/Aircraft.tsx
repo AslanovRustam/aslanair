@@ -7,8 +7,11 @@ import {
   BufferAttribute,
   DoubleSide,
   FileLoader,
+  Frustum,
   Matrix4,
+  Sphere,
   Vector3,
+  type DirectionalLight,
   type Group,
   type Material,
   type Mesh,
@@ -38,6 +41,16 @@ export const META_URL = '/models/airliner.meta.json';
 const INTERIOR = /^Cabin/;
 /** Night look: the fin's livery lit by its floodlight, and the cabin's warm light seen through the windows. */
 const FIN_FLOODLIGHT = 0.35;
+/** Half the airliner's length (m): the sphere that holds it, for the shadow camera's reach. */
+const HALF_LENGTH = 19;
+
+/** Whether the plane at `g` lies in what the moon's shadow camera sees (unknown — true — before its first pass). */
+function inShadowReach(g: Group, moon: DirectionalLight | undefined): boolean {
+  if (!moon?.shadow.map) return true;
+  const camera = moon.shadow.camera;
+  const view = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  return new Frustum().setFromProjectionMatrix(view).intersectsSphere(new Sphere(g.position, HALF_LENGTH * g.scale.x));
+}
 export const WINDOW_GLOW = { color: '#ffcf8a', intensity: 0.6 };
 /** Waiting for the transfer it sways on its own, this far either way over this long (s): slow, still at the ends. */
 const SWAY = { angle: (3 * Math.PI) / 180, period: 12 };
@@ -86,6 +99,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
   const compiled = useRef(false);
   /** What the shadow map was last drawn for: the only caster is this aircraft, so it redraws only when that moves. */
   const shadowFor = useRef('');
+  const moon = useRef<DirectionalLight | undefined>(undefined);
   const door = useMemo(() => {
     // closed is the hinge from geometry.ts — never read back from the shared, cached GLB scene
     const node = scene.getObjectByName('Door1L');
@@ -164,7 +178,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     };
   }, [gl, camera, root, scene, onCompiled]);
 
-  useFrame(({ camera, gl: renderer, size }) => {
+  useFrame(({ camera, gl: renderer, size, scene: world }) => {
     const g = group.current;
     if (!g) return;
     const s = experienceStore.getState();
@@ -197,7 +211,10 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
       door.node.position.set(door.closed.x + offset[0], door.closed.y + offset[1], door.closed.z + offset[2]);
       door.node.rotation.set(rotation[0], rotation[1], rotation[2], DOOR_ROTATION_ORDER);
     }
-    const pose = `${+g.visible} ${g.position.toArray()} ${g.rotation.toArray()} ${g.scale.x} ${open}`;
+    // beyond the moon's shadow camera (over the globe, flying in from afar) the plane casts nothing in the map:
+    // clear it once as it leaves, then leave it be
+    moon.current ??= world.getObjectsByProperty('isDirectionalLight', true).find((l) => l.castShadow) as DirectionalLight | undefined;
+    const pose = inShadowReach(g, moon.current) ? `${+g.visible} ${g.position.toArray()} ${g.rotation.toArray()} ${g.scale.x} ${open}` : 'out of reach';
     renderer.shadowMap.autoUpdate = false;
     if (pose !== shadowFor.current) {
       shadowFor.current = pose;
