@@ -157,7 +157,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     };
   }, [gl, camera, root, scene, onCompiled]);
 
-  useFrame(({ camera, gl: renderer }) => {
+  useFrame(({ camera, gl: renderer, size }) => {
     const g = group.current;
     if (!g) return;
     const s = experienceStore.getState();
@@ -171,7 +171,7 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     const now = performance.now() / 1000;
     const chosen = destination(s.destinationId);
     const onGlobe = chosen && planeOverGlobe(s.phase, s.progress, s.flight, chosen, now, s.globeSpin);
-    const stage = aircraftStage(s.phase, s.progress, onGlobe);
+    const stage = aircraftStage(s.phase, s.progress, onGlobe, size.width / size.height);
     const chapter = chapterAt('pre', s.progress);
     if (s.phase === 'browse' && chapter.id === 'transfer') {
       stage.rotation.y += SWAY.angle * Math.sin((2 * Math.PI * now) / SWAY.period) * Math.sin(Math.PI * chapter.t);

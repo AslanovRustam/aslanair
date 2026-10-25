@@ -1,6 +1,6 @@
 import { Euler, MathUtils, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
-import { applyLens, type CameraPose } from './cameraPoses';
-import { chapterAt } from './chapters';
+import { applyLens, poseOnPreTrack, type CameraPose } from './cameraPoses';
+import { chapterAt, trackProgress } from './chapters';
 import { GLOBE } from './globe';
 import { INTRO } from './introState';
 import { trackOf, type Phase } from './store';
@@ -26,11 +26,15 @@ const { smoothstep, degToRad } = MathUtils;
 export const ON_GLOBE_SCALE = 0.0957;
 
 /**
- * The transfer chapter: the plane flies in from behind (off to the right of the frame), nose first, slowing to a stop
- * where it waits beside the choices, turning slowly away over the chapter (from `turn` to `away`); in the ready
- * chapter it turns back to face the camera, at rest for the door flight. Metres back along its nose and up.
+ * The transfer chapter: the plane flies in from beyond the right of the frame, nose first, slowing to a stop where it
+ * waits beside the choices, turning slowly away over the chapter (from `turn` to `away`); in the ready chapter it
+ * turns back to face the camera, at rest for the door flight. `up`: metres higher as it comes in.
  */
-const WAITING = { back: 80, up: 6, turn: degToRad(25), away: degToRad(-20), settle: 0.4, faces: 0.8 };
+const WAITING = { up: 2, turn: degToRad(25), away: degToRad(-20), faces: 0.8 };
+/** Its flight in (spec r5 §4): at `ready` of the destinations chapter — gone over the globe's horizon, the camera
+ * starting to turn to the transfer's frame — it moves unseen to just beyond that frame's right edge (its box's left
+ * side at `edge` of the frame's width); from `start` it comes across to a stop at `settle` of the transfer chapter. */
+export const ARRIVAL = { ready: 0.93, start: 0.97, settle: 0.24, edge: 1.04 } as const;
 
 /** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
 export interface OnGlobe {
@@ -111,15 +115,54 @@ function turnedTo(yaw: number): Stage {
   return { position: new Vector3(), rotation: new Euler(0, yaw, 0, 'YZX'), scale: 1 };
 }
 
-function waiting(t: number): Stage {
-  const yaw = WAITING.turn + (WAITING.away - WAITING.turn) * smoothstep(t, 0, 1);
-  const nose = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  const away = (1 - smoothstep(t, 0, WAITING.settle)) ** 2;
+/** The flight in for a frame of one aspect: along that transfer camera's right (square to its gaze, so the plane
+ * keeps its depth and slides straight across the screen), nose first, from `distance` metres out. */
+interface Entry {
+  right: Vector3;
+  /** The nose's heading coming in, right to left across the view (yaw about y; the nose is +x at 0). */
+  yaw: number;
+  distance: number;
+}
+
+/** `away` of the way out, turned from its heading coming in towards `yaw` as it arrives. */
+function flyingIn(entry: Entry, away: number, yaw: number): Stage {
   return {
-    position: nose.multiplyScalar(-WAITING.back * away).add(new Vector3(0, WAITING.up * away, 0)),
-    rotation: new Euler(0, yaw, 0, 'YZX'),
+    position: entry.right.clone().multiplyScalar(entry.distance * away).add(new Vector3(0, WAITING.up * away, 0)),
+    rotation: new Euler(0, MathUtils.lerp(yaw, entry.yaw, away), 0, 'YZX'),
     scale: 1,
   };
+}
+
+/** The flight in for a frame of this aspect, its start just beyond the frame's right edge (cached per aspect). */
+const entryFor = (() => {
+  const known = new Map<number, Entry>();
+  return (aspect: number): Entry => {
+    const key = Math.round(aspect * 1000) / 1000;
+    let entry = known.get(key);
+    if (!entry) {
+      const pose = poseOnPreTrack(trackProgress('pre', 'transfer', 0.5), key);
+      const right = pose.target.clone().sub(pose.position).cross(new Vector3(0, 1, 0)).normalize();
+      const found: Entry = { right, yaw: Math.atan2(right.z, -right.x), distance: 0 };
+      let [near, far] = [0, 600];
+      for (let i = 0; i < 32; i++) {
+        found.distance = (near + far) / 2;
+        if (projectedBox(flyingIn(found, 1, WAITING.turn), pose, key).x0 < ARRIVAL.edge) near = found.distance;
+        else far = found.distance;
+      }
+      found.distance = far;
+      entry = found;
+      known.set(key, entry);
+    }
+    return entry;
+  };
+})();
+
+/** At track progress `progress` across the destinations → transfer seam; `t` is the transfer chapter's own share
+ * (0 before it). */
+function waiting(progress: number, t: number, aspect: number): Stage {
+  const arrived = smoothstep(progress, trackProgress('pre', 'destinations', ARRIVAL.start), trackProgress('pre', 'transfer', ARRIVAL.settle));
+  const slowTurn = WAITING.turn + (WAITING.away - WAITING.turn) * smoothstep(t, 0, 1);
+  return flyingIn(entryFor(aspect), 1 - arrived, slowTurn);
 }
 
 function overTheGlobe(at: OnGlobe): Stage {
@@ -132,16 +175,20 @@ function overTheGlobe(at: OnGlobe): Stage {
  * Where the aircraft stands for this phase and scroll position. The journey's chapters place it; from the door on,
  * and after a seat is chosen, it stands at the origin (the flight's fly-away is applied on top, see cameraPoses).
  * `onGlobe` is the plane's point over the globe; without it the plane waits parked, out of frame. Between the
- * chapters it changes place unseen: behind the globe, then out of frame.
+ * chapters it changes place unseen: behind the globe, then out of frame. `aspect` (the frame's width over height)
+ * sets where the flight in for the transfer starts: just beyond that frame's right edge.
  */
-export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe): Stage {
+export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe, aspect = 16 / 9): Stage {
   if (trackOf(phase) === 'post' || phase === 'seated') return rest();
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return departure(t);
   // over the globe it comes and goes over the horizon (globe.ts), so it is never seen to change place; before and
   // after, it holds the departure's end, out of frame
-  if (id === 'destinations') return onGlobe ? overTheGlobe(onGlobe) : parked();
-  if (id === 'transfer') return waiting(t);
+  if (id === 'destinations') {
+    if (t >= ARRIVAL.ready) return waiting(progress, 0, aspect);
+    return onGlobe ? overTheGlobe(onGlobe) : parked();
+  }
+  if (id === 'transfer') return waiting(progress, t, aspect);
   // `|| 0` keeps −0 out of the rest pose
   if (id === 'ready') return turnedTo(WAITING.away * (1 - smoothstep(t, 0, WAITING.faces)) || 0);
   return rest();

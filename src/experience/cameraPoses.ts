@@ -129,8 +129,9 @@ const TRANSFER = {
   /** Where the plane's middle sits across a wide frame. */
   place: 0.72,
   narrow: { distance: 175, lift: 0.28 },
-  /** The share of the chapter the camera takes to turn up from the globe. */
-  turn: 0.6,
+  /** The camera turns up from the globe at the end of the destinations chapter, between these shares of it — the
+   * plane gone over the horizon, the globe fading — so the plane flying in is seen at once (spec r5 §4). */
+  turn: [0.93, 0.97] as const,
 };
 
 function transferFrame(aspect: number): CameraPose {
@@ -145,11 +146,11 @@ function transferFrame(aspect: number): CameraPose {
   return { position, target: left.multiplyScalar(aside), fov: SKY.fov };
 }
 
-function transferPose(t: number, aspect: number): CameraPose {
+/** From the globe's view to the transfer's frame, by track progress over the end of the destinations chapter. */
+function turnToTransfer(progress: number, aspect: number): CameraPose {
   const from = destinationsPose(1, aspect);
   const to = transferFrame(aspect);
-  // slow to a stop: the plane comes into view over the second half of the turn
-  const k = smoothstep(t, 0, TRANSFER.turn);
+  const k = smoothstep(progress, trackProgress('pre', 'destinations', TRANSFER.turn[0]), trackProgress('pre', 'destinations', TRANSFER.turn[1]));
   const lift = lerp(from.lift ?? 0, to.lift ?? 0, k);
   return {
     position: from.position.clone().lerp(to.position, k),
@@ -170,7 +171,7 @@ const DOOR_START_SPEED = (() => {
  * becoming the capture camera's and the gaze coming round to the door, while the plane turns to face it (stage.ts).
  */
 function readyPose(t: number, aspect: number): CameraPose {
-  const from = transferPose(1, aspect);
+  const from = transferFrame(aspect);
   // from rest to the door curve's own starting speed (for this screen's frame): f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = k
   const k = (DOOR_START_SPEED * span('ready')) / from.position.distanceTo(DOOR_START.position);
   const f = (k - 2) * t ** 3 + (3 - k) * t ** 2;
@@ -227,8 +228,8 @@ export function poseOnPreTrack(progress: number, aspect = 16 / 9): CameraPose {
   if (id === 'sky') return skyPose(t, aspect);
   if (id === 'door') return doorPose(t);
   if (id === 'aisle') return aislePose(t);
-  if (id === 'destinations') return destinationsPose(t, aspect);
-  if (id === 'transfer') return transferPose(t, aspect);
+  if (id === 'destinations') return t < TRANSFER.turn[0] ? destinationsPose(t, aspect) : turnToTransfer(progress, aspect);
+  if (id === 'transfer') return turnToTransfer(progress, aspect);
   return readyPose(t, aspect);
 }
 
