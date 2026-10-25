@@ -26,6 +26,9 @@ export interface ExperienceState {
   flipPass(): void;
   /** When the seat was confirmed (performance.now(), ms): the seat lock and the pass's entrance run from it. */
   confirmedAt: number | null;
+  /** prefers-reduced-motion, live (SmoothScroll follows it): the camera cuts between key poses, nothing flies. */
+  reducedMotion: boolean;
+  setReducedMotion(on: boolean): void;
   /** How much the device draws (quality.ts); the QualityGovernor sets it from the device and may step it down once. */
   quality: Tier;
   setQuality(tier: Tier): void;
@@ -82,6 +85,8 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     passFlips: 0,
     flipPass: () => set({ passFlips: get().passFlips + 1 }),
     confirmedAt: null,
+    reducedMotion: false,
+    setReducedMotion: (reducedMotion) => set({ reducedMotion }),
     quality: 'high',
     setQuality: (quality) => set({ quality }),
     destinationId: SUGGESTED,

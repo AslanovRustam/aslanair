@@ -162,7 +162,6 @@ export default function BoardingPass3D() {
   const offset = useMemo(() => new THREE.Vector3(), []);
   const tilt = useMemo(() => new THREE.Quaternion(), []);
   const faces = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
-  const motion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)'), []);
   /** The face the pass rests on (a multiple of π), and a drag in progress. */
   const face = useRef(0);
   const drag = useRef<{ pointer: number; x: number; from: number; moved: number; at: number; angle: number; speed: number } | null>(null);
@@ -192,7 +191,7 @@ export default function BoardingPass3D() {
     h.visible = s.phase === 'confirmed' && chapterAt('post', s.progress).id === 'pass';
     if (!h.visible) return;
     // it comes in once the seat has locked: rising from below and turning up into place (passMotion)
-    const e = s.confirmedAt === null ? passEntrance(Infinity, false) : passEntrance(performance.now() - s.confirmedAt, motion.matches);
+    const e = s.confirmedAt === null ? passEntrance(Infinity, false) : passEntrance(performance.now() - s.confirmedAt, s.reducedMotion);
     offset.set(0.06, -0.04 + e.offsetY, -CARD.distance).applyQuaternion(camera.quaternion);
     h.position.copy(camera.position).add(offset);
     h.quaternion.copy(camera.quaternion).multiply(tilt.setFromAxisAngle(X_AXIS, e.tilt));

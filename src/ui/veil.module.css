@@ -1,0 +1,14 @@
+/* Over the 3D scene, under the chapters' words and the frame: the scene goes dark while the camera cuts. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.veil[data-covered='true'] {
+  opacity: 1;
+}

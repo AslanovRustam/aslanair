@@ -314,13 +314,15 @@ export default function Globe() {
     g.visible = fade > 0 || !s.ready;
     if (!g.visible) return;
     const now = performance.now() / 1000;
+    // under reduced motion a pick turns the globe and draws its arc at once
+    const flightNow = s.reducedMotion ? Infinity : now;
     const chosen = destination(s.destinationId) ?? DESTINATIONS[0];
-    g.quaternion.copy(globeTurnAt(s.flight, chosen, now, s.globeSpin));
+    g.quaternion.copy(globeTurnAt(s.flight, chosen, flightNow, s.globeSpin));
     // pixels per metre at 1 m: the points keep their size in metres whatever the lens
     const fov = MathUtils.degToRad((camera as PerspectiveCamera).fov);
     const scale = gl.getDrawingBufferSize(buffer.current).y / (2 * Math.tan(fov / 2));
     // the arc draws with the plane's flight (none yet: already drawn)
-    const draw = arcDrawn(s.flight, now);
+    const draw = arcDrawn(s.flight, flightNow);
     const index = (code: string | null) => (code ? 1 + DESTINATIONS.findIndex((d) => d.code === code) : -1);
     for (const child of g.children) {
       const uniforms = ((child as Mesh).material as ShaderMaterial).uniforms;

@@ -50,6 +50,15 @@ export default function SmoothScroll() {
     window.scrollTo(0, 0);
     const instance = new Lenis();
     lenis = instance;
+    // reduced motion: the page moves as the wheel says, no glide (and the store tells the scene)
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const followMotion = () => {
+      instance.options.lerp = motion.matches ? 1 : 0.1;
+      instance.options.smoothWheel = !motion.matches;
+      experienceStore.getState().setReducedMotion(motion.matches);
+    };
+    followMotion();
+    motion.addEventListener('change', followMotion);
     instance.on('scroll', ScrollTrigger.update);
     const tick = (time: number) => instance.raf(time * 1000);
     gsap.ticker.add(tick);
@@ -72,6 +81,7 @@ export default function SmoothScroll() {
       ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
       ScrollTrigger.removeEventListener('refresh', onRefresh);
       gsap.ticker.remove(tick);
+      motion.removeEventListener('change', followMotion);
       instance.destroy();
       lenis = null;
     };

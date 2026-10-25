@@ -198,15 +198,16 @@ function seenFrom(stage: Stage, pose: CameraPose, aspect: number): Stage {
 
 /** At track progress `progress` across the destinations → transfer seam; `t` is the transfer chapter's own share
  * (0 before it). */
-function waiting(progress: number, t: number, aspect: number): Stage {
+function waiting(progress: number, t: number, aspect: number, reduced: boolean): Stage {
   // flying in already at 1.2 × its mean pace and slowing to a stop (it sets off beyond the edge, where no start is
   // seen): f(0) = 0, f'(0) = 1.2, f(1) = 1, f'(1) = 0 — its fastest only 1.35 × the mean
   const u = MathUtils.clamp(MathUtils.inverseLerp(trackProgress('pre', 'destinations', ARRIVAL.start), trackProgress('pre', 'transfer', ARRIVAL.settle), progress), 0, 1);
   const arrived = 1.2 * u + 0.6 * u ** 2 - 0.8 * u ** 3;
   const slowTurn = WAITING.turn + (WAITING.away - WAITING.turn) * smoothstep(t, 0, 1);
   const stage = flyingIn(entryFor(aspect), 1 - arrived, slowTurn);
-  // in the transfer chapter the camera has come round: the frame is the transfer's own
-  return t > 0 ? stage : seenFrom(stage, poseOnPreTrack(progress, aspect), aspect);
+  // in the transfer chapter the camera has come round: the frame is the transfer's own — as it is from the turn on
+  // under reduced motion, where the camera cuts there instead of turning (reducedMotion.ts)
+  return t > 0 || reduced ? stage : seenFrom(stage, poseOnPreTrack(progress, aspect), aspect);
 }
 
 function overTheGlobe(at: OnGlobe): Stage {
@@ -222,17 +223,17 @@ function overTheGlobe(at: OnGlobe): Stage {
  * chapters it changes place unseen: behind the globe, then out of frame. `aspect` (the frame's width over height)
  * sets where the flight in for the transfer starts: just beyond that frame's right edge.
  */
-export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe, aspect = 16 / 9): Stage {
+export function aircraftStage(phase: Phase, progress: number, onGlobe?: OnGlobe, aspect = 16 / 9, reduced = false): Stage {
   if (trackOf(phase) === 'post' || phase === 'seated') return rest();
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return departure(t);
   // over the globe it comes and goes over the horizon (globe.ts), so it is never seen to change place; before and
   // after, it holds the departure's end, out of frame
   if (id === 'destinations') {
-    if (t >= ARRIVAL.ready) return waiting(progress, 0, aspect);
+    if (t >= ARRIVAL.ready) return waiting(progress, 0, aspect, reduced);
     return onGlobe ? overTheGlobe(onGlobe) : parked();
   }
-  if (id === 'transfer') return waiting(progress, t, aspect);
+  if (id === 'transfer') return waiting(progress, t, aspect, reduced);
   // `|| 0` keeps −0 out of the rest pose
   if (id === 'ready') return turnedTo(WAITING.away * (1 - smoothstep(t, 0, WAITING.faces)) || 0);
   return rest();

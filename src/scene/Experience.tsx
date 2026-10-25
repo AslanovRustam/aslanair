@@ -19,6 +19,7 @@ import Transfer from '@/ui/Transfer';
 import Hero from '@/ui/Hero';
 import Overlay from '@/ui/Overlay';
 import Shell from '@/ui/Shell';
+import Veil from '@/ui/Veil';
 import Aircraft from './aircraft/Aircraft';
 import BoardingPass3D from './BoardingPass3D';
 import Bins from './cabin/Bins';
@@ -148,6 +149,7 @@ export default function Experience() {
           <BoardingPass3D />
         </Canvas>
       </div>
+      <Veil />
       <SmoothScroll />
       <SoundController />
       <Hero />
