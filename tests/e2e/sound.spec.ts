@@ -38,6 +38,25 @@ test('no sound before a gesture; the first gesture starts it; muting is remember
   await expect(page.getByRole('button', { name: 'Sound off' })).toBeVisible();
 });
 
+test('the recordings are fetched only once sound starts, all three, with no error', async ({ page }) => {
+  const asked: string[] = [];
+  const errors: string[] = [];
+  page.on('requestfinished', async (r) => {
+    if (r.url().includes('/sounds/')) asked.push(`${new URL(r.url()).pathname} ${(await r.response())?.status()}`);
+  });
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await page.goto('/');
+  await waitForStore(page);
+  await loaderGone(page);
+  await page.waitForTimeout(500);
+  expect(asked, 'nothing before a gesture').toEqual([]);
+  await page.getByRole('button', { name: /^Sound (on|off)$/ }).click();
+  await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(3);
+  expect(asked.sort()).toEqual(['/sounds/airport-crowd.mp3 200', '/sounds/boarding-announcement.mp3 200', '/sounds/cabin-cruise.mp3 200']);
+  await page.waitForTimeout(500); // decoded
+  expect(errors).toEqual([]);
+});
+
 test('on a phone the sound switch stays in the header, outside the menu', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto('/');

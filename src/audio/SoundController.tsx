@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { chapterAt } from '@/experience/chapters';
 import { experienceStore, trackOf, type ExperienceState } from '@/experience/store';
 import { SoundEngine } from './engine';
-import { ambience, oneShots, type SoundSnapshot } from './mix';
+import { ambience, announcementDue, oneShots, type SoundSnapshot } from './mix';
 
 /** Where the visitor's choice is kept between visits ('on' | 'off'). */
 export const SOUND_KEY = 'aslanair:sound';
@@ -17,9 +17,10 @@ function snapshot(s: ExperienceState): SoundSnapshot & { t: number } {
 }
 
 /**
- * Sound (spec §4.7): nothing exists until the visitor's first gesture — then the Web Audio graph is made, and from
- * there it follows the store: the beds with the chapter, a one-shot on each event, the mute at once. The choice to
- * mute is kept in localStorage and read before anything plays.
+ * Sound (spec §4.7): nothing exists until the visitor's first gesture — then the Web Audio graph is made (and its
+ * recordings fetched), and from there it follows the store: the beds with the chapter, a one-shot on each event, a
+ * boarding call now and then while the airport is heard, the mute at once. The choice to mute is kept in localStorage
+ * and read before anything plays.
  */
 export default function SoundController() {
   useEffect(() => {
@@ -53,10 +54,21 @@ export default function SoundController() {
     });
     const onVisibility = () => engine?.setAwake(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
+    // the boarding calls: due by the clock, not by the scroll
+    const calls = { airportSince: null as number | null, lastAt: null as number | null };
+    const clock = window.setInterval(() => {
+      if (!engine || document.hidden) return;
+      const now = performance.now() / 1000;
+      const s = snapshot(experienceStore.getState());
+      if (ambience(s.phase, s.chapter, s.t).airport < 0.5) calls.airportSince = null;
+      else calls.airportSince ??= now;
+      if (announcementDue(now, calls) && engine.announce()) calls.lastAt = now;
+    }, 1000);
 
     return () => {
       for (const g of GESTURES) window.removeEventListener(g, unlock, true);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(clock);
       unsubscribe();
       engine?.close();
     };

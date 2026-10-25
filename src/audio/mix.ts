@@ -2,11 +2,14 @@ import { MathUtils } from 'three';
 import type { ChapterId } from '@/experience/chapters';
 import type { Phase } from '@/experience/store';
 
-/** The two beds: the cruise heard from outside, and the same hum muffled by the cabin (low-passed at the cutoff). */
+/**
+ * The three beds (the author, 2026-10-25): a terminal's crowd with its announcements until Ready to choose your seat
+ * shows, then the cabin of a plane in flight; out through the window, the night air (synthesised); levels 0 … 1.
+ */
 export interface Ambience {
-  outside: number;
+  airport: number;
   cabin: number;
-  cabinCutoffHz: number;
+  outside: number;
 }
 
 /** What the one-shots follow in the store. */
@@ -19,37 +22,44 @@ export interface SoundSnapshot {
 
 export type OneShot = 'ding' | 'rustle' | 'gust';
 
-const OUTSIDE = { outside: 0.55, cabin: 0 };
-const ABOARD = { outside: 0.05, cabin: 0.35 };
-const CUTOFF = 650;
+const LEVEL = { airport: 0.7, cabin: 0.8, outside: 0.55, outro: 0.12 };
+const SILENT: Ambience = { airport: 0, cabin: 0, outside: 0 };
 const { smoothstep, lerp } = MathUtils;
 
-const between = (k: number, from: { outside: number; cabin: number }, to: { outside: number; cabin: number }): Ambience => ({
-  outside: lerp(from.outside, to.outside, k),
-  cabin: lerp(from.cabin, to.cabin, k),
-  cabinCutoffHz: CUTOFF,
-});
-
 /**
- * The beds for where the visitor is (spec §4.7): out in the night sky and over the journey's screens the cruise is
- * heard from outside; through the door it crossfades into the muffled cabin (t 0.3–0.7) and stays there in the aisle,
- * in the seat and on the pass; out through the window it crossfades back (t 0–0.4); the outro lets it fall quiet.
+ * The beds for where the visitor is: the airport through the journey before boarding; as Ready shows (its first
+ * quarter) it gives way to the cabin in flight, which stays at the door, in the aisle, in the seat and on the pass;
+ * out through the window the night air takes over (exit t 0–0.4); the outro lets it fall quiet.
  */
 export function ambience(phase: Phase, chapter: ChapterId, t: number): Ambience {
-  if (phase === 'seated') return between(1, OUTSIDE, ABOARD);
+  if (phase === 'seated') return { ...SILENT, cabin: LEVEL.cabin };
   switch (chapter) {
-    case 'door':
-      return between(smoothstep(t, 0.3, 0.7), OUTSIDE, ABOARD);
-    case 'aisle':
-    case 'pass':
-      return between(1, OUTSIDE, ABOARD);
-    case 'exit':
-      return between(1 - smoothstep(t, 0, 0.4), OUTSIDE, ABOARD);
+    case 'sky':
+    case 'destinations':
+    case 'transfer':
+      return { ...SILENT, airport: LEVEL.airport };
+    case 'ready': {
+      const k = smoothstep(t, 0, 0.25);
+      return { ...SILENT, airport: LEVEL.airport * (1 - k), cabin: LEVEL.cabin * k };
+    }
+    case 'exit': {
+      const k = smoothstep(t, 0, 0.4);
+      return { airport: 0, cabin: LEVEL.cabin * (1 - k), outside: LEVEL.outside * k };
+    }
     case 'outro':
-      return { outside: lerp(OUTSIDE.outside, 0.12, smoothstep(t, 0, 0.5)), cabin: 0, cabinCutoffHz: CUTOFF };
+      return { ...SILENT, outside: lerp(LEVEL.outside, LEVEL.outro, smoothstep(t, 0, 0.5)) };
     default:
-      return between(0, OUTSIDE, ABOARD);
+      return { ...SILENT, cabin: LEVEL.cabin };
   }
+}
+
+/** A boarding call `first` s after the visitor reaches the airport, then every `every` s while they stay. */
+const ANNOUNCE = { first: 6, every: 45 };
+
+/** Whether a boarding call is due at `now` (s): `airportSince` is when the airport bed came up (null: not there). */
+export function announcementDue(now: number, s: { airportSince: number | null; lastAt: number | null }): boolean {
+  if (s.airportSince === null || now - s.airportSince < ANNOUNCE.first) return false;
+  return s.lastAt === null || now - s.lastAt >= ANNOUNCE.every;
 }
 
 /** The one-shots between two moments: the chime as the visitor sits or confirms, paper as the pass turns over, the
