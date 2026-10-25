@@ -151,6 +151,13 @@ function cardTexture(draw: (ctx: CanvasRenderingContext2D, d: BoardingPassData) 
 }
 
 const X_AXIS = new THREE.Vector3(1, 0, 0);
+
+/** How far before the eye the card floats: at arm's length, or farther in a narrow (portrait) frame, so all of it
+ * shows. */
+function cardDistance(camera: THREE.PerspectiveCamera): number {
+  const across = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect;
+  return Math.max(CARD.distance, CARD.w / (CARD.fill * across));
+}
 /** R3F hands its events a target that captures the pointer for the object (its types say only EventTarget). */
 type Capture = { setPointerCapture(id: number): void; releasePointerCapture(id: number): void };
 
@@ -195,9 +202,7 @@ export default function BoardingPass3D() {
     const e = s.confirmedAt === null ? passEntrance(Infinity, false) : passEntrance(performance.now() - s.confirmedAt, s.reducedMotion);
     // a narrow (portrait) frame holds the card at arm's length so all of it shows, centred
     const cam = camera as THREE.PerspectiveCamera;
-    const across = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.aspect;
-    const distance = Math.max(CARD.distance, CARD.w / (CARD.fill * across));
-    offset.set(cam.aspect < 1 ? 0 : 0.06, -0.04 + e.offsetY, -distance).applyQuaternion(camera.quaternion);
+    offset.set(cam.aspect < 1 ? 0 : 0.06, -0.04 + e.offsetY, -cardDistance(cam)).applyQuaternion(camera.quaternion);
     h.position.copy(camera.position).add(offset);
     h.quaternion.copy(camera.quaternion).multiply(tilt.setFromAxisAngle(X_AXIS, e.tilt));
     for (const face of faces.current) if (face) face.opacity = e.opacity;
@@ -214,7 +219,10 @@ export default function BoardingPass3D() {
   };
 
   /** The card's width on screen (px): half a turn per width dragged. */
-  const widthPx = () => (CARD.w * size.height) / (2 * CARD.distance * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2));
+  const widthPx = () => {
+    const cam = camera as THREE.PerspectiveCamera;
+    return (CARD.w * size.height) / (2 * cardDistance(cam) * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2));
+  };
 
   // the hand turns it (spec §4.4, §4.8): a drag follows the pointer and settles on the nearer face, a flick turns it
   // on, a tap turns it over; the page underneath stays put (the canvas lets horizontal touch through: pan-y)
