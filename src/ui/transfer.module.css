@@ -81,7 +81,7 @@
   flex-grow: 30;
 }
 
-/* the terracotta plate under each card: "Selected" under the chosen one, "Choose" under an open one on hover */
+/* the terracotta plate under each card: "Selected" under the chosen one, "Choose" under an open one not chosen yet */
 .plate {
   position: absolute;
   inset: 0;
@@ -141,6 +141,16 @@
   transform: translateY(calc(-1 * var(--lift)));
 }
 
+/* an open card not chosen yet — under the pointer, or opened by the scroll's preview (spec r5 §5) — offers itself:
+   lifted off its "Choose" plate */
+.slot[data-open='true']:not([data-chosen='true']) .plate {
+  opacity: 1;
+}
+
+.slot[data-open='true']:not([data-chosen='true']) .option {
+  transform: translateY(calc(-1 * var(--lift)));
+}
+
 /* the row clips what spills over it (contain: paint): the keyboard's ring sits inside the card */
 .option:focus-visible {
   outline-offset: -3px;
@@ -149,14 +159,6 @@
 @media (hover: hover) {
   .option:hover {
     border-color: var(--faint);
-  }
-
-  .slot[data-open='true']:not([data-chosen='true']):hover .plate {
-    opacity: 1;
-  }
-
-  .slot[data-open='true']:not([data-chosen='true']):hover .option {
-    transform: translateY(calc(-1 * var(--lift)));
   }
 }
 
@@ -371,8 +373,8 @@
     transform: translateY(calc(-1 * var(--lift)));
   }
 
-  /* no tilt and no lift on hover: the plate alone answers the pointer */
-  .slot[data-open='true']:not([data-chosen='true']):hover .option {
+  /* no lift for an open card not chosen yet: the plate alone answers the pointer or the preview */
+  .slot[data-open='true']:not([data-chosen='true']) .option {
     transform: none;
   }
 }
@@ -415,7 +417,8 @@
     height: 12.5rem;
   }
 
-  .slot[data-chosen='true'] {
+  .slot[data-chosen='true'],
+  .slot[data-open='true'] {
     margin-top: var(--lift);
   }
 

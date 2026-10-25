@@ -252,6 +252,38 @@ test('scrolling through Transfer opens each card in turn without choosing it', a
   }
 });
 
+for (const viewport of [
+  { width: 1440, height: 800 },
+  { width: 412, height: 915 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} a card the scroll opens offers itself: Choose ↗ on its plate, lifted clear of its neighbour (spec r5 §5)`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await loaderGone(page);
+    await page.mouse.move(viewport.width - 10, viewport.height - 10); // off the cards
+    await toTransferAt(page, 0.45);
+    await expect.poll(() => openCard(page)).toBe('hotel');
+    const hotel = page.locator('[data-id="hotel"]');
+    const plate = hotel.locator(':scope > span');
+    await expect(plate).toHaveText('Choose ↗');
+    await expect.poll(() => plate.evaluate((e) => getComputedStyle(e).opacity), { message: 'the plate shows' }).toBe('1');
+    const lifted = () =>
+      page.evaluate(() => {
+        const slot = document.querySelector('[data-id="hotel"]')!;
+        const above = document.querySelector('[data-id="home"]')!.getBoundingClientRect();
+        const card = slot.querySelector('button')!.getBoundingClientRect();
+        const narrow = above.bottom <= card.top + card.height / 2; // the cards stack
+        const footer = document.querySelector('footer')!.getBoundingClientRect().top;
+        const lowest = Math.max(...[...document.querySelectorAll('[data-id] > button')].map((b) => b.getBoundingClientRect().bottom));
+        return { off: Math.round(slot.getBoundingClientRect().top - card.top), clear: narrow ? card.top >= above.bottom - 1 : true, aboveFooter: lowest <= footer };
+      });
+    await expect.poll(async () => (await lifted()).off, { message: 'lifted off its plate' }).toBeGreaterThan(20);
+    await page.waitForTimeout(500); // the stack's settle
+    expect((await lifted()).clear, 'clear of the card above').toBe(true);
+    expect((await lifted()).aboveFooter, 'every card above the footer').toBe(true);
+  });
+}
+
 test('once a card is picked, scrolling keeps it open', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await open(page);
