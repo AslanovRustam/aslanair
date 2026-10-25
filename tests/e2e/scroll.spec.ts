@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { progress, scrollToEnd, settledProgress, visibleLights, waitForAircraft, waitForStore } from './helpers';
+import { loaderGone, progress, scrollToEnd, settledProgress, visibleLights, waitForAircraft, waitForStore } from './helpers';
 
 test('rotating a phone keeps the story position', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await waitForStore(page);
+  await loaderGone(page); // a wheel before the loader is gone is held (spec r5 §2)
   for (let i = 0; i < 2; i++) await page.mouse.wheel(0, 600);
   const before = await settledProgress(page);
   // somewhere in the journey, clear of both ends
@@ -55,6 +56,7 @@ test('scrolling walks from the sky into the aisle', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
   await expect.poll(() => progress(page)).toBe(0);
+  await loaderGone(page); // a wheel before the loader is gone is held (spec r5 §2)
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
   await expect.poll(() => progress(page), { timeout: 15_000 }).toBeGreaterThan(0.95);
   await page.screenshot({ path: 'test-results/aisle.png' });
@@ -63,6 +65,7 @@ test('scrolling walks from the sky into the aisle', async ({ page }) => {
 test('the aisle offers "Pick for me"', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
+  await loaderGone(page); // a wheel before the loader is gone is held (spec r5 §2)
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
   await expect.poll(() => progress(page), { timeout: 15_000 }).toBeGreaterThan(0.95);
   await expect(page.getByRole('button', { name: /pick for me/i })).toBeVisible();
@@ -71,6 +74,7 @@ test('the aisle offers "Pick for me"', async ({ page }) => {
 test('reload mid-page restarts at the sky', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
+  await loaderGone(page); // a wheel before the loader is gone is held (spec r5 §2)
   for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 600);
   await expect.poll(() => progress(page)).toBeGreaterThan(0);
   await page.reload();

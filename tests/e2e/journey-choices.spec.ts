@@ -347,6 +347,7 @@ test('Start again brings the preview back', async ({ page }) => {
   });
   // the real Start again: through the curtain, focus on the hero's heading after it
   await page.getByRole('button', { name: 'Start again' }).first().click();
+  await page.waitForFunction(() => !!document.documentElement.dataset.curtain); // the curtain has begun
   await page.waitForFunction(() => !document.documentElement.dataset.curtain, null, { timeout: 8000 });
   await page.mouse.move(1430, 790);
   await toTransferAt(page, 0.45);
