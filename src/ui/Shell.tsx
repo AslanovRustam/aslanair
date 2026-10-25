@@ -44,6 +44,9 @@ export default function Shell() {
   const nav = navItems(phase, chapter);
   const rail = railItems(phase, chapter);
   const aisle = nav.find((i) => i.id === 'seat')!.target;
+  // the logo leads home: the hero, as Flight does — or, once the seat is confirmed and the journey fixed, the pass
+  const flight = nav.find((i) => i.id === 'flight')!;
+  const home = flight.enabled ? flight : nav.find((i) => i.id === 'pass')!;
 
   // the open menu holds the focus (a modal dialog): it starts on Close, Tab goes round its controls, Escape shuts it,
   // and the focus goes back to the Menu button
@@ -111,10 +114,10 @@ export default function Shell() {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <span className={styles.brand}>
+        <button type="button" className={styles.brand} aria-label={copy.nav.home} onClick={() => go(home.id, home.target, home.active)}>
           <Emblem />
           {copy.brand}
-        </span>
+        </button>
         <nav aria-label={copy.nav.label} className={styles.nav}>
           <ul>{links(styles.link)}</ul>
         </nav>

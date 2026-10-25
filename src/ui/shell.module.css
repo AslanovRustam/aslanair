@@ -23,15 +23,22 @@
   pointer-events: auto;
 }
 
+/* the logo: a button home (to the hero) */
 .brand {
   display: flex;
   align-items: center;
+  justify-self: start;
   gap: 0.6rem;
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 1.125rem;
   letter-spacing: -0.01em;
   color: var(--ink);
+  cursor: pointer;
 }
 
 .emblem {

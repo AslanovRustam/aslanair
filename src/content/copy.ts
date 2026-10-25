@@ -30,6 +30,7 @@ export const copy = {
     pass: 'Boarding pass',
     cta: 'Choose your seat',
     menu: 'Menu',
+    home: 'AslanAir — back to the start',
     close: 'Close',
     label: 'Sections',
   },

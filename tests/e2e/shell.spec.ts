@@ -253,3 +253,16 @@ test('the hero plane clears the scroll hint', async ({ page }) => {
   const cue = (await page.getByTestId('hero').getByText('Scroll to board').boundingBox())!;
   expect(cue.y - planeBottom, `plane bottom ${planeBottom.toFixed(0)} px, cue top ${cue.y.toFixed(0)} px`).toBeGreaterThanOrEqual(40);
 });
+
+test('the logo leads back to the hero: under the curtain from far away, a scroll from the first screen', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await loaderGone(page);
+  const logo = page.getByRole('banner').getByRole('button', { name: /back to the start/ });
+  await wheelTo(page, pre('destinations', 0.3)); // a real scroll: the page and the store agree
+  await logo.click();
+  await expect.poll(() => progress(page), { timeout: 8000 }).toBe(0);
+  await wheelTo(page, pre('sky', 0.3));
+  await logo.click();
+  await expect.poll(() => progress(page), { timeout: 5000 }).toBeLessThan(0.002);
+});
