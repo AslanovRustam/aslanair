@@ -69,6 +69,15 @@ describe('aircraft asset ↔ site constants', () => {
     expect(meta.door1L.hinge).toEqual(DOOR_1L.hinge);
     expect(meta.door1L.open).toEqual(DOOR_1L.open);
   });
+
+  test('the hull round door 1L is in the meta, for the open door to follow (spec r5 §7)', () => {
+    const { stations, heights, halfWidth } = meta.door1L.skin;
+    expect(stations[0]).toBeLessThanOrEqual(3.5);
+    expect(stations.at(-1)).toBeGreaterThanOrEqual(DOOR_1L.station + DOOR_1L.width / 2);
+    expect(heights[0]).toBeCloseTo(DOOR_1L.y - DOOR_1L.height / 2, 4);
+    expect(heights.at(-1)).toBeCloseTo(DOOR_1L.y + DOOR_1L.height / 2, 4);
+    expect(halfWidth).toHaveLength(stations.length);
+  });
 });
 
 describe('aircraft asset budget', () => {

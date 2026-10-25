@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
+import { DOOR_1L } from '@/experience/geometry';
 import { scrollToEnd, settledProgress, state, waitForStore } from './helpers';
 
 test('pick, reconsider, confirm', async ({ page }) => {
@@ -146,4 +147,24 @@ test('on the pass, Take off flies to the window and asks to scroll on', async ({
   await page.mouse.wheel(0, 900);
   await expect.poll(async () => (await state(page)).progress).toBeGreaterThan(WINDOW_ON_EXIT + 0.08);
   await expect(page.getByText('Scroll to fly out')).toBeHidden();
+});
+
+test('door 1L stays shut through the ready chapter, its outline glowing, and opens along the hull in the door flight', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  const doorAt = async (id: 'ready' | 'door', t: number) => {
+    await page.evaluate(([id, t]) => (window as unknown as JourneyWindow).__aslan.store.getState().setProgress(__pre(id as 'ready', t as number)), [id, t] as const);
+    await page.waitForTimeout(300);
+    return page.evaluate(() => {
+      type Node = { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } };
+      const node = (window as unknown as { __aslan: { scene: { getObjectByName(n: string): Node } } }).__aslan.scene.getObjectByName('Door1L');
+      return { p: [node.position.x, node.position.y, node.position.z], r: [node.rotation.x, node.rotation.y, node.rotation.z] };
+    });
+  };
+  const shut = await doorAt('ready', 0.9);
+  shut.p.forEach((v, i) => expect(v, `position ${i}`).toBeCloseTo(DOOR_1L.hinge[i], 3));
+  shut.r.forEach((v, i) => expect(v, `rotation ${i}`).toBeCloseTo(0, 6));
+  const open = await doorAt('door', 0.6);
+  expect(open.p[0] - DOOR_1L.hinge[0], 'forward of the doorway').toBeGreaterThan(0.95);
 });

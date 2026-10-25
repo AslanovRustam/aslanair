@@ -20,6 +20,7 @@ from aslanair.geometry import (  # noqa: E402
     ceiling_z,
     door_hinge,
     door_rect,
+    door_skin_grid,
     lumbar,
     fin_root_z,
     hull_half_width_at,
@@ -86,14 +87,25 @@ class DoorTest(unittest.TestCase):
         self.assertAlmostEqual(z0, FLOOR_Z + 0.05)
 
     def test_open_door_clears_the_hull(self):
-        # plug door: out by DOOR_OPEN['outward'], then forward along the hull by DOOR_OPEN['forward']
+        # spec r5 §7: the door stands off the skin by DOOR_OPEN['clear'] all the way forward (the web side follows the
+        # skin, aircraftAnimation.doorPose); its 0.06 m panel's inner face keeps at least 2 cm of air, and the forward
+        # move takes it clear of the doorway
+        s0, s1, _, _ = door_rect()
+        self.assertGreaterEqual(DOOR_OPEN['clear'] - 0.06, 0.02)
+        self.assertLessEqual(DOOR_OPEN['clear'] - 0.06, 0.12)
+        self.assertGreater(DOOR_OPEN['forward'], s1 - s0 + 0.1)
+
+    def test_door_skin_grid_is_the_hull_round_the_door(self):
         s0, s1, z0, z1 = door_rect()
-        for i in range(9):
-            s = s0 + (s1 - s0) * i / 8
-            for j in range(9):
-                z = z0 + (z1 - z0) * j / 8
-                inner_face = hull_half_width_at(s, z) + DOOR_OPEN['outward'] - 0.06
-                self.assertGreater(inner_face, hull_half_width_at(s - DOOR_OPEN['forward'], z) + 0.02, msg=f'{s:.2f},{z:.2f}')
+        grid = door_skin_grid()
+        self.assertLessEqual(grid['stations'][0], s0 - 1.25)
+        self.assertGreaterEqual(grid['stations'][-1], round(s1, 4))
+        self.assertLessEqual(grid['heights'][0], z0)
+        self.assertGreaterEqual(grid['heights'][-1], round(z1, 4))  # the grid's values are rounded to 0.1 mm
+        self.assertEqual(len(grid['halfWidth']), len(grid['stations']))
+        for i, j in [(0, 0), (len(grid['stations']) // 2, len(grid['heights']) // 2), (-1, -1)]:
+            s, z = grid['stations'][i], grid['heights'][j]
+            self.assertAlmostEqual(grid['halfWidth'][i][j], hull_half_width_at(s, z), places=4)
 
     def test_hinge_is_on_the_forward_edge_at_the_hull_surface(self):
         s0, s1, z0, z1 = door_rect()

@@ -5,10 +5,9 @@ import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, FileLoader, MeshLambertMaterial, Vector2, type Mesh, type MeshStandardMaterial } from 'three';
 import { BEZEL, bezelGeometryData, bezelOpening } from '@/experience/windowBezel';
-import { MODEL_URL } from '../aircraft/Aircraft';
+import { META_URL, MODEL_URL } from '../aircraft/Aircraft';
 import { withCabinLight } from './cabinLight';
 
-const META_URL = '/models/airliner.meta.json';
 
 const VERTEX_DECL = /* glsl */ `attribute vec2 aBezel;\nattribute vec2 aBezelOuter;\nvarying vec2 vBezel;\nvarying vec2 vBezelOuter;`;
 const FRAGMENT_DECL = /* glsl */ `

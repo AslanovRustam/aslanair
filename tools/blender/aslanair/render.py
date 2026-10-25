@@ -130,7 +130,7 @@ def render(shots, samples, clouds):
                 for o in ('CloudDeck', 'Sea'): bpy.data.objects[o].hide_render = True
             closed = door.location.copy()
             for label, k in (('door-closed', 0.0), ('door-open', 1.0)):
-                door.location = closed + Vector((DOOR_OPEN['forward'] * k, DOOR_OPEN['outward'] * k, 0.0))
+                door.location = closed + Vector((DOOR_OPEN['forward'] * k, DOOR_OPEN['clear'] * k, 0.0))
                 scene.render.filepath = os.path.join(ctx.OUT, 'renders', label + '.png')
                 bpy.ops.render.render(write_still=True)
                 ctx.log('rendered', label)

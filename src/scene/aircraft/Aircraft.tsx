@@ -1,11 +1,12 @@
 'use client';
 
 import { useGLTF } from '@react-three/drei';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferAttribute,
   DoubleSide,
+  FileLoader,
   Matrix4,
   Vector3,
   type Group,
@@ -15,13 +16,14 @@ import {
   type Object3D,
   type Texture,
 } from 'three';
-import { doorGlow, doorOffset, doorOpenAmount } from '@/experience/aircraftAnimation';
+import { DOOR_ROTATION_ORDER, doorGlow, doorOpenAmount, doorPose } from '@/experience/aircraftAnimation';
 import { withCabinLight } from '../cabin/cabinLight';
 import { floorMaps } from '../cabin/materials';
 import { aircraftFlyAway } from '@/experience/cameraPoses';
 import { chapterAt } from '@/experience/chapters';
 import { destination } from '@/experience/destinations';
 import { DOOR_1L } from '@/experience/geometry';
+import type { SkinGrid } from '@/experience/linerProfile';
 import { planeOverGlobe } from '@/experience/globe';
 import { aircraftStage } from '@/experience/stage';
 import { experienceStore, trackOf } from '@/experience/store';
@@ -30,6 +32,8 @@ import { DOOR_GLOW_UNIFORMS, withDoorGlow } from './doorGlow';
 import NightLights from './NightLights';
 
 export const MODEL_URL = '/models/airliner.glb';
+/** The airliner's measurements, written by the Blender build next to the model. */
+export const META_URL = '/models/airliner.meta.json';
 /** The cabin shell, floor and skirting: inside the hull, so they never cast sun shadows. */
 const INTERIOR = /^Cabin/;
 /** Night look: the fin's livery lit by its floodlight, and the cabin's warm light seen through the windows. */
@@ -70,6 +74,9 @@ function planarFloorUv(mesh: Mesh, root: Object3D) {
  */
 export default function Aircraft({ children, onCompiled }: { children?: ReactNode; onCompiled?: () => void }) {
   const { scene } = useGLTF(MODEL_URL);
+  // the hull round door 1L, which the open door follows (spec r5 §7)
+  const meta = useLoader(FileLoader, META_URL) as string;
+  const skin = useMemo(() => (JSON.parse(meta) as { door1L: { skin: SkinGrid } }).door1L.skin, [meta]);
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const root = useThree((s) => s.scene);
@@ -186,8 +193,9 @@ export default function Aircraft({ children, onCompiled }: { children?: ReactNod
     g.updateMatrixWorld();
     DOOR_GLOW_UNIFORMS.uToAircraft.value.copy(g.matrixWorld).invert();
     if (door) {
-      const [dx, dy, dz] = doorOffset(open);
-      door.node.position.set(door.closed.x + dx, door.closed.y + dy, door.closed.z + dz);
+      const { offset, rotation } = doorPose(open, skin);
+      door.node.position.set(door.closed.x + offset[0], door.closed.y + offset[1], door.closed.z + offset[2]);
+      door.node.rotation.set(rotation[0], rotation[1], rotation[2], DOOR_ROTATION_ORDER);
     }
     const pose = `${+g.visible} ${g.position.toArray()} ${g.rotation.toArray()} ${g.scale.x} ${open}`;
     renderer.shadowMap.autoUpdate = false;

@@ -5,7 +5,7 @@ import os
 import bpy
 
 from . import context as ctx
-from .geometry import (AFT_GALLEY, BIN, BIN_LATCH, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner,
+from .geometry import (AFT_GALLEY, BIN, BIN_LATCH, COCKPIT_DOOR, COCKPIT_PLACARD, CURTAIN, EXIT_ARROWS, EXIT_SIGN, GALLEY, GALLEY_CART, JUMP_SEAT, LAVATORY, SEAT_KIT, CABIN, CEILING_Z, DOOR_1L, DOOR_OPEN, FLOOR_Z, LINER_INSET, OVERWING_EXITS, TAIL0, WINDOW, cabin_wall_inner, door_skin_grid,
                        L, X, bin_latch, bin_profile, door_hinge, door_rect, hull_half_width_at, hull_top, lavatory_door, lavatory_outline, liner_grid,
                        section)
 
@@ -58,7 +58,7 @@ def meta():
                    'lastStation': WINDOW['last'], 'w': WINDOW['w'], 'h': WINDOW['h'], 'r': WINDOW['r']},
         'door1L': {'station': DOOR_1L['station'], 'width': DOOR_1L['width'], 'height': DOOR_1L['height'], 'radius': DOOR_1L['radius'],
                    'sillY': round(z0, 4), 'hinge': _three(door_hinge()), 'panelMaxHalfWidth': panel_max_half_width(),
-                   'open': {'outward': DOOR_OPEN['outward'], 'forward': DOOR_OPEN['forward']}},
+                   'open': {'clear': DOOR_OPEN['clear'], 'forward': DOOR_OPEN['forward']}, 'skin': door_skin_grid()},
         'tail0': TAIL0,
         'lights': night_lights(),
         'triangles': triangle_count(),

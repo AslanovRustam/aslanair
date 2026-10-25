@@ -96,14 +96,27 @@ def fin_root_z(s):
 
 # Door 1L (port, Blender +Y): plug door from the cabin floor, hinged on its forward edge.
 DOOR_1L = {'station': 4.9, 'width': 0.82, 'height': 1.85, 'sill': FLOOR_Z + 0.05, 'radius': 0.15, 'side': 1}
-# Plug door opening, like the real thing: out from the skin, then forward, staying parallel to the hull.
-DOOR_OPEN = {'outward': 0.35, 'forward': 1.0}
+# Plug door opening, like the real thing (spec r5 §7): out from the skin by 'clear' (its 0.06 m panel plus a few
+# centimetres of air), then forward along the hull, following the skin's taper (aircraftAnimation.doorPose).
+DOOR_OPEN = {'clear': 0.12, 'forward': 1.0}
 
 
 def door_rect():
     """(s_min, s_max, z_min, z_max) of the doorway."""
     d = DOOR_1L
     return d['station'] - d['width'] / 2, d['station'] + d['width'] / 2, d['sill'], d['sill'] + d['height']
+
+
+def door_skin_grid():
+    """The hull's half-width round door 1L (three.js y = Blender Z), every 0.1 m: from 1.3 m forward of the doorway to
+    0.1 m aft of it, sill to top — what the open door follows."""
+    s0, s1, z0, z1 = door_rect()
+    stations = [round(s0 - 1.3 + 0.1 * i, 4) for i in range(int(round((s1 - s0 + 1.4) / 0.1)) + 1)]
+    heights = [round(z0 + 0.1 * j, 4) for j in range(int(round((z1 - z0) / 0.1)) + 1)]
+    if heights[-1] < z1:
+        heights.append(round(z1, 4))
+    return {'stations': stations, 'heights': heights,
+            'halfWidth': [[round(hull_half_width_at(s, z), 4) for z in heights] for s in stations]}
 
 
 def door_hinge():

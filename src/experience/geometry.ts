@@ -77,7 +77,8 @@ export const DOOR_1L = {
   radius: 0.15,
   side: -1,
   hinge: [14.31, 0.525, -1.7932] as [number, number, number],
-  open: { outward: 0.35, forward: 1.0 },
+  /** Opening (spec r5 §7): out from the skin by `clear`, then forward along it, following the hull (doorPose). */
+  open: { clear: 0.12, forward: 1.0 },
 } as const;
 
 /** The seated eye sits this far aft of the row's station (head against the backrest). */
