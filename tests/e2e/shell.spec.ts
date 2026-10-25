@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { INTRO } from '@/experience/introState';
-import { heroPictureBox, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
+import { heroPictureBox, loaderGone, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
 
 type StoreWindow = Window & {
   __aslan: {
@@ -125,6 +125,7 @@ test('the hero shows only the title and the scroll hint, then gives way on scrol
   await expect(hero).not.toContainText('Board a fictional night flight');
   await expect(hero.getByText('Scroll to board')).toBeVisible();
   expect(await heroOpacity(page)).toBeGreaterThan(0.95);
+  await loaderGone(page); // the page holds still while the loader hands over
   await page.mouse.wheel(0, 600);
   await expect.poll(() => heroOpacity(page), { timeout: 5000 }).toBeLessThan(0.2);
 });
