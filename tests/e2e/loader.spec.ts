@@ -46,6 +46,8 @@ for (const viewport of [
     await expect(loader).toHaveAttribute('role', 'progressbar');
     // the hero mounts while the models are still held back: it waits behind the loader, its entrance not played
     await page.getByTestId('hero').waitFor({ state: 'attached' });
+    // at its loading size (in dev the stylesheet can land after the first paint, and the picture then eases to it)
+    await page.waitForFunction((start) => getComputedStyle(document.querySelector('#loader img')!).scale === String(start), LOADER.start);
     // the picture's box is read in the same moment, while the scene is surely still loading
     const { box: before, ...waiting } = await page.getByTestId('hero').evaluate((hero) => {
       const b = document.querySelector('#loader img')!.getBoundingClientRect();

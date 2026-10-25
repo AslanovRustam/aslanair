@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { copy } from '@/content/copy';
 import { WINDOW_ON_EXIT } from '@/experience/cameraPoses';
 import { DOOR_1L } from '@/experience/geometry';
-import { scrollToEnd, settledProgress, state, waitForStore } from './helpers';
+import { loaderGone, scrollToEnd, settledProgress, state, waitForStore } from './helpers';
 
 test('pick, reconsider, confirm', async ({ page }) => {
   await page.goto('/');
@@ -290,7 +290,8 @@ test('on the pass, Take off flies to the window and asks to scroll on', async ({
     return value;
   });
   expect(glow).toBe(0);
-  // scrolling on leaves the window behind, and the call with it
+  // scrolling on leaves the window behind, and the call with it (the page holds still until the loader is gone)
+  await loaderGone(page);
   await page.mouse.wheel(0, 900);
   await expect.poll(async () => (await state(page)).progress).toBeGreaterThan(WINDOW_ON_EXIT + 0.08);
   await expect(page.getByText('Scroll to fly out')).toBeHidden();

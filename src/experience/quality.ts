@@ -43,6 +43,15 @@ export function pickTier(probe: DeviceProbe, override?: string | null): Tier {
   return 'high';
 }
 
+/** A frame time (ms) above which, as the median, a device is slower than its tier: 40 fps. */
+export const SLOW_FRAME_MS = 25;
+
+/** Whether frame times (ms) show a slow device: their median over SLOW_FRAME_MS — a few long frames are not one. */
+export function slowDevice(frameMs: number[]): boolean {
+  const sorted = [...frameMs].sort((a, b) => a - b);
+  return sorted[sorted.length >> 1] > SLOW_FRAME_MS;
+}
+
 /** One tier down, for a device that turns out slower than its probe said. */
 export function stepDown(tier: Tier): Tier {
   return tier === 'high' ? 'medium' : 'low';

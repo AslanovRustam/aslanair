@@ -2,11 +2,11 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { pickTier, qualityOverride, stepDown, TIER, type DeviceProbe, type Tier } from '@/experience/quality';
+import { pickTier, qualityOverride, slowDevice, stepDown, TIER, type DeviceProbe, type Tier } from '@/experience/quality';
 import { experienceStore, useExperience } from '@/experience/store';
 
-/** The one runtime step down: `wait` s after the scene is ready, the median of `frames` frame times over `slowMs`. */
-const SAMPLE = { wait: 3, frames: 120, slowMs: 25 };
+/** The one runtime step down: `wait` s after the scene is ready, over `frames` frame times (slowDevice). */
+const SAMPLE = { wait: 3, frames: 120 };
 
 function probe(gl: WebGLRenderingContext | WebGL2RenderingContext): DeviceProbe {
   const info = gl.getExtension('WEBGL_debug_renderer_info');
@@ -23,7 +23,8 @@ function probe(gl: WebGLRenderingContext | WebGL2RenderingContext): DeviceProbe 
 /**
  * Picks the device's quality tier before anything is drawn (spec §4.8) and applies the pixel ratio; the tier's clouds,
  * shadows and seats follow the store (CloudPuffs, SkyAndClouds, Seats). Once the scene is ready it watches the frame
- * time and steps down a tier, once, if the device turns out slower than its probe said — unless `?quality=` chose.
+ * time and steps down a tier, once, if the device turns out slower than its probe said — unless `?quality=` chose,
+ * or a test drives the browser (navigator.webdriver: its frames share one GPU with the other tests, not the device's).
  */
 export default function QualityGovernor() {
   const gl = useThree((s) => s.gl);
@@ -34,6 +35,7 @@ export default function QualityGovernor() {
 
   useLayoutEffect(() => {
     chosen.current = qualityOverride(location.search);
+    if (navigator.webdriver) watch.current.done = true;
     experienceStore.getState().setQuality(pickTier(probe(gl.getContext()), chosen.current));
   }, [gl]);
 
@@ -53,8 +55,7 @@ export default function QualityGovernor() {
     w.times.push(delta * 1000);
     if (w.times.length < SAMPLE.frames) return;
     w.done = true;
-    const median = [...w.times].sort((a, b) => a - b)[w.times.length >> 1];
-    if (median > SAMPLE.slowMs) {
+    if (slowDevice(w.times)) {
       const s = experienceStore.getState();
       s.setQuality(stepDown(s.quality));
     }

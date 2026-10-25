@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { PUFFS } from '@/experience/clouds';
-import { pickTier, stepDown, TIER, type DeviceProbe } from '@/experience/quality';
+import { pickTier, slowDevice, stepDown, TIER, type DeviceProbe } from '@/experience/quality';
 
 const desktop: DeviceProbe = { renderer: 'ANGLE (NVIDIA GeForce RTX 5060 Laptop GPU)', maxTouchPoints: 0, minScreenSide: 1080, hardwareConcurrency: 16 };
 
@@ -18,6 +18,15 @@ describe('quality tiers', () => {
 
   test('a touch laptop with a big screen is not a phone', () => {
     expect(pickTier({ ...desktop, maxTouchPoints: 10, minScreenSide: 1200 })).toBe('high');
+  });
+
+  test('a device is slow when its median frame takes over 25 ms', () => {
+    const frames = (ms: number, n = 120) => Array.from({ length: n }, () => ms);
+    expect(slowDevice(frames(16))).toBe(false);
+    expect(slowDevice(frames(33))).toBe(true);
+    // a few long frames (a tab switch, a load) are not a slow device
+    expect(slowDevice([...frames(16, 100), ...frames(200, 20)])).toBe(false);
+    expect(slowDevice([...frames(16, 50), ...frames(40, 70)])).toBe(true);
   });
 
   test('stepDown bottoms out at low', () => {
