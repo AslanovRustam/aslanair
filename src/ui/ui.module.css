@@ -338,10 +338,6 @@
   line-height: 1.5;
 }
 
-.made .ghost {
-  flex: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .caption,
   .outro,
@@ -362,10 +358,5 @@
 
   .form {
     grid-template-columns: 1fr;
-  }
-
-  .made {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }

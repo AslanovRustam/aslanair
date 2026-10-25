@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { copy } from '@/content/copy';
 import { INTRO } from '@/experience/introState';
 import { heroPictureBox, loaderGone, pre, progress, settledProgress, waitForStore, wheelTo } from './helpers';
 
@@ -68,15 +69,24 @@ test('after confirming a seat the cabin is out of reach and the call to action i
   await expect(page.getByRole('button', { name: 'Choose your seat' })).toBeHidden();
 });
 
-test("How it's made opens from the header and closes with Escape", async ({ page }) => {
+test("there is no How it's made: not in the header, the phone menu or the outro (spec r5 §8)", async ({ page }) => {
   await open(page);
-  const opener = page.getByRole('banner').getByRole('button', { name: "How it's made" });
-  await opener.click();
-  const dialog = page.getByRole('dialog', { name: "How it's made" });
-  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: "How it's made" })).toHaveCount(0);
+  await page.setViewportSize({ width: 412, height: 915 });
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: "How it's made" })).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(opener).toBeFocused();
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.evaluate(() => {
+    const s = (window as unknown as StoreWindow).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    const seat = s.seats.find((x) => x.status === 'free')!;
+    s.sit(seat.id);
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  await expect(page.getByText(copy.outro.made.lead)).toBeVisible();
+  await expect(page.getByRole('button', { name: "Read how it's made" })).toHaveCount(0);
 });
 
 test('the footer credits Aslanov Rustam and links to GitHub in a new tab', async ({ page }) => {
@@ -87,11 +97,26 @@ test('the footer credits Aslanov Rustam and links to GitHub in a new tab', async
   await expect(github).toHaveAttribute('href', 'https://github.com/AslanovRustam');
   await expect(github).toHaveAttribute('target', '_blank');
   await expect(github).toHaveAttribute('rel', /noopener/);
-  await expect(footer.getByRole('button', { name: "How it's made" })).toHaveCount(0);
-  await page.getByRole('banner').getByRole('button', { name: "How it's made" }).click();
-  const dialog = page.getByRole('dialog', { name: "How it's made" });
-  await expect(dialog).toContainText('Concept & code: Aslanov Rustam');
-  await expect(dialog.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/AslanovRustam');
+});
+
+test('on a phone at night the footer shows the author and the sky credit without overflowing', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await open(page);
+  await page.evaluate(() => (window as unknown as StoreWindow).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
+  const footer = page.getByRole('contentinfo');
+  await expect(footer).toContainText('Concept & code: Aslanov Rustam');
+  await expect(footer.getByRole('link', { name: 'GitHub' })).toBeVisible();
+  await expect(footer.getByRole('link', { name: /ESO\/S\. Brunier/ })).toBeVisible();
+  await expect(footer.getByRole('link', { name: 'CC BY 4.0' })).toBeVisible();
+  await expect(footer).toContainText('Clouds: NASA');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
+  const outside = await footer.evaluate((f) =>
+    [...f.querySelectorAll('p, a, span')].filter((e) => {
+      const b = e.getBoundingClientRect();
+      return b.width > 0 && (b.left < -1 || b.right > window.innerWidth + 1);
+    }).length,
+  );
+  expect(outside, 'footer parts outside the screen').toBe(0);
 });
 
 test('while the night sky shows, the footer credits its panorama and licence', async ({ page }) => {

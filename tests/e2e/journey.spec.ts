@@ -74,13 +74,6 @@ test('the outro is a dark editorial page in the night style', async ({ page }) =
   expect(look.title).toContain('Archivo');
   // start again is there before the form is sent too
   await expect(page.getByRole('button', { name: /start again/i })).toBeVisible();
-  // the short How it's made block opens the full panel, and closing it returns to the button
-  const more = page.getByRole('button', { name: /read how it's made/i });
-  await more.click();
-  await expect(page.getByRole('dialog', { name: "How it's made" })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(more).toBeFocused();
 });
 
 test('chapter captions use the display face', async ({ page }) => {

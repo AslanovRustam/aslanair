@@ -299,13 +299,14 @@ test('in the aisle, Choose your seat leads where the visitor already is: no curt
   expect(frames.filter((f) => f.curtain)).toHaveLength(0);
 });
 
-test('while the curtain runs, the frame waits: How it\'s made does not open under it', async ({ page }) => {
+test('while the curtain runs, the frame waits: a header link clicked under it does nothing', async ({ page }) => {
   await open(page);
   await rail(page).getByRole('button', { name: /Transfer/ }).click();
   await page.waitForFunction(() => document.documentElement.dataset.curtain === 'covered');
-  await page.getByRole('banner').getByRole('button', { name: "How it's made" }).click();
+  await page.getByRole('banner').getByRole('button', { name: 'Destinations' }).click();
   await curtainGone(page);
-  await expect(page.getByRole('dialog', { name: "How it's made" })).toHaveCount(0);
+  await page.waitForTimeout(400);
+  expect(Math.abs((await progress(page)) - pre('transfer', 0.7)), 'still where the first jump landed').toBeLessThan(0.002);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).pointerEvents)).not.toBe('none');
 });
 

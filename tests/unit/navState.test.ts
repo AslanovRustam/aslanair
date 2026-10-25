@@ -5,8 +5,11 @@ import { navItems, railItems, transitionLabel } from '@/experience/navState';
 const item = <T extends { id: string }>(items: T[], id: string) => items.find((i) => i.id === id)!;
 
 describe('header navigation', () => {
-  test('the journey in order: Flight, Destinations, Transfer, Cabin, Your seat, Boarding pass, How it is made', () => {
-    expect(navItems('browse', 'sky').map((i) => i.label)).toEqual(['Flight', 'Destinations', 'Transfer', 'Cabin', 'Your seat', 'Boarding pass', "How it's made"]);
+  test('the journey in order: Flight, Destinations, Transfer, Cabin, Your seat, Boarding pass — no How it is made (spec r5 §8)', () => {
+    expect(navItems('browse', 'sky').map((i) => i.label)).toEqual(['Flight', 'Destinations', 'Transfer', 'Cabin', 'Your seat', 'Boarding pass']);
+    for (const phase of ['browse', 'seated', 'confirmed', 'thanks'] as const) {
+      expect(navItems(phase, 'aisle').map((i) => i.label)).not.toContain("How it's made");
+    }
   });
 
   test('before confirmation Destinations and Transfer go to their chapters, where their choices show', () => {
@@ -37,11 +40,6 @@ describe('header navigation', () => {
     expect(item(items, 'cabin')).toMatchObject({ enabled: false, target: null });
     expect(item(items, 'seat').target).toEqual({ track: 'post', progress: 0 });
     expect(item(items, 'pass')).toMatchObject({ enabled: true, target: { track: 'post', progress: 0 } });
-  });
-
-  test('How it is made is always a panel', () => {
-    for (const [ph, ch] of [['browse', 'sky'], ['seated', 'aisle'], ['confirmed', 'outro']] as const)
-      expect(item(navItems(ph, ch), 'made')).toMatchObject({ enabled: true, target: 'panel' });
   });
 
   test('while seated, Your seat keeps the visitor in the seat instead of standing them up', () => {

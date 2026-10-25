@@ -2,8 +2,8 @@ import { copy } from '@/content/copy';
 import { trackProgress, type ChapterId, type Track } from './chapters';
 import type { Phase } from './store';
 
-/** A place on a track, the How it's made panel, `stay` (the current place: nothing to do) or out of reach. */
-export type NavTarget = { track: Track; progress: number } | 'panel' | 'stay' | null;
+/** A place on a track, `stay` (the current place: nothing to do) or out of reach. */
+export type NavTarget = { track: Track; progress: number } | 'stay' | null;
 
 export interface NavItem<Id extends string = string> {
   id: Id;
@@ -13,7 +13,7 @@ export interface NavItem<Id extends string = string> {
   target: NavTarget;
 }
 
-export type HeaderId = 'flight' | 'destinations' | 'transfer' | 'cabin' | 'seat' | 'pass' | 'made';
+export type HeaderId = 'flight' | 'destinations' | 'transfer' | 'cabin' | 'seat' | 'pass';
 export type RailId = 'flight' | 'destinations' | 'transfer' | 'boarding' | 'cabin' | 'seat' | 'takeoff';
 
 const AISLE = { track: 'pre' as const, progress: trackProgress('pre', 'aisle', 0) };
@@ -34,7 +34,7 @@ function item<Id extends string>(id: Id, label: string, target: NavTarget, activ
  * The header's chapter links under the seat gate (spec r2 §4, r3 §8). Before confirmation Flight, Destinations,
  * Transfer and Cabin go to their chapters, Your seat goes to the aisle (or, while seated, keeps the visitor in the
  * seat) and Boarding pass is out of reach; after it the journey and the cabin are out of reach — the choices are
- * fixed — and Your seat and Boarding pass go to the pass. How it's made is a panel, always there.
+ * fixed — and Your seat and Boarding pass go to the pass.
  */
 export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] {
   const t = copy.nav;
@@ -46,7 +46,6 @@ export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] 
       item('cabin', t.cabin, null),
       item('seat', t.seat, PASS),
       item('pass', t.pass, PASS, chapter === 'pass'),
-      item('made', t.made, 'panel'),
     ];
   }
   const browsing = phase === 'browse';
@@ -57,7 +56,6 @@ export function navItems(phase: Phase, chapter: ChapterId): NavItem<HeaderId>[] 
     item('cabin', t.cabin, AISLE, browsing && (chapter === 'door' || chapter === 'aisle')),
     phase === 'seated' ? item('seat', t.seat, 'stay', true) : item('seat', t.seat, AISLE),
     item('pass', t.pass, null),
-    item('made', t.made, 'panel'),
   ];
 }
 
@@ -90,9 +88,9 @@ export function railItems(phase: Phase, chapter: ChapterId): (NavItem<RailId> & 
 /** What a chapter jump says on the curtain — the rail's number and name — and the heading it focuses after. */
 export type TransitionLabel = { number: string; name: string; heading: ChapterId };
 
-/** A click that jumps somewhere: a header or rail item (not How it's made, not take-off), the call to action, Start
- * again or Change seat. */
-export type TransitionId = Exclude<HeaderId | RailId, 'made' | 'takeoff'> | 'cta' | 'restart' | 'change';
+/** A click that jumps somewhere: a header or rail item (not take-off), the call to action, Start again or Change
+ * seat. */
+export type TransitionId = Exclude<HeaderId | RailId, 'takeoff'> | 'cta' | 'restart' | 'change';
 
 /** The curtain's label for a jump (spec r4 §7), in the rail's words. */
 export function transitionLabel(id: TransitionId, phase: Phase): TransitionLabel {

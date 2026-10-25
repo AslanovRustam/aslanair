@@ -20,6 +20,13 @@
   --footer-h: 2.75rem;
 }
 
+/* on phones the footer takes two lines: the author and the sky's credits keep their place there too */
+@media (max-width: 720px) {
+  :root {
+    --footer-h: 3.5rem;
+  }
+}
+
 html,
 body {
   margin: 0;

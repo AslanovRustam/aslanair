@@ -31,13 +31,12 @@ describe('the night sky images', () => {
     }
   });
 
-  test("How it's made credits the sky's sources", () => {
-    const items = copy.outro.howItsMade.items.join('\n');
-    expect(items).toContain('ESO/S. Brunier');
-    expect(items).toContain('CC BY 4.0');
+  test("the footer credits the sky's sources (spec r5 §8)", () => {
+    const { sky } = copy.footer;
+    expect(sky.line).toContain('ESO/S. Brunier');
     // CC BY 4.0 asks a changed work to say so
-    expect(items).toContain('ESO/S. Brunier (CC BY 4.0), adapted');
-    expect(copy.footer.sky.line).toMatch(/adapted/);
-    expect(items).toContain('Jeff Schmaltz');
+    expect(sky.line).toMatch(/adapted/);
+    expect(sky.licence).toBe('CC BY 4.0');
+    expect(sky.clouds).toBe('Clouds: NASA');
   });
 });

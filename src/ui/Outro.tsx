@@ -8,13 +8,12 @@ import { trackOf, useExperience } from '@/experience/store';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
 import GridBackdrop from './GridBackdrop';
 import RevealText from './RevealText';
-import { openHowItsMade } from './HowItsMade';
 import { transitionTo } from './transition';
 import styles from './ui.module.css';
 
 /**
  * Final chapter, a dark editorial page over the night sky: the farewell, a visual-only booking form (nothing is ever
- * sent), a short word on how it's made that opens the full panel, and the way back to the start.
+ * sent), a short word on how it's made, and the way back to the start.
  */
 export default function Outro() {
   const phase = useExperience((s) => s.phase);
@@ -77,9 +76,6 @@ export default function Outro() {
         )}
         <aside className={styles.made}>
           <p>{t.made.lead}</p>
-          <button type="button" className={styles.ghost} onClick={(e) => openHowItsMade(e.currentTarget)}>
-            {t.made.open}
-          </button>
         </aside>
       </div>
     </section>

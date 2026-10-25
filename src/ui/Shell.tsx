@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { copy } from '@/content/copy';
 import { chapterAt } from '@/experience/chapters';
 import { curtainStore } from '@/experience/curtainStore';
@@ -8,7 +8,7 @@ import { navItems, railItems, transitionLabel, type NavTarget, type TransitionId
 import { experienceStore, trackOf, useExperience } from '@/experience/store';
 import { worldMode } from '@/experience/worldState';
 import { scrollToProgress } from '@/scroll/SmoothScroll';
-import HowItsMade, { AuthorCredit, onOpenHowItsMade } from './HowItsMade';
+import { AuthorCredit } from './AuthorCredit';
 import styles from './shell.module.css';
 import { transitionTo } from './transition';
 
@@ -30,24 +30,16 @@ function Emblem() {
 
 /**
  * The site's frame over the scene: the header with the gated chapter links and the call to action, the chapter
- * rail, the footer, a phone menu and the How it's made panel.
+ * rail, the footer with the author and the night sky's credits, and a phone menu.
  */
 export default function Shell() {
   const phase = useExperience((s) => s.phase);
   const chapter = useExperience((s) => chapterAt(trackOf(s.phase), s.progress).id);
   const night = useExperience((s) => worldMode(s.phase, s.progress) === 'night');
-  const [opener, setOpener] = useState<HTMLElement | null>(null);
   const [menu, setMenu] = useState(false);
   const nav = navItems(phase, chapter);
   const rail = railItems(phase, chapter);
   const aisle = nav.find((i) => i.id === 'seat')!.target;
-
-  const closePanel = useCallback(() => {
-    setOpener(null);
-    requestAnimationFrame(() => opener?.focus()); // back to the button that opened it
-  }, [opener]);
-
-  useEffect(() => onOpenHowItsMade(setOpener), []);
 
   useEffect(() => {
     if (!menu) return;
@@ -59,17 +51,12 @@ export default function Shell() {
   }, [menu]);
 
   /**
-   * A header or rail click, or the call to action. How it's made opens its panel; a jump to another chapter passes
-   * under the curtain (spec r4 §7) — except take-off, which keeps its flight to the window, and the chapter the
-   * visitor is already in, which just scrolls there. While a jump runs under the curtain the frame's links wait.
+   * A header or rail click, or the call to action. A jump to another chapter passes under the curtain (spec r4 §7) —
+   * except take-off, which keeps its flight to the window, and the chapter the visitor is already in, which just
+   * scrolls there. While a jump runs under the curtain the frame's links wait.
    */
-  const go = (id: TransitionId | 'made' | 'takeoff', target: NavTarget, active: boolean, from: HTMLElement) => {
+  const go = (id: TransitionId | 'takeoff', target: NavTarget, active: boolean) => {
     if (curtainStore.getState().stage !== 'idle') return;
-    if (target === 'panel') {
-      setMenu(false);
-      setOpener(from);
-      return;
-    }
     if (!target) return;
     setMenu(false);
     if (target === 'stay') return;
@@ -81,7 +68,7 @@ export default function Shell() {
     };
     // in the aisle, Your seat and the call to action lead where the visitor already is
     const here = active || (phase === 'browse' && chapter === 'aisle' && target === aisle);
-    if (id === 'takeoff' || id === 'made' || here) jump(false)();
+    if (id === 'takeoff' || here) jump(false)();
     else transitionTo(transitionLabel(id, phase), jump(true));
   };
 
@@ -93,7 +80,7 @@ export default function Shell() {
           className={className}
           disabled={!item.enabled}
           aria-current={item.active ? 'location' : undefined}
-          onClick={(e) => go(item.id, item.target, item.active, e.currentTarget)}
+          onClick={() => go(item.id, item.target, item.active)}
         >
           {item.label}
         </button>
@@ -114,7 +101,7 @@ export default function Shell() {
           {/* the sound toggle lands here (Plan 5) */}
           <span className={styles.slot} data-slot="sound" />
           {phase === 'browse' && (
-            <button type="button" className={styles.cta} onClick={(e) => go('cta', aisle, false, e.currentTarget)}>
+            <button type="button" className={styles.cta} onClick={() => go('cta', aisle, false)}>
               {copy.nav.cta}
             </button>
           )}
@@ -133,7 +120,7 @@ export default function Shell() {
                 className={styles.railItem}
                 disabled={!item.enabled}
                 aria-current={item.active ? 'step' : undefined}
-                onClick={(e) => go(item.id, item.target, item.active, e.currentTarget)}
+                onClick={() => go(item.id, item.target, item.active)}
               >
                 <span className={styles.num}>{item.number}</span>
                 <span>{item.label}</span>
@@ -144,7 +131,10 @@ export default function Shell() {
       </nav>
 
       <footer className={styles.footer}>
-        <p>{copy.footer.disclaimer}</p>
+        <p className={styles.disclaimer}>
+          <span className={styles.long}>{copy.footer.disclaimer}</span>
+          <span className={styles.short}>{copy.footer.disclaimerShort}</span>
+        </p>
         {night && (
           <p className={styles.skyCredit}>
             <a className={styles.authorLink} href={copy.footer.sky.href} target="_blank" rel="noopener noreferrer">
@@ -153,7 +143,8 @@ export default function Shell() {
             ·{' '}
             <a className={styles.authorLink} href={copy.footer.sky.licenceHref} target="_blank" rel="noopener noreferrer">
               {copy.footer.sky.licence}
-            </a>
+            </a>{' '}
+            · {copy.footer.sky.clouds}
           </p>
         )}
         <AuthorCredit className={styles.author} />
@@ -166,14 +157,12 @@ export default function Shell() {
           </button>
           <ul className={styles.sheetList}>{links(styles.sheetLink)}</ul>
           {phase === 'browse' && (
-            <button type="button" className={styles.cta} onClick={(e) => go('cta', aisle, false, e.currentTarget)}>
+            <button type="button" className={styles.cta} onClick={() => go('cta', aisle, false)}>
               {copy.nav.cta}
             </button>
           )}
         </div>
       )}
-
-      <HowItsMade open={!!opener} onClose={closePanel} />
     </div>
   );
 }

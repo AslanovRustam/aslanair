@@ -1,4 +1,4 @@
-/* The site's frame over the 3D stage: header, chapter rail, footer, phone menu, How it's made panel. */
+/* The site's frame over the 3D stage: header, chapter rail, footer, phone menu. */
 
 .shell {
   position: fixed;
@@ -214,6 +214,10 @@
   margin-left: auto;
 }
 
+.footer .short {
+  display: none;
+}
+
 .authorLink {
   appearance: none;
   padding: 0;
@@ -284,72 +288,6 @@
   color: var(--accent);
 }
 
-/* ---- How it's made */
-
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  background: rgba(7, 8, 11, 0.55);
-  backdrop-filter: blur(3px);
-  pointer-events: auto;
-}
-
-.drawer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(30rem, 100vw);
-  overflow-y: auto;
-  padding: 1.75rem clamp(1.25rem, 3vw, 2.5rem) 2.5rem;
-  border-left: 1px solid var(--line);
-  background: var(--surface);
-  animation: drawerIn 0.24s ease-out both;
-}
-
-@keyframes drawerIn {
-  from {
-    transform: translateX(2rem);
-    opacity: 0;
-  }
-}
-
-.drawerHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.drawerTitle {
-  margin: 0.5rem 0 1.5rem;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-stretch: 78%;
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-}
-
-.drawerList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.drawerList li {
-  padding: 0.95rem 0;
-  border-top: 1px solid var(--line);
-  line-height: 1.5;
-}
-
-.drawerAuthor {
-  margin: 1.5rem 0 0;
-  color: var(--dim);
-  font-size: 0.875rem;
-}
-
 .close {
   appearance: none;
   flex: none;
@@ -366,13 +304,8 @@
   border-color: var(--ink);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .drawer {
-    animation: none;
-  }
-}
-
-/* ---- phones: the links fold into the menu, the rail steps aside, the footer keeps the essentials */
+/* ---- phones: the links fold into the menu, the rail steps aside; the footer takes two lines (its height grows in
+   globals.css) — the short disclaimer and the author over the sky's credits */
 
 @media (max-width: 720px) {
   .header {
@@ -382,8 +315,7 @@
   .nav,
   .rail,
   .actions .cta,
-  .footer .author,
-  .footer .skyCredit {
+  .footer .long {
     display: none;
   }
 
@@ -392,6 +324,18 @@
   }
 
   .footer {
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 0.3rem 1rem;
+    font-size: 0.6875rem;
+  }
+
+  .footer .short {
+    display: inline;
+  }
+
+  .footer .skyCredit {
+    order: 1;
+    flex-basis: 100%;
   }
 }
