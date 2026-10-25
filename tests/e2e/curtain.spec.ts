@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { poseOnPreTrack, WINDOW_ON_EXIT } from '@/experience/cameraPoses';
-import { pre, progress, waitForStore } from './helpers';
+import { loaderGone, pre, progress, waitForStore } from './helpers';
 
 type Vec = { x: number; y: number; z: number; clone(): Vec; project(c: unknown): Vec };
 type CurtainWindow = Window & {
@@ -29,9 +29,9 @@ async function open(page: Page) {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto('/');
   await waitForStore(page);
-  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await loaderGone(page); // the page is the visitor's once the loader has handed over
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(300);
 }
 
 /** Records, every frame: the scroll progress, the curtain's stage, the curtain plane (shown? where on screen?) and the camera. */
@@ -72,6 +72,8 @@ test('a rail click covers the screen, flies the plane across and reveals the cha
   await record(page);
   await rail(page).getByRole('button', { name: /Transfer/ }).click();
   await expect(page.getByTestId('curtain-label')).toHaveText('03 Transfer');
+  // the label shows from the click; the stage reaches <html> on the curtain's first frame
+  await page.waitForFunction(() => !!document.documentElement.dataset.curtain);
   await curtainGone(page);
   await page.waitForTimeout(100);
   const frames = await stop(page);
