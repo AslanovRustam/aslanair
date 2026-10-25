@@ -9,7 +9,7 @@ export const SOUND_FILES = {
   music: '/sounds/night-music.mp3',
 } as const;
 /** The light music under it all (the author, 2026-10-25), and how far it steps back while a boarding call speaks. */
-const MUSIC = { level: 0.22, under: 0.08 };
+const MUSIC = { level: 0.5, under: 0.2 };
 /** The rate the synthesised sounds are rendered at: plenty for wind, a chime and paper, and quick to render. */
 const RATE = 24000;
 /** An MP3's encoder padding at either end (s), kept out of a loop. */
