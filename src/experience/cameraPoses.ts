@@ -130,8 +130,9 @@ const TRANSFER = {
   place: 0.72,
   narrow: { distance: 175, lift: 0.28 },
   /** The camera turns up from the globe at the end of the destinations chapter, between these shares of it — the
-   * plane gone over the horizon, the globe fading — so the plane flying in is seen at once (spec r5 §4). */
-  turn: [0.93, 0.97] as const,
+   * plane gone over the horizon, the globe fading as the turn sets off (globe.ts' GLOBE_FADE) — and is nearly round
+   * when the plane flies in (spec r5 §4); over 20 vh, it is no swoop. */
+  turn: [0.88, 1] as const,
 };
 
 function transferFrame(aspect: number): CameraPose {

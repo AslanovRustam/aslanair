@@ -1,9 +1,9 @@
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
 import { poseOnPreTrack } from '@/experience/cameraPoses';
 import { trackProgress, TRACKS } from '@/experience/chapters';
 import { DESTINATIONS, HOME } from '@/experience/destinations';
-import { GLOBE, globeFade, globeTurnFor, nextFlight, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
+import { GLOBE, GLOBE_FADE, globeFade, globeTurnFor, nextFlight, planeOnGlobe, planeOverGlobe, toWorld } from '@/experience/globe';
 import { aircraftStage, ARRIVAL, ON_GLOBE_SCALE, projectedBox, type ScreenBox, type Stage } from '@/experience/stage';
 
 const ASPECTS = [412 / 915, 1, 1440 / 800, 2100 / 900, 3.6];
@@ -145,11 +145,35 @@ describe('the aircraft stage', () => {
 
   for (const aspect of ASPECTS) {
     test(`at ${aspect.toFixed(2)} it leaves the globe unseen and flies in to wait for the transfer, smoothly into ready`, () => {
-      expect(showing(trackProgress('pre', 'destinations', 0.93), aspect), 'gone round the globe before it fades').toBe(false);
+      expect(showing(trackProgress('pre', 'destinations', GLOBE_FADE.from), aspect), 'gone round the globe before it fades').toBe(false);
       expect(showing(trackProgress('pre', 'transfer', 0.5), aspect), 'waiting in view').toBe(true);
       const steps = [...across('destinations', 0.5), ...across('transfer'), ...across('ready')];
       expect(worstStep(steps, aspect, (p) => !arriving(p)), 'outside the flight in').toBeLessThanOrEqual(PER_VH);
       expect(worstStep(steps, aspect, arriving), 'the flight in').toBeLessThanOrEqual(ARRIVAL_PER_VH);
+    });
+  }
+
+  // spec r5 §4 and §5's seam rule: the camera turns up from the globe to the transfer's frame without a swoop — the
+  // globe fades before the turn carries it away
+  for (const aspect of ASPECTS) {
+    test(`at ${aspect.toFixed(2)} the turn from the globe to the transfer is no swoop`, () => {
+      const steps = Array.from({ length: 401 }, (_, i) => trackProgress('pre', 'destinations', 0.6) + (i / 400) * (trackProgress('pre', 'transfer', 0.3) - trackProgress('pre', 'destinations', 0.6)));
+      const gaze = (p: number) => {
+        const pose = poseOnPreTrack(p, aspect);
+        return pose.target.clone().sub(pose.position).normalize();
+      };
+      const globeAt = (p: number) => projectedBox({ position: GLOBE.center, rotation: new Euler(), scale: 1e-9 }, poseOnPreTrack(p, aspect), aspect);
+      let turn = 0;
+      let globe = 0;
+      for (let i = 1; i < steps.length; i++) {
+        const vh = (steps[i] - steps[i - 1]) * TRACK_VH;
+        turn = Math.max(turn, (gaze(steps[i]).angleTo(gaze(steps[i - 1])) * 180) / Math.PI / vh);
+        if (Math.min(globeFade('browse', steps[i - 1]), globeFade('browse', steps[i])) <= 0.3) continue;
+        const [a, b] = [globeAt(steps[i - 1]), globeAt(steps[i])];
+        globe = Math.max(globe, Math.hypot(a.x0 - b.x0, a.y0 - b.y0) / vh);
+      }
+      expect(turn, 'the gaze turns at most 4°/vh').toBeLessThanOrEqual(4);
+      expect(globe, 'the globe, while it shows, moves as slowly as the first screen allows').toBeLessThanOrEqual(PER_VH);
     });
   }
 
@@ -207,7 +231,7 @@ describe('the aircraft stage', () => {
           const on = (p: number) => inFrame(box(p)) && (globeFade('browse', p) < 0.9 || unhidden(at(p), poseOnPreTrack(p, aspect).position));
           const label = `${d.code} at ${now} s, ${aspect.toFixed(2)}`;
           expect(on(trackProgress('pre', 'destinations', 0)), `${label}: hidden as the chapter begins`).toBe(false);
-          expect(on(trackProgress('pre', 'destinations', 0.93)), `${label}: gone before the globe fades`).toBe(false);
+          expect(on(trackProgress('pre', 'destinations', GLOBE_FADE.from)), `${label}: gone before the globe fades`).toBe(false);
           const points = [...across('sky', 0.9), ...across('destinations', 0.01)];
           let worst = 0;
           for (let i = 1; i < points.length; i++) {

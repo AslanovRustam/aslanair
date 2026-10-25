@@ -68,14 +68,20 @@ export function globeTurnFor(a: LatLon, b: LatLon): Quaternion {
 }
 
 /**
+ * The globe goes over this stretch of the destinations chapter, before the camera's turn to the transfer carries it
+ * away (cameraPoses' TRANSFER.turn): the turn starts slowly as it fades, so it is never seen to swoop off the screen.
+ */
+export const GLOBE_FADE = { from: 0.84, to: 0.92 } as const;
+
+/**
  * How much of the globe shows: it rises into view as the plane flies off to it in the first screen, stays through the
- * destinations chapter and is gone by the transfer chapter. 0 hides it.
+ * destinations chapter and is gone before the transfer chapter. 0 hides it.
  */
 export function globeFade(phase: Phase, progress: number): number {
   if (phase !== 'browse') return 0;
   const { id, t } = chapterAt('pre', progress);
   if (id === 'sky') return smoothstep(t, 0.4, 0.75);
-  if (id === 'destinations') return 1 - smoothstep(t, 0.93, 1);
+  if (id === 'destinations') return 1 - smoothstep(t, GLOBE_FADE.from, GLOBE_FADE.to);
   return 0;
 }
 
@@ -208,7 +214,7 @@ export function toWorld(local: { position: Vector3; heading: Vector3 }, turn: Qu
 
 /** The plane comes to the globe from this far round it, behind its horizon, over this share of the chapter; it
  * leaves over the nearest horizon, this far round, over this stretch — gone before the globe fades. */
-const ARRIVAL = { angle: degToRad(130), share: 0.3, leaves: { angle: degToRad(110), from: 0.6, to: 0.92 } };
+const ARRIVAL = { angle: degToRad(130), share: 0.3, leaves: { angle: degToRad(110), from: 0.55, to: GLOBE_FADE.from - 0.01 } };
 
 /** How far the plane has come over the globe's horizon (0 … 1): it arrives early in the destinations chapter. */
 export function arrivalAt(phase: Phase, progress: number): number {

@@ -1,7 +1,7 @@
 import { Euler, MathUtils, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { applyLens, poseOnPreTrack, type CameraPose } from './cameraPoses';
 import { chapterAt, trackProgress } from './chapters';
-import { GLOBE } from './globe';
+import { GLOBE, GLOBE_FADE } from './globe';
 import { INTRO } from './introState';
 import { trackOf, type Phase } from './store';
 
@@ -31,10 +31,11 @@ export const ON_GLOBE_SCALE = 0.0957;
  * turns back to face the camera, at rest for the door flight. `up`: metres higher as it comes in.
  */
 const WAITING = { up: 2, turn: degToRad(25), away: degToRad(-20), faces: 0.8 };
-/** Its flight in (spec r5 §4): at `ready` of the destinations chapter — gone over the globe's horizon, the camera
- * starting to turn to the transfer's frame — it moves unseen to just beyond that frame's right edge (its box's left
- * side at `edge` of the frame's width); from `start` it comes across to a stop at `settle` of the transfer chapter. */
-export const ARRIVAL = { ready: 0.93, start: 0.97, settle: 0.24, edge: 1.04 } as const;
+/** Its flight in (spec r5 §4): at `ready` of the destinations chapter — gone over the globe's horizon, the globe
+ * starting to fade — it moves unseen to just beyond the transfer frame's right edge (its box's left side at `edge` of
+ * the frame's width); from `start`, as the camera's turn to that frame eases out, it comes across to a stop at
+ * `settle` of the transfer chapter. */
+export const ARRIVAL = { ready: GLOBE_FADE.from, start: 0.97, settle: 0.24, edge: 1.04 } as const;
 
 /** The plane's point over the globe in the world, its nose's heading and its up (Task 6 computes it). */
 export interface OnGlobe {
