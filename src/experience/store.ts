@@ -24,6 +24,8 @@ export interface ExperienceState {
   /** How many times the pass has been turned over: the paper's rustle follows it (audio/mix.ts). */
   passFlips: number;
   flipPass(): void;
+  /** When the seat was confirmed (performance.now(), ms): the seat lock and the pass's entrance run from it. */
+  confirmedAt: number | null;
   /** How much the device draws (quality.ts); the QualityGovernor sets it from the device and may step it down once. */
   quality: Tier;
   setQuality(tier: Tier): void;
@@ -79,6 +81,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     setSoundOn: (soundOn) => set({ soundOn }),
     passFlips: 0,
     flipPass: () => set({ passFlips: get().passFlips + 1 }),
+    confirmedAt: null,
     quality: 'high',
     setQuality: (quality) => set({ quality }),
     destinationId: SUGGESTED,
@@ -127,7 +130,7 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
       if (get().phase === 'seated') backToAisle();
     },
     confirm: () => {
-      if (get().phase === 'seated') set({ phase: 'confirmed', progress: 0 });
+      if (get().phase === 'seated') set({ phase: 'confirmed', progress: 0, confirmedAt: performance.now() });
     },
     changeSeat: () => {
       if (get().phase === 'confirmed') backToAisle();

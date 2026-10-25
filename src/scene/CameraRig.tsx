@@ -5,6 +5,7 @@ import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { applyLens, poseOnPostTrack, poseOnPreTrack, seatedPose, type CameraPose } from '@/experience/cameraPoses';
+import { lockPulse } from '@/experience/passMotion';
 import { experienceStore, trackOf, type Phase } from '@/experience/store';
 
 const SMOOTH_TIME = 0.4;
@@ -39,9 +40,14 @@ export default function CameraRig() {
   const riding = useRef(true);
   const phase = useRef<Phase | null>(null);
   const lens = useRef({ fov: 30, lift: 0 });
+  // the seat lock's dip (passMotion): laid over the pose each frame and taken off again, never glided into
+  const dipped = useRef(0);
+  const motion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)'), []);
 
   useFrame((state, delta) => {
     const cam = state.camera as PerspectiveCamera;
+    cam.position.y += dipped.current;
+    target.setY(target.y + dipped.current);
     const { width, height } = state.size;
     const pose = currentPose(width / height);
     const l = lens.current;
@@ -66,6 +72,10 @@ export default function CameraRig() {
         Math.abs(l.lift - (pose.lift ?? 0)) < 1e-3;
     }
     onPose = riding.current;
+    const { confirmedAt } = experienceStore.getState();
+    dipped.current = confirmedAt === null || trackOf(now) !== 'post' ? 0 : lockPulse(performance.now() - confirmedAt, motion.matches).dip;
+    cam.position.y -= dipped.current;
+    target.setY(target.y - dipped.current);
     cam.lookAt(target);
     applyLens(cam, { position: cam.position, target, fov: l.fov, lift: l.lift }, width, height);
   }, -2);
