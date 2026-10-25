@@ -14,6 +14,13 @@ import styles from './ui.module.css';
 
 type Field = 'name' | 'email';
 
+/** Grows the comment box with its words where the browser cannot (no CSS field-sizing); the CSS caps its height. */
+function fitToWords(box: HTMLTextAreaElement) {
+  if (CSS.supports('field-sizing', 'content')) return;
+  box.style.height = 'auto';
+  box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+}
+
 /**
  * The booking form (nothing is ever sent): Buy goes through once the name and the e-mail are right (validateBooking).
  * What is wrong shows under its field after Buy, or as soon as the visitor leaves a field filled in wrong, and follows
@@ -76,7 +83,7 @@ function BookingForm({ onBuy, onRestart }: { onBuy: () => void; onRestart: () =>
       {field('email', t.email, 'email')}
       <label className={styles.wide}>
         {t.comment}
-        <textarea name="comment" rows={2} maxLength={500} />
+        <textarea name="comment" rows={1} maxLength={500} onInput={(e) => fitToWords(e.currentTarget)} />
       </label>
       <div className={styles.formActions}>
         <button type="submit" className={styles.button}>

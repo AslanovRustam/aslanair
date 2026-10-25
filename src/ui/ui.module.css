@@ -274,6 +274,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.15rem 1.75rem;
+  /* native parts of the fields (autofill, the caret, the scrollbar) in their dark versions */
+  color-scheme: dark;
 }
 
 .form > p,
@@ -302,10 +304,33 @@
   transition: border-color 0.2s;
 }
 
+/* one line until there is more to say, then it grows with the words (Outro sizes it where field-sizing is missing) */
+.form textarea {
+  field-sizing: content;
+  max-height: 8.5rem;
+  overflow-y: auto;
+}
+
 .form input:focus-visible,
 .form textarea:focus-visible {
   outline: none;
   border-bottom-color: var(--accent);
+}
+
+/* the browser's autofill keeps the field dark: its own light fill held off for good, the words in our ink */
+.form input:-webkit-autofill,
+.form input:-webkit-autofill:hover,
+.form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  transition:
+    background-color 0s 600000s,
+    color 0s 600000s,
+    border-color 0.2s;
+}
+
+.form input:autofill {
+  filter: none;
 }
 
 /* a field with its note under it when it needs putting right */
@@ -379,5 +404,28 @@
 
   .form {
     grid-template-columns: 1fr;
+  }
+
+  /* the seat's bar: a card across the screen, the seat's words over its two buttons, side by side */
+  .barSeated {
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.85rem;
+    border-radius: 1.4rem;
+    white-space: normal;
+  }
+
+  .barSeated .barSeat {
+    flex-basis: 100%;
+    text-align: center;
+  }
+
+  .barSeated button {
+    flex: 1 1 0;
+    min-height: 2.75rem;
   }
 }

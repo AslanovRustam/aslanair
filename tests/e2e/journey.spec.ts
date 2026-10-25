@@ -86,6 +86,67 @@ test('chapter captions use the display face', async ({ page }) => {
   expect(await caption.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Archivo');
 });
 
+for (const viewport of [
+  { width: 360, height: 740 },
+  { width: 390, height: 844 },
+  { width: 412, height: 915 },
+]) {
+  test(`on a ${viewport.width} px phone the aisle's, the seat's and the pass's bars fit the screen, every word and button whole`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    await waitForStore(page);
+    /** Every button and the seat's words lie wholly on screen, the buttons big enough to tap. */
+    const fits = async (where: string, parts: import('@playwright/test').Locator[]) => {
+      for (const part of parts) {
+        await expect(part, where).toBeVisible();
+        const b = (await part.boundingBox())!;
+        expect(b.x, `${where}: left edge`).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.width, `${where}: right edge`).toBeLessThanOrEqual(viewport.width);
+        expect(b.y + b.height, `${where}: bottom edge`).toBeLessThanOrEqual(viewport.height);
+        expect(await part.evaluate((e) => e.scrollWidth <= e.clientWidth + 1), `${where}: nothing cut`).toBe(true);
+      }
+    };
+    await page.evaluate(() => (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void } } } }).__aslan.store.getState().setProgress(__pre('aisle', 0.27)));
+    await fits('aisle', [page.getByRole('button', { name: /pick for me/i })]);
+    // the longest seat line there is: a window seat with extra legroom
+    await page.evaluate(() => {
+      const s = (window as unknown as { __aslan: { store: { getState(): { seats: { id: string; status: string }[]; sit(id: string): boolean } } } }).__aslan.store.getState();
+      s.seats.find((x) => x.id === '14F')!.status = 'free';
+      s.sit('14F');
+    });
+    const seated = [page.getByText(/^14F · Window · Extra legroom/), page.getByRole('button', { name: /see another/i }), page.getByRole('button', { name: /choose this seat/i })];
+    await fits('seated', seated);
+    for (const button of seated.slice(1)) expect((await button.boundingBox())!.height, 'big enough to tap').toBeGreaterThanOrEqual(40);
+    await page.evaluate(() => {
+      const s = (window as unknown as { __aslan: { store: { getState(): { confirm(): void; setProgress(p: number): void } } } }).__aslan.store.getState();
+      s.confirm();
+      s.setProgress(0.07);
+    });
+    await fits('pass', [page.getByRole('button', { name: /change seat/i }), page.getByRole('button', { name: /take off/i })]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), 'no sideways scroll').toBeLessThanOrEqual(viewport.width);
+  });
+}
+
+test('the comment box is one line high until there is more to say, then grows with it', async ({ page }) => {
+  await page.goto('/');
+  await waitForStore(page);
+  await page.evaluate(() => {
+    const s = (window as unknown as { __aslan: { store: { getState(): { setProgress(p: number): void; seats: { id: string; status: string }[]; sit(id: string): boolean; confirm(): void } } } }).__aslan.store.getState();
+    s.setProgress(__pre('aisle', 0.27));
+    s.seats.find((x) => x.id === '14F')!.status = 'free';
+    s.sit('14F');
+    s.confirm();
+    s.setProgress(0.9);
+  });
+  const comment = page.getByLabel('Comment');
+  const name = page.getByLabel('Name');
+  await expect(comment).toBeVisible();
+  const height = async (l: typeof comment) => (await l.boundingBox())!.height;
+  expect(Math.abs((await height(comment)) - (await height(name))), 'as high as a line field').toBeLessThanOrEqual(2);
+  await comment.fill('A window seat, please.\nAnd a quiet row.\nThank you!');
+  await expect.poll(() => height(comment), { message: 'three lines' }).toBeGreaterThan((await height(name)) * 2);
+});
+
 test('the form asks for a name and a real e-mail before Buy goes through, saying what is wrong under each field', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);

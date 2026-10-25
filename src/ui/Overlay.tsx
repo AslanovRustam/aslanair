@@ -50,7 +50,7 @@ export default function Overlay() {
         </div>
       )}
       {phase === 'seated' && selected && (
-        <div className={styles.bar}>
+        <div className={`${styles.bar} ${styles.barSeated}`}>
           <span className={styles.barSeat}>{seatLabel(selected)}</span>
           <button type="button" className={styles.ghost} onClick={standUp}>
             {copy.seated.another}
