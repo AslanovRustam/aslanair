@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { trackProgress } from '@/experience/chapters';
 import { heroScale, HERO_PICTURE, INTRO } from '@/experience/introState';
-import { waitForStore } from './helpers';
+import { loaderGone, waitForStore } from './helpers';
 
 type Node = { visible: boolean; layers: { mask: number } };
 type IntroWindow = Window & {
@@ -107,11 +107,14 @@ for (const viewport of [
     });
     await page.goto('/');
     await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
-    await page.waitForTimeout(1800); // the picture fades in
-    const box = heroPlaneBox(page);
-    const picture = await page.screenshot({ clip: box });
+    // the loader is held over the page once ready, so its picture can be photographed grown to the hero's size
+    await page.addStyleTag({ content: '#loader[data-ready="true"] { opacity: 1 !important; visibility: visible !important; transition: none !important; }' });
     release();
     await isReady(page);
+    await page.waitForTimeout(1300); // the picture grows into the hero's (LOADER.grow)
+    const box = heroPlaneBox(page);
+    const picture = await page.screenshot({ clip: box });
+    await page.evaluate(() => document.querySelectorAll('style').forEach((s) => s.textContent?.includes('#loader[data-ready="true"]') && s.remove()));
     await page.waitForTimeout(1200); // the loader's fade
     // compare the plane alone: the hero's words sit behind it once the loader has gone
     await page.addStyleTag({ content: '[data-testid="hero"], [data-testid="hero"] * { visibility: hidden !important; }' });
@@ -135,7 +138,7 @@ test('at the top the live plane is in the scene; there is no stand-in picture an
 test('resizing at the top keeps the live plane where the picture puts it', async ({ page }) => {
   await page.goto('/');
   await waitForStore(page);
-  await isReady(page);
+  await loaderGone(page);
   // the plane alone: the hero's words and the grid's lines behind it would count as plane
   await page.addStyleTag({ content: 'nextjs-portal, [data-testid="hero"], [data-testid="grid"] { display: none !important; }' });
   await page.setViewportSize({ width: 1180, height: 860 });

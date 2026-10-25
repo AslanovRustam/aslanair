@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { waitForStore } from './helpers';
+import { loaderGone, waitForStore } from './helpers';
 
 type GridWindow = Window & {
   __aslan: {
@@ -11,7 +11,7 @@ async function open(page: Page, at: number | null = null) {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto('/');
   await waitForStore(page);
-  await page.waitForFunction(() => document.getElementById('loader')?.dataset.ready === 'true', null, { timeout: 60_000 });
+  await loaderGone(page);
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   if (at !== null) await page.evaluate((p) => (window as unknown as GridWindow).__aslan.store.getState().setProgress(p), at);
   await page.waitForTimeout(600);

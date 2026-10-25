@@ -78,7 +78,19 @@ export async function scanForHoveredSeat(page: Page): Promise<{ id: string; x: n
 }
 
 /** Real wheel scrolling (through Lenis) until the progress reaches `target`; returns where it settled. */
+/** The loader has handed over and gone (spec r5 §3: the page holds still until then, so a wheel before is lost). */
+export const loaderGone = (page: Page) =>
+  page.waitForFunction(
+    () => {
+      const loader = document.getElementById('loader');
+      return !!loader && loader.dataset.ready === 'true' && getComputedStyle(loader).visibility === 'hidden';
+    },
+    null,
+    { timeout: 60_000 },
+  );
+
 export async function wheelTo(page: Page, target: number): Promise<number> {
+  await loaderGone(page);
   let at = await progress(page);
   for (let i = 0; i < 40 && at < target; i++) {
     // a notch at a time, each left to settle, so the scroll stops just past `target` rather than overshooting
@@ -95,6 +107,7 @@ export async function wheelTo(page: Page, target: number): Promise<number> {
 
 /** Wheel until the current scroll track reaches its end. */
 export async function scrollToEnd(page: Page) {
+  await loaderGone(page);
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
   await expect.poll(() => progress(page), { timeout: 15_000 }).toBeGreaterThan(0.95);
 }
