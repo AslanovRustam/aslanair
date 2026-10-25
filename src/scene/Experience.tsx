@@ -32,6 +32,7 @@ import CameraRig from './CameraRig';
 import CaptureMode from './CaptureMode';
 import CompileAsync from './CompileAsync';
 import CurtainPass from './CurtainPass';
+import QualityGovernor from './QualityGovernor';
 import Globe from './globe/Globe';
 import GlobeLabels from './globe/GlobeLabels';
 import GlobeSpin from './globe/GlobeSpin';
@@ -126,6 +127,7 @@ export default function Experience() {
           shadows="percentage"
           camera={{ position: start.position.toArray(), fov: start.fov, near: 0.05, far: 60000 }}
         >
+          <QualityGovernor />
           <SceneTestHook />
           <LoadTracker parts={[cabinShown, aircraftCompiled, globeShown, curtainCompiled]} />
           <CameraRig />

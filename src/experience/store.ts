@@ -4,6 +4,7 @@ import { createStore } from 'zustand/vanilla';
 import type { Track } from './chapters';
 import { DEFAULT_TRANSFER, destination, SUGGESTED, TRANSFERS, type TransferId } from './destinations';
 import { nextFlight, type ArcFlight } from './globe';
+import type { Tier } from './quality';
 import { generateSeatMap, pickRecommendedSeat, type Seat } from './seats';
 
 export type Phase = 'browse' | 'seated' | 'confirmed' | 'thanks';
@@ -18,6 +19,9 @@ export interface ExperienceState {
   /** Aisle progress when the visitor sat down; standing up or changing seat returns here. */
   aisleReturn: number;
   soundOn: boolean;
+  /** How much the device draws (quality.ts); the QualityGovernor sets it from the device and may step it down once. */
+  quality: Tier;
+  setQuality(tier: Tier): void;
   /** The chosen destination's code (home, Odesa, is always the origin). */
   destinationId: string;
   transferId: TransferId;
@@ -67,6 +71,8 @@ export const experienceStore = createStore<ExperienceState>()((set, get) => {
     progress: 0,
     aisleReturn: 0,
     soundOn: false,
+    quality: 'high',
+    setQuality: (quality) => set({ quality }),
     destinationId: SUGGESTED,
     transferId: DEFAULT_TRANSFER,
     transferPicked: false,

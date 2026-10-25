@@ -334,12 +334,17 @@
     "LavatoryDoors": 104,
     "LavatoryTrim": 176,
     "SeatArm": 256,
+    "SeatArmLow": 24,
     "SeatBelt": 88,
     "SeatBuckle": 56,
     "SeatCover": 192,
+    "SeatCoverLow": 48,
     "SeatFabric": 686,
+    "SeatFabricLow": 82,
     "SeatLegs": 400,
-    "SeatShell": 380
+    "SeatLegsLow": 72,
+    "SeatShell": 380,
+    "SeatShellLow": 40
   },
   "units": "m"
 }

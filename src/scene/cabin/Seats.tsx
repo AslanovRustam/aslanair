@@ -17,6 +17,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { armMatrices, isInsideSeat, seatMatrices } from '@/experience/cabinLayout';
 import { chapterAt } from '@/experience/chapters';
+import { TIER } from '@/experience/quality';
 import { tapAction } from '@/experience/seatCard';
 import { easeLevel, hoverLift, SEAT_GLOW } from '@/experience/seatGlow';
 import { SEAT_COLORS, seatVisual } from '@/experience/seats';
@@ -31,6 +32,8 @@ const OCCUPIED_DIM = 0.75;
 const OWN_SEAT_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover', 'SeatLegs', 'SeatBelt', 'SeatBuckle'];
 /** Parts that light up: they carry the instanced `seatGlow` attribute (see withSeatGlow). */
 const GLOW_PARTS = ['SeatFabric', 'SeatShell', 'SeatCover'];
+/** The low tier's seat (quality.ts): plain parts under the same names plus "Low"; no belt or buckle. */
+const LOW_PARTS = new Set(['SeatFabric', 'SeatShell', 'SeatCover', 'SeatArm', 'SeatLegs']);
 const GLOW_COLORS = { hover: new Color(SEAT_GLOW.hover.color), selected: new Color(SEAT_GLOW.selected.color) };
 const GONE = new Matrix4().makeScale(0, 0, 0);
 
@@ -79,6 +82,7 @@ export default function Seats() {
   const seats = useExperience((s) => s.seats);
   const hoveredId = useExperience((s) => s.hoveredSeatId);
   const selectedId = useExperience((s) => s.selectedSeatId);
+  const lod = useExperience((s) => TIER[s.quality].seatLod);
   const kit = useKitGeometry();
   const m = cabinMaterials();
   const parts = useRef<Record<string, InstancedMesh | null>>({});
@@ -166,7 +170,7 @@ export default function Seats() {
 
   useLayoutEffect(() => {
     const attribute = new InstancedBufferAttribute(new Float32Array(seats.length * 3), 3);
-    for (const name of GLOW_PARTS) kit(name).setAttribute('seatGlow', attribute);
+    for (const name of GLOW_PARTS) for (const model of [name, `${name}Low`]) kit(model).setAttribute('seatGlow', attribute);
     glow.current = attribute;
   }, [kit, seats.length]);
 
@@ -185,7 +189,8 @@ export default function Seats() {
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
-  }, [seats]);
+    // a tier change swaps the seat model: its new meshes take their places here too
+  }, [seats, lod]);
 
   useLayoutEffect(() => {
     const fabric = parts.current.SeatFabric!;
@@ -197,7 +202,7 @@ export default function Seats() {
     });
     fabric.instanceColor!.needsUpdate = true;
     cover.instanceColor!.needsUpdate = true;
-  }, [seats, hoveredId, selectedId]);
+  }, [seats, hoveredId, selectedId, lod]);
 
   // on touch there is no hover: a first tap focuses a seat (its card shows), a second tap sits
   const onMove = (e: ThreeEvent<PointerEvent>) => {
@@ -232,17 +237,22 @@ export default function Seats() {
     if (interactive() && lastPointerKind() === 'touch') experienceStore.getState().hover(null);
   };
 
-  const part = (name: string, material: Material, count = seats.length) => (
-    <instancedMesh
-      key={name}
-      name={name}
-      ref={(mesh) => {
-        parts.current[name] = mesh;
-      }}
-      args={[kit(name), material, count]}
-      raycast={() => null}
-    />
-  );
+  /** One instanced seat part, keyed by its name; the low tier draws its plain model (or nothing, belt and buckle). */
+  const part = (name: string, material: Material, count = seats.length) => {
+    if (lod === 'low' && !LOW_PARTS.has(name)) return null;
+    const model = lod === 'low' ? `${name}Low` : name;
+    return (
+      <instancedMesh
+        key={model}
+        name={model}
+        ref={(mesh) => {
+          parts.current[name] = mesh;
+        }}
+        args={[kit(model), material, count]}
+        raycast={() => null}
+      />
+    );
+  };
 
   return (
     <group>

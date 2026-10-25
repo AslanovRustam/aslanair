@@ -23,6 +23,12 @@ describe('cabin kit', () => {
     expect(statSync(KIT).size).toBeLessThanOrEqual(600_000);
   });
 
+  test('the low-tier seat (plan 5 Task 1) has its own plain parts, under 400 triangles in all', () => {
+    const LOW = ['SeatFabricLow', 'SeatShellLow', 'SeatCoverLow', 'SeatArmLow', 'SeatLegsLow'];
+    for (const n of LOW) expect(glbNodeNames(KIT), n).toContain(n);
+    expect(LOW.reduce((t, n) => t + kit.triangles[n], 0)).toBeLessThanOrEqual(400);
+  });
+
   test('bins stay inside the hull along the whole cabin, tail taper included', () => {
     const inset = aircraftMeta.linerInset;
     for (let row = 1; row <= ROWS; row++) {

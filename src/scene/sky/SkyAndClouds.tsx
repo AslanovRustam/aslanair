@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { SKY_IMAGES } from '@/experience/clouds';
 import { CURTAIN_LAYER } from '@/experience/curtain';
-import { experienceStore } from '@/experience/store';
+import { TIER } from '@/experience/quality';
+import { experienceStore, useExperience } from '@/experience/store';
 import { nightSkyDrawn, worldMode } from '@/experience/worldState';
 import CloudPuffs from './CloudPuffs';
 import CloudSea from './CloudSea';
@@ -61,6 +62,15 @@ export default function SkyAndClouds({ background = true }: { background?: boole
   const backdrop = useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>>(null);
   const moon = useRef<THREE.DirectionalLight>(null);
   const fill = useRef<THREE.AmbientLight>(null);
+  // the tier's shadow map: on a change the old map is let go and the next shadow pass draws a new one
+  const shadowMapSize = useExperience((s) => TIER[s.quality].shadowMapSize);
+  useEffect(() => {
+    const light = moon.current;
+    if (!light?.shadow.map) return;
+    light.shadow.map.dispose();
+    light.shadow.map = null;
+    gl.shadowMap.needsUpdate = true;
+  }, [shadowMapSize, gl]);
   const uniforms = useMemo(
     () => ({
       uStars: { value: standIn([0, 0, 0, 255]) as THREE.Texture },
@@ -152,7 +162,7 @@ export default function SkyAndClouds({ background = true }: { background?: boole
         intensity={MOONLIGHT.showcase.intensity}
         position={MOON_DIRECTION.clone().multiplyScalar(80).toArray()}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[shadowMapSize, shadowMapSize]}
         shadow-camera-left={-26}
         shadow-camera-right={26}
         shadow-camera-top={26}

@@ -13,16 +13,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aslanair import context as ctx  # noqa: E402
 from aslanair.export import export_kit_glb  # noqa: E402
 from aslanair.kit import (build_aft_galley, build_bin_trim, build_bins, build_cart, build_cockpit_door, build_curtain, build_exit_sign, build_galley, build_jump_seat,  # noqa: E402
-                         build_lavatories, build_seat_parts, render_seat, triangles)
+                         build_lavatories, build_seat_low_parts, build_seat_parts, render_seat, triangles)
 
 SEAT_BUDGET = 3000
+LOW_SEAT_BUDGET = 400
 
 
-def verify_kit(seat_parts):
+def verify_kit(seat_parts, low_parts):
     total = sum(triangles(ob) for ob in seat_parts)
     if total > SEAT_BUDGET:
         sys.exit(f'kit check failed: one seat is {total} triangles (budget {SEAT_BUDGET})')
-    ctx.log(f'one seat is {total} triangles')
+    low = sum(triangles(ob) for ob in low_parts)
+    if low > LOW_SEAT_BUDGET:
+        sys.exit(f'kit check failed: the low-tier seat is {low} triangles (budget {LOW_SEAT_BUDGET})')
+    ctx.log(f'one seat is {total} triangles, the low-tier seat {low}')
 
 
 def main():
@@ -38,7 +42,7 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     seat = build_seat_parts()
-    verify_kit(seat)
+    verify_kit(seat, build_seat_low_parts())
     build_bins()
     build_bin_trim()
     build_galley()

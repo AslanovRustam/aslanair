@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { PUFFS, puffLayout, puffTexels, wrapAround, type Puff } from '@/experience/clouds';
+import { TIER } from '@/experience/quality';
 import { experienceStore } from '@/experience/store';
 import { nightSkyDrawn } from '@/experience/worldState';
 import { PUFF_FRAGMENT, PUFF_VERTEX } from './shaders';
@@ -60,7 +61,8 @@ function writePuffs(g: THREE.InstancedBufferGeometry, puffs: Puff[], order: numb
 /**
  * The sprite clouds (spec r4 §9.3): `PUFFS.count` moonlit puffs in clusters between the cloud sea and the plane, one
  * instanced draw of camera-facing quads. The wind carries them and their field wraps round the camera on the GPU;
- * here they are only re-sorted far to near once a second, for their blending.
+ * here they are only re-sorted far to near once a second, for their blending. The quality tier draws fewer of them
+ * (TIER.puffs, the draw's instance count, never a shader change): the nearest ones, so the field thins far off.
  */
 export default function CloudPuffs({ moon }: { moon: THREE.Vector3 }) {
   const puffs = useMemo(() => puffLayout(7), []);
@@ -88,6 +90,9 @@ export default function CloudPuffs({ moon }: { moon: THREE.Vector3 }) {
     const s = experienceStore.getState();
     mesh.visible = nightSkyDrawn(s.phase, s.progress, s.ready);
     if (!mesh.visible) return;
+    const count = TIER[s.quality].puffs;
+    const tierChanged = mesh.geometry.instanceCount !== count;
+    mesh.geometry.instanceCount = count;
     const t = clock.elapsedTime;
     const [wx, wy, wz] = PUFFS.wind;
     const { box } = PUFFS;
@@ -95,7 +100,7 @@ export default function CloudPuffs({ moon }: { moon: THREE.Vector3 }) {
     // the wind's offset, wrapped by the field (the shader wraps again round the camera)
     u.uDrift.value.set(wrapAround(wx * t, 0, box), wy * t, wrapAround(wz * t, 0, box));
     u.uCam.value.copy(camera.position);
-    if (t - sorted.current < SORT_EVERY) return;
+    if (t - sorted.current < SORT_EVERY && !tierChanged) return;
     sorted.current = t;
     const drift = u.uDrift.value as THREE.Vector3;
     const at = puffs.map((p) => {
@@ -105,11 +110,9 @@ export default function CloudPuffs({ moon }: { moon: THREE.Vector3 }) {
       const z = p.centre[2] + drift.z + wrapAround(cz, camera.position.z, box) - cz;
       return (x - camera.position.x) ** 2 + (p.centre[1] - camera.position.y) ** 2 + (z - camera.position.z) ** 2;
     });
-    writePuffs(
-      mesh.geometry,
-      puffs,
-      puffs.map((_, i) => i).sort((a, b) => at[b] - at[a]),
-    );
+    // far to near for the blending; a lower tier keeps the nearest `count`
+    const order = puffs.map((_, i) => i).sort((a, b) => at[b] - at[a]);
+    writePuffs(mesh.geometry, puffs, order.slice(order.length - count));
   });
 
   return (
